@@ -2,8 +2,6 @@
 
 This folder is reserved for Echo Gate, the future cross-platform launcher/client runner for Meteor.
 
-The launcher should become a developer-first tool for running a legally owned Final Fantasy XIV 1.23b Windows client against a local or private Meteor server.
-
 Initial launcher goals:
 
 - validate a local 1.23b client folder
