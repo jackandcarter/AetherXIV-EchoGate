@@ -6,7 +6,7 @@ A few notes:
 This Meteor project is a port and fork of the original Project:Meteor. It is in no way connected to anyone from that project.
 The current source targets a very old dotnet version, which will be updated for dotnet10 in this project in the near future.
 
-Until then this is for reference.
+Until then, the main branch is mostly for reference. Old Project:Meteor targeted Windows as the hosting platform, while this project targets Windows, Linux, and MacOS.
 
 ## Solution layout
 - `Lobby Server/`: Login and character selection service.
