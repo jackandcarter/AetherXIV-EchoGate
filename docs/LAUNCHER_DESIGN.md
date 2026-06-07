@@ -1,46 +1,56 @@
-# Echo Gate Launcher Design
+# Echo Gate Launcher Specification
 
-## Purpose
+## Product Role
 
-Echo Gate should become the cross-platform client runner for a legally owned Final Fantasy XIV 1.23b install.
+Echo Gate is the cross-platform client runner for a user-owned Final Fantasy XIV 1.23b installation.
 
-Its job is not to replace the server. Its job is to make client validation repeatable on macOS, Linux, and Windows:
+Primary responsibilities:
 
-- find and validate a local 1.23b client install
-- manage local server profiles
+- validate a local 1.23b client installation
+- manage local and private server profiles
 - configure the legacy launcher/client connection path
-- prepare local server runtime data derived from the client
-- start the client through the best available platform runtime
-- capture logs and launch diagnostics for server development
+- prepare local server runtime data derived from the client installation
+- start the client through a platform-specific runtime
+- collect launch diagnostics for server validation
+
+Echo Gate is a launcher and runtime orchestrator. Server emulation, database migration, game-content scripting, and protocol implementation remain part of the Meteor server stack.
 
 ## Target Client
 
 - Final Fantasy XIV 1.23b / `2012.09.19.0001`
 - Original 1.x Windows client
-- Not A Realm Reborn
-- Not current retail FFXIV
-- Not the current official macOS client
+- A Realm Reborn and current retail clients are outside scope.
+- The current official macOS client is outside scope.
 
-The app must never download, bundle, commit, or redistribute game client files.
+## Asset Policy
 
-## Design Principles
+Client files are user-owned local data.
 
-- Treat the client install as user-owned local data.
-- Keep server address/profile management explicit and visible.
-- Prefer boring, inspectable launch steps over opaque magic.
-- Keep Wine/CrossOver runtime selection pluggable.
-- Preserve logs for every launch attempt.
-- Make macOS/Linux testing first-class, because that is our local development path.
-- Keep Windows support simple: direct process launch without Wine.
+Repository exclusions:
 
-## MVP Scope
+- game client files
+- extracted client assets
+- patch files
+- packet captures containing credentials or private account data
+- local secrets
 
-The first launcher should be a developer tool, not a polished public launcher.
+Echo Gate may read local client files for validation and setup. Echo Gate must not distribute, bundle, commit, or publish client assets.
 
-MVP features:
+## Design Laws
 
-- Client folder picker/path setting.
-- Version/file validation checklist.
+- Client installation state is explicit and user-controlled.
+- Server profile state is explicit and inspectable.
+- Runtime selection is pluggable across Windows, macOS, and Linux.
+- Launch steps are logged as discrete events.
+- macOS and Linux are first-class development targets.
+- Windows launch support remains direct process execution.
+- Client-derived server data is generated locally and excluded from version control.
+- Runtime behavior is recorded through reproducible profiles rather than hidden application state.
+
+## MVP Functional Requirements
+
+- Client folder picker or path setting.
+- Client validation checklist.
 - Server profile editor:
   - profile name
   - lobby address
@@ -54,65 +64,68 @@ client/script/rq9q1797qvs.san
 ```
 
 - Launch modes:
-  - Windows: launch the configured `.exe` directly.
-  - macOS: launch through selected Wine/CrossOver wrapper.
-  - Linux: launch through selected Wine/Proton wrapper.
+  - Windows: direct executable launch
+  - macOS: Wine/CrossOver runtime launch
+  - Linux: Wine/Proton runtime launch
 - Launch log viewer.
-- Basic troubleshooting checks:
+- Runtime checks:
   - server ports reachable
   - PHP login URL reachable
   - client path present
-  - Wine runtime present
+  - selected runtime present
+  - generated `Data/staticactors.bin` present
 
-## Non-Goals For MVP
+## MVP Out Of Scope
 
-- Do not distribute a client.
-- Do not implement patch downloading until the legal/source story is clear.
-- Do not implement plugin/mod support.
-- Do not inject code into the client.
-- Do not add account management beyond linking to the local PHP `create_user.php` flow.
-- Do not build a fancy UI before the launch path works.
+- Client download.
+- Patch download.
+- Client redistribution.
+- Plugin or mod support.
+- Client code injection.
+- Credential storage.
+- Account management beyond linking to the local PHP `create_user.php` flow.
+- Public launcher polish before the launch path is reproducible.
 
 ## Candidate App Stack
 
-Best first choice: Tauri.
+### Primary Candidate: Tauri
 
-Reasons:
+Rationale:
 
-- small cross-platform desktop app
-- Rust backend is good for process launching, paths, and file validation
-- frontend can stay simple
-- builds on macOS, Linux, and Windows
-- does not force us into the legacy server runtime
+- small cross-platform desktop application footprint
+- Rust backend suitable for process launching, paths, filesystem checks, and runtime probes
+- simple frontend surface for the first version
+- macOS, Linux, and Windows build support
+- independent of the legacy server runtime
 
-Alternative: Avalonia/.NET.
+### Alternative Candidate: Avalonia/.NET
 
-Reasons:
+Rationale:
 
-- fits the planned .NET modernization
-- good cross-platform UI
-- easier sharing of future config models with server tooling
+- alignment with the planned .NET server modernization
+- cross-platform UI support
+- potential shared configuration models with server tooling
 
-Recommendation: start with Tauri if the launcher is mostly process/runtime orchestration. Use Avalonia if we want deeper shared .NET tooling later.
+### Initial Decision
 
-## Proposed Repository Layout
+Use Tauri for the first launcher implementation unless the .NET server port creates a clear need for shared launcher/server libraries.
+
+## Repository Layout
 
 ```text
 launcher/
   README.md
   app/
-    # future Tauri or Avalonia project
+    # Tauri or Avalonia project
   docs/
     # launcher-specific notes and screenshots
   scripts/
     # runtime probes and packaging helpers
 ```
 
-Until the client exists locally, keep this folder documentation-first.
-
 ## Runtime Model
 
-Echo Gate should model the launch path as data:
+Echo Gate models the launch path as data:
 
 ```text
 ClientInstall
@@ -136,19 +149,19 @@ RuntimeProfile
   environment
 ```
 
-This lets us test the same server profile under different launch runtimes without changing server code.
+The same server profile must be testable through multiple runtime profiles.
 
-## Launch Flow
+## Launch Procedure
 
 1. Validate local client path.
-2. Validate local server profile.
+2. Validate selected server profile.
 3. Check login URL.
-4. Check lobby/world/map ports if requested.
+4. Check configured server ports.
 5. Prepare or validate `Data/staticactors.bin`.
-6. Write/update launcher server configuration.
-7. Start the selected Wine/CrossOver/Windows runtime.
-8. Stream launcher logs into a local log folder.
-9. Record outcome:
+6. Write or update launcher server configuration.
+7. Start the selected Windows/Wine/CrossOver/Proton runtime.
+8. Stream launch logs into a local log folder.
+9. Record launch outcome:
    - launched
    - login reached
    - world selected
@@ -157,17 +170,17 @@ This lets us test the same server profile under different launch runtimes withou
 
 ## Development Milestones
 
-### Milestone 0: Manual Client Runtime
+### Milestone 0: Runtime Characterization
 
-- Get the 1.23b client launching manually through CrossOver/Wine or Windows.
-- Confirm which executable and arguments are required.
-- Confirm whether Seventh Umbral Launcher is required or can be replaced.
-- Record working Wine/runtime settings.
+- Launch 1.23b through the selected runtime.
+- Record executable path and launch arguments.
+- Record Seventh Umbral Launcher requirements.
+- Record working runtime settings.
 
 ### Milestone 1: CLI Helper
 
-- Add a small CLI that validates a client path.
-- Generate/update `servers.xml`.
+- Validate a client path.
+- Generate or update `servers.xml`.
 - Copy `staticactors.bin`.
 - Launch through a user-supplied command.
 
@@ -184,21 +197,21 @@ This lets us test the same server profile under different launch runtimes withou
 - Support Wine prefix selection on Linux.
 - Add runtime probes and diagnostics.
 
-### Milestone 4: Integrated Dev Loop
+### Milestone 4: Integrated Development Loop
 
-- Start or check local Meteor services.
+- Check local Meteor service readiness.
 - Launch client.
 - Show server logs and client launch logs side by side.
 - Save packet-test session notes for `CLIENT_REQUIREMENTS.md`.
 
-## Open Questions
+## Research Items
 
-- Which exact 1.23b executable should be launched after Seventh Umbral setup?
-- Does the client require launcher-generated arguments or tokens?
-- Can Seventh Umbral Launcher run cleanly under modern Wine/CrossOver?
-- Which renderer path is best for 1.x DirectX 9 on Apple Silicon: DXVK/MoltenVK, WineD3D, or a CrossOver-specific layer?
-- Are any registry keys required by the 1.x client?
-- Where does the client write config and logs under Wine?
+- Exact 1.23b executable after Seventh Umbral setup.
+- Required launcher-generated arguments or tokens.
+- Seventh Umbral Launcher behavior under modern Wine/CrossOver.
+- Best renderer path for 1.x DirectX 9 on Apple Silicon.
+- Required registry keys.
+- Client configuration and log paths under Wine.
 
 ## References
 

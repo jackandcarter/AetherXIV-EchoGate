@@ -45,7 +45,7 @@ To drop and recreate the database during local development:
 DROP_DATABASE=1 DB_NAME=ffxiv_server ./tools/import-db.sh
 ```
 
-The import helper defaults to `DB_HOST=localhost` and `DB_USER=$USER`, which matches Homebrew MariaDB socket auth on macOS. The default server configs use `meteor` / `meteor_dev` against `ffxiv_server`; `create-db-user.sh` creates that local dev account. Override `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASS`, `DB_ADMIN_USER`, `DB_ADMIN_PASS`, `DB_APP_USER`, or `DB_APP_PASS` if your Linux or CI setup uses different accounts. Do not use checked-in dev credentials outside a local lab.
+The import helper defaults to `DB_HOST=localhost` and `DB_USER=$USER`, which matches Homebrew MariaDB socket auth on macOS. The default server configs use `meteor` / `meteor_dev` against `ffxiv_server`; `create-db-user.sh` creates that local dev account. Override `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASS`, `DB_ADMIN_USER`, `DB_ADMIN_PASS`, `DB_APP_USER`, or `DB_APP_PASS` for Linux, CI, or dedicated database accounts. Checked-in dev credentials are local-lab only.
 
 ## PHP Login/Vercheck Server
 
@@ -84,7 +84,7 @@ CLIENT_DIR="/path/to/FINAL FANTASY XIV" ./tools/prepare-client-data.sh
 CONFIGURATION=Release ./tools/copy-runtime-data.sh
 ```
 
-Keep this file local. Do not commit client assets.
+Client-derived files remain local and excluded from version control.
 
 ## Server Startup Order
 
@@ -104,16 +104,16 @@ mono "Map Server/bin/Release/Map Server.exe"
 mono "World Server/bin/Release/World Server.exe"
 ```
 
-World Server connects to map/zone servers at startup, so Map Server should be listening before World Server starts.
+World Server connects to map/zone servers at startup. Map Server must be listening before World Server starts.
 
 ## Apple Silicon Client Notes
 
-The server can be developed on Apple Silicon, but the 1.23b game client is a legacy Windows client. Practical options:
+The server supports Apple Silicon development. The 1.23b game client is a legacy Windows client. Runtime options:
 
 - Try CrossOver, Wineskin, or another maintained Wine wrapper for the Windows client and Seventh Umbral launcher.
-- If Wine fails, use a Windows x86 environment on another machine or VM/emulator for client testing.
+- Use a Windows x86 environment on another machine or VM/emulator for client testing when Wine compatibility blocks a path.
 - Use client packet captures to update `CLIENT_REQUIREMENTS.md`.
 
 The later official macOS FFXIV client is for A Realm Reborn/current FFXIV and is not compatible with this 1.23b server protocol.
 
-For the future launcher/runtime plan, see `docs/LAUNCHER_DESIGN.md` and `docs/WINE_RUNTIME_STRATEGY.md`.
+For Echo Gate launcher/runtime design, see `docs/LAUNCHER_DESIGN.md` and `docs/WINE_RUNTIME_STRATEGY.md`.

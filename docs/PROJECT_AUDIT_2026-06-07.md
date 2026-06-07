@@ -2,7 +2,7 @@
 
 ## Scope
 
-This audit reviews the local state of `jackandcarter/Meteor`, a fork/port of Project Meteor for the Final Fantasy XIV 1.23b client. It focuses on repository readiness, macOS/Linux development setup, server/database runtime requirements, client compatibility, and likely missing implementation areas.
+This audit reviews the local state of `jackandcarter/Meteor`, a fork/port of Project Meteor for the Final Fantasy XIV 1.23b client. It focuses on repository readiness, macOS/Linux development setup, server/database runtime requirements, client compatibility, and known gaps.
 
 ## Local Repository State
 
@@ -50,7 +50,7 @@ This audit reviews the local state of `jackandcarter/Meteor`, a fork/port of Pro
 
 - `Data/staticactors.bin` is missing.
 - The historical Project Meteor compile guide says this file is created by copying the 1.23b client file `client/script/rq9q1797qvs.san` into the server data folder as `staticactors.bin`.
-- `Map Server/Server.cs` loads `./staticactors.bin` at startup, so the Map Server is not runtime-ready until that file is present in the Map Server output folder.
+- `Map Server/Server.cs` loads `./staticactors.bin` at startup. Map runtime readiness requires this file in the Map Server output folder.
 - `tools/copy-runtime-data.sh` copies configs and scripts into the output folders. It warns when `Data/staticactors.bin` is missing.
 - `tools/prepare-client-data.sh` can prepare `Data/staticactors.bin` from a local 1.23b client install once one is available.
 
@@ -62,7 +62,7 @@ This audit reviews the local state of `jackandcarter/Meteor`, a fork/port of Pro
   - database: `ffxiv_server`
   - username: `meteor`
   - password: `meteor_dev`
-- This is acceptable for a local lab, but should not be exposed publicly.
+- These credentials are local-lab defaults and are not suitable for exposed deployments.
 - `Data/sql/import.sh` was stale and syntactically invalid for MySQL/MariaDB. Use `tools/import-db.sh` instead.
 - `tools/import-db.sh` now defaults to `localhost` socket auth and the current OS username, with `DB_HOST`, `DB_PORT`, `DB_USER`, and `DB_PASS` overrides.
 - `tools/create-db-user.sh` creates or updates the default local `meteor` DB user.
@@ -80,7 +80,7 @@ Recommended local startup order:
 4. Start Map Server.
 5. Start World Server.
 
-Reason: `World Server/Server.cs` calls `LoadZoneServerList()` and `ConnectToZoneServers()` during startup, so Map Server should already be listening when World Server starts. The historical wiki also starts Lobby, then Map, then World.
+Reason: `World Server/Server.cs` calls `LoadZoneServerList()` and `ConnectToZoneServers()` during startup. Map Server must already be listening when World Server starts. The historical wiki also starts Lobby, then Map, then World.
 
 ## Smoke Test Results
 
@@ -89,7 +89,7 @@ Reason: `World Server/Server.cs` calls `LoadZoneServerList()` and `ConnectToZone
 - `CONFIGURATION=Release ./tools/copy-runtime-data.sh` copies configs and scripts, and warns about missing `Data/staticactors.bin`.
 - PHP lint passes for all `Data/www/**/*.php` files.
 - Lobby Server starts from a normal local shell, connects to MariaDB as `meteor`, and listens on `0.0.0.0:54994`.
-- World Server starts from a normal local shell, connects to MariaDB as `meteor`, loads world/zone rows, and listens on `0.0.0.0:54992`; it cannot connect to Map until Map is running.
+- World Server starts from a normal local shell, connects to MariaDB as `meteor`, loads world/zone rows, and listens on `0.0.0.0:54992`; Map routing requires Map Server availability.
 - Map Server starts from a normal local shell, connects to MariaDB as `meteor`, then exits with `FileNotFoundException` for `Map Server/bin/Release/staticactors.bin`.
 
 ## Client Compatibility
@@ -99,10 +99,10 @@ Reason: `World Server/Server.cs` calls `LoadZoneServerList()` and `ConnectToZone
 - There was no native official Mac client for the 1.x era. The later official macOS client belongs to A Realm Reborn/Heavensward era, not this protocol.
 - On Apple Silicon, the practical client paths are:
   - CrossOver/Wine/Wineskin style wrapper for the Windows 1.23b client and Seventh Umbral launcher.
-  - A Windows x86 VM or emulation environment if Wine cannot run the legacy launcher/client reliably.
+  - A Windows x86 VM or emulation environment for Wine compatibility fallback.
   - A separate Intel/Windows/Linux test machine for packet capture and client validation, if available.
-- Keep client assets local and do not commit or redistribute game client files.
-- Future launcher design is documented in `docs/LAUNCHER_DESIGN.md` and `docs/WINE_RUNTIME_STRATEGY.md`.
+- Client assets remain local and excluded from version control and redistribution.
+- Echo Gate launcher design is documented in `docs/LAUNCHER_DESIGN.md` and `docs/WINE_RUNTIME_STRATEGY.md`.
 
 ## Current Implementation Signals
 
@@ -121,7 +121,7 @@ The historical feature-status wiki is older, but it confirms the project was not
 ## High Priority Gaps
 
 1. Build reproducibility on macOS/Linux
-   - Keep `tools/build-legacy.sh` as the known-good baseline until the modern port lands.
+   - Maintain `tools/build-legacy.sh` as the known-good baseline through the modern port.
    - Consider a Docker/Podman dev environment for Linux consistency.
    - Add a CI workflow once build commands are stable.
 
@@ -138,7 +138,7 @@ The historical feature-status wiki is older, but it confirms the project was not
 
 4. Launcher development
    - Start with a developer-first launcher/CLI that validates the client path, prepares `staticactors.bin`, writes server profiles, and launches through a user-selected Wine/CrossOver runtime.
-   - Keep client download/patching out of scope until the legal/source story is clear.
+   - Keep client download/patching out of scope pending a clear legal/source model.
 
 5. Unknown opcode instrumentation
    - Add structured logging for unknown lobby/world/map opcodes.

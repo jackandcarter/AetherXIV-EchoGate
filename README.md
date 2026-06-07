@@ -4,7 +4,7 @@ Project Meteor for XIV 1.x MacOS and Linux
 A few notes:
 
 This Meteor project is a port and fork of the original Project:Meteor. It is in no way connected to anyone from that project.
-The current source targets a very old dotnet version, which will be updated for dotnet10 in this project in the near future.
+The current source targets a legacy .NET Framework runtime. The planned modernization target is dotnet10.
 
 Until then, the main branch is mostly for reference. Old Project:Meteor targeted Windows as the hosting platform, while this project targets Windows, Linux, and MacOS.
 
@@ -55,7 +55,7 @@ When a player selects a character, the lobby server builds a `SelectCharacterCon
 ## Build & run
 The solution targets .NET Framework 4.7.2 and uses `packages.config` for NuGet restore, so the tooling differs slightly per OS. Make sure MariaDB/MySQL is reachable with credentials configured in the `Data/*_config.ini` files before starting the servers.
 
-For macOS/Linux details, see `docs/MACOS_LINUX_DEV_SETUP.md`. For the current audit and missing-work map, see `docs/PROJECT_AUDIT_2026-06-07.md`. For the modern .NET porting plan, see `docs/PORTING_STRATEGY.md`. For the future client launcher, see `docs/LAUNCHER_DESIGN.md` and `docs/WINE_RUNTIME_STRATEGY.md`.
+For macOS/Linux details, see `docs/MACOS_LINUX_DEV_SETUP.md`. For the current audit and missing-work map, see `docs/PROJECT_AUDIT_2026-06-07.md`. For the modern .NET porting plan, see `docs/PORTING_STRATEGY.md`. For Echo Gate launcher design, see `docs/LAUNCHER_DESIGN.md` and `docs/WINE_RUNTIME_STRATEGY.md`.
 
 ### Linux (Ubuntu, etc.)
 1. Install Mono build tooling + NuGet (package names vary by distro; common ones are `mono-complete`, `msbuild`, and `nuget`).

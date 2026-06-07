@@ -2,41 +2,50 @@
 
 ## Target
 
-Port the server stack while preserving the Final Fantasy XIV 1.23b protocol and data behavior.
+Server runtime:
 
-Target client:
+- first modern target: `net10.0`
+- legacy compatibility path retained as the acceptance gate for the modern build
+
+Client protocol target:
 
 - Final Fantasy XIV 1.23b / `2012.09.19.0001`
-- Not A Realm Reborn
-- Not the current retail client
+- A Realm Reborn is outside scope.
+- Current retail FFXIV is outside scope.
 
-Target runtime:
-
-- First modern target: `net10.0`
-- Keep a compatibility path until the modern build proves it can run the same local smoke tests.
-
-## Guiding Rules
+## Design Laws
 
 - Preserve packet layouts byte-for-byte.
-- Preserve the existing SQL schema until tests prove a migration is safe.
+- Preserve the existing SQL schema unless migration tests prove equivalence.
 - Preserve Lua script behavior and call signatures.
-- Do not commit client files, extracted client assets, packet captures containing credentials, or local secrets.
+- Preserve observable 1.23b client protocol behavior.
 - Prefer incremental ports over rewrites.
 
-## Recommended Port Path
+Repository exclusions:
 
-### Phase 0: Stabilize Current Baseline
+- client files
+- extracted client assets
+- patch files
+- packet captures containing credentials
+- local secrets
 
-Before changing runtime:
+## Phase 0: Legacy Baseline
 
-1. Make the current Mono/.NET Framework path build once. Done locally with `tools/build-legacy.sh` and Mono `xbuild`.
-2. Import the DB locally. Done locally with `tools/import-db.sh`.
-3. Add smoke tests for config loading, DB connection, packet compression/encryption, and socket bind/listen.
-4. Add unknown opcode logging.
+Baseline requirements:
 
-This gives us a behavior baseline for the modern port.
+1. Current Mono/.NET Framework path builds.
+2. Database imports locally.
+3. Smoke checks cover config loading, DB connection, socket bind/listen, packet compression/encryption, and server startup.
+4. Unknown opcode logging exists for lobby, world, and map packets.
 
-### Phase 1: SDK-Style Projects
+Current status:
+
+- Legacy build confirmed with `tools/build-legacy.sh` and Mono `xbuild`.
+- Local database import confirmed with `tools/import-db.sh`.
+- Lobby and World DB/startup smoke checks confirmed.
+- Map startup blocked by missing local `Data/staticactors.bin`.
+
+## Phase 1: SDK-Style Projects
 
 Convert the four old `.csproj` files to SDK-style projects:
 
@@ -47,52 +56,71 @@ Convert the four old `.csproj` files to SDK-style projects:
 
 Use `PackageReference` instead of `packages.config`.
 
-The current code has about 412 C# files. SDK-style projects can include `.cs` files automatically, but care is needed around:
+Conversion requirements:
 
-- duplicated generated files
-- `App.config`
-- `NLog.config`
-- runtime content files from `Data`
-- project names/directories with spaces
+- include existing source files without accidental duplicates
+- preserve `App.config` behavior
+- preserve `NLog.config` behavior
+- preserve runtime content from `Data`
+- account for project names and directories containing spaces
 
-### Phase 2: Dependency Compatibility
+## Phase 2: Dependency Compatibility
 
-Likely dependency handling:
+Initial dependency policy:
 
-- `MySql.Data`: keep initially to reduce code changes; consider `MySqlConnector` later.
-- `NLog`: update and keep.
-- `MoonSharp`: keep for Lua compatibility.
-- `Newtonsoft.Json`: keep initially.
-- `Portable.BouncyCastle`: likely removable, because the repo has its own `Blowfish.cs`; verify before removing.
-- `DotNetZip` / `Ionic.Zlib`: replace with `System.IO.Compression.ZLibStream` in modern .NET, but add packet compression tests first.
-- `Cyotek.CircularBuffer`: keep initially or replace with a small local ring buffer.
-- `SharpNav.dll`: isolate behind a navmesh interface. Recompile or replace later. This bundled old DLL is the highest-risk binary dependency.
-- `Microsoft.Net.Compilers`: remove.
+- `MySql.Data`: retain for first port to reduce behavior changes
+- `NLog`: update and retain
+- `MoonSharp`: retain for Lua compatibility
+- `Newtonsoft.Json`: retain for first port
+- `Portable.BouncyCastle`: verify usage before removal
+- `DotNetZip` / `Ionic.Zlib`: replace only after packet compression tests exist
+- `Cyotek.CircularBuffer`: retain or replace with tested local ring buffer
+- `SharpNav.dll`: isolate behind a navmesh interface before replacement
+- `Microsoft.Net.Compilers`: remove from modern projects
 
-### Phase 3: Runtime And Config
+Highest-risk dependency:
 
-Make the server runnable from the repo root or a predictable output folder:
+- `SharpNav.dll`, because it is a bundled legacy binary dependency.
 
-- Standardize config file lookup.
-- Support environment variable overrides.
-- Keep local `.ini` support for convenience.
-- Copy scripts/static actor data through cross-platform tooling.
-- Add a single dev launcher script after individual services work.
+Known vulnerable legacy packages:
 
-### Phase 4: Modernize Internals Safely
+- `DotNetZip` 1.10.1
+- `Newtonsoft.Json` 9.0.1
 
-After the first modern build runs:
+## Phase 3: Runtime And Config
 
-- Move repeated DB connection string construction into one helper.
-- Add cancellation-aware server loops.
-- Replace old `BeginAccept`/`BeginReceive` patterns with modern async sockets.
-- Improve shutdown handling.
-- Add structured packet logging.
-- Keep protocol tests around every packet change.
+Runtime requirements:
 
-### Phase 5: Port The PHP Login Layer
+- predictable working directory
+- standardized config file lookup
+- environment variable overrides
+- local `.ini` compatibility
+- cross-platform runtime data copy
+- clear output folder layout
+- service-specific startup commands
 
-The PHP `Data/www` layer can stay temporarily. Later, replace it with a small ASP.NET Core service so the local stack is:
+## Phase 4: Modernize Internals
+
+Internal modernization targets:
+
+- shared DB connection string helper
+- cancellation-aware server loops
+- modern async socket accept/receive paths
+- structured shutdown handling
+- structured packet logging
+- protocol tests around every packet layout change
+
+## Phase 5: Login Layer
+
+Current login/vercheck layer:
+
+- PHP in `Data/www`
+
+Modern target:
+
+- ASP.NET Core login/vercheck service
+
+Target local stack:
 
 - MariaDB/MySQL
 - Lobby Server
@@ -100,39 +128,68 @@ The PHP `Data/www` layer can stay temporarily. Later, replace it with a small AS
 - World Server
 - Login/vercheck web API
 
-This removes the PHP dependency and makes local development easier on macOS/Linux.
+## Parallel Track: Echo Gate
 
-### Parallel Track: Echo Gate
+Echo Gate is the launcher/runtime track for macOS/Linux client validation.
 
-The launcher/runtime path should move in parallel with the backend port, because macOS/Linux client testing depends on Wine/CrossOver.
+Boundary:
 
-Keep this separate from the server runtime:
+- server runtime remains in the Meteor server stack
+- launcher/runtime orchestration remains in `launcher/`
 
-- design docs live in `docs/LAUNCHER_DESIGN.md` and `docs/WINE_RUNTIME_STRATEGY.md`
-- future app code lives in `launcher/`
-- initial scope is client validation, server profile writing, static actor data preparation, and Wine/CrossOver launch orchestration
-- do not distribute client files or patch files
+Scope:
 
-## Client Reality
+- client path validation
+- server profile writing
+- static actor data preparation
+- Wine/CrossOver/Proton launch orchestration
+- launch diagnostics
 
-No client means no end-to-end validation yet. We can still do useful backend work:
+Exclusions:
 
-- build and run the servers
-- validate DB bootstrap
-- validate packet serialization/compression/encryption
+- client distribution
+- patch distribution
+- client modification
+
+Design references:
+
+- `docs/LAUNCHER_DESIGN.md`
+- `docs/WINE_RUNTIME_STRATEGY.md`
+
+## Validation Requirements
+
+Backend validation:
+
+- build all projects
+- import database
+- validate config loading
+- validate DB connectivity
+- validate socket bind/listen
+- validate packet serialization
+- validate packet compression/encryption
 - validate login/session SQL behavior
-- build a packet replay harness once captures exist
 
-End-to-end validation requires a legally obtained 1.23b client. For Apple Silicon, expect to use Wine/CrossOver/Wineskin or a separate Windows/x86 test environment.
+Client-path validation:
 
-## First Practical Port Milestone
+- local 1.23b client install
+- local `Data/staticactors.bin`
+- launcher/server profile configuration
+- Lobby -> World -> Map connection path
+- packet captures or structured packet logs for gaps in `CLIENT_REQUIREMENTS.md`
 
-Milestone 1 should be intentionally small:
+## First Modern Port Milestone
 
-1. Keep current legacy projects untouched.
-2. Add a parallel SDK-style solution or project files.
-3. Port `Common Class Lib` first.
+Milestone 1:
+
+1. Keep current legacy projects intact.
+2. Add parallel SDK-style project files.
+3. Port `Common Class Lib`.
 4. Add tests for `BasePacket`, `SubPacket`, `Blowfish`, and zlib compression.
-5. Port `Lobby Server` next because it has the smallest gameplay surface.
+5. Port `Lobby Server`.
 
-Once Lobby builds and packet tests pass, port World and Map.
+Completion criteria:
+
+- Common library tests pass.
+- Lobby builds on modern .NET.
+- Legacy build remains available.
+- Packet layout tests pass against known fixtures.

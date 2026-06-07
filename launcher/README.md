@@ -1,6 +1,6 @@
 # Echo Gate
 
-This folder is reserved for Echo Gate, the future cross-platform launcher/client runner for Meteor.
+This folder is reserved for Echo Gate, the cross-platform launcher/client runner for Meteor.
 
 Initial launcher goals:
 
@@ -17,4 +17,4 @@ Design docs:
 - `../docs/LAUNCHER_DESIGN.md`
 - `../docs/WINE_RUNTIME_STRATEGY.md`
 
-Do not place client files in this repository.
+Repository policy: client files are excluded from version control.
