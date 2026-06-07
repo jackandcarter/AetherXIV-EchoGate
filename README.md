@@ -1,6 +1,13 @@
 # Meteor
 Project Meteor for XIV 1.x MacOS and Linux
 
+A few notes:
+
+This Meteor project is a port and fork of the original Project:Meteor. It is in no way connected to anyone from that project.
+The current source targets a very old dotnet version, which will be updated for dotnet10 in this project in the near future.
+
+Until then this is for reference.
+
 ## Solution layout
 - `Lobby Server/`: Login and character selection service.
 - `World Server/`: World-level routing and chat/zone session coordination.
