@@ -1,0 +1,119 @@
+# macOS/Linux Development Setup
+
+This project currently targets .NET Framework 4.7.2 through Mono's legacy build tooling and `packages.config`. Modern `dotnet build` is not enough by itself.
+
+## Required Tools
+
+macOS:
+
+```sh
+brew install mono nuget mariadb php
+```
+
+Linux package names vary by distro. On Debian/Ubuntu-style systems, install equivalents for:
+
+```sh
+mono-complete msbuild nuget mariadb-server mariadb-client php php-mysqli
+```
+
+Run the environment audit:
+
+```sh
+./tools/audit-env.sh
+```
+
+## Restore And Build
+
+```sh
+./tools/build-legacy.sh
+```
+
+The helper restores NuGet packages, then uses `msbuild` when present or `xbuild` when Homebrew Mono only exposes that older entry point. If NuGet creates `packages/`, leave it uncommitted.
+
+## Database Bootstrap
+
+Start MariaDB/MySQL first, then import the SQL files:
+
+```sh
+DB_NAME=ffxiv_server ./tools/import-db.sh
+DB_NAME=ffxiv_server ./tools/create-db-user.sh
+```
+
+To drop and recreate the database during local development:
+
+```sh
+DROP_DATABASE=1 DB_NAME=ffxiv_server ./tools/import-db.sh
+```
+
+The import helper defaults to `DB_HOST=localhost` and `DB_USER=$USER`, which matches Homebrew MariaDB socket auth on macOS. The default server configs use `meteor` / `meteor_dev` against `ffxiv_server`; `create-db-user.sh` creates that local dev account. Override `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASS`, `DB_ADMIN_USER`, `DB_ADMIN_PASS`, `DB_APP_USER`, or `DB_APP_PASS` if your Linux or CI setup uses different accounts. Do not use checked-in dev credentials outside a local lab.
+
+## PHP Login/Vercheck Server
+
+The web root lives at `Data/www`.
+
+For local testing:
+
+```sh
+php -S 127.0.0.1:8080 -t Data/www
+```
+
+Launcher login URL example:
+
+```xml
+<Server Name="Localhost" Address="127.0.0.1" LoginUrl="http://127.0.0.1:8080/login_su/login.php" />
+```
+
+## Runtime Data Copy
+
+After building, copy configs/scripts/static actor data into output folders:
+
+```sh
+CONFIGURATION=Release ./tools/copy-runtime-data.sh
+```
+
+`Data/staticactors.bin` is required for Map Server runtime. Historical Project Meteor docs describe creating it from the 1.23b client file:
+
+```text
+client/script/rq9q1797qvs.san -> Data/staticactors.bin
+```
+
+When a local client install is available:
+
+```sh
+CLIENT_DIR="/path/to/FINAL FANTASY XIV" ./tools/prepare-client-data.sh
+CONFIGURATION=Release ./tools/copy-runtime-data.sh
+```
+
+Keep this file local. Do not commit client assets.
+
+## Server Startup Order
+
+For a full local client path:
+
+1. Start MariaDB/MySQL.
+2. Start the PHP web server from `Data/www`.
+3. Start Lobby Server.
+4. Start Map Server.
+5. Start World Server.
+
+From build output folders:
+
+```sh
+mono "Lobby Server/bin/Release/Lobby Server.exe"
+mono "Map Server/bin/Release/Map Server.exe"
+mono "World Server/bin/Release/World Server.exe"
+```
+
+World Server connects to map/zone servers at startup, so Map Server should be listening before World Server starts.
+
+## Apple Silicon Client Notes
+
+The server can be developed on Apple Silicon, but the 1.23b game client is a legacy Windows client. Practical options:
+
+- Try CrossOver, Wineskin, or another maintained Wine wrapper for the Windows client and Seventh Umbral launcher.
+- If Wine fails, use a Windows x86 environment on another machine or VM/emulator for client testing.
+- Use client packet captures to update `CLIENT_REQUIREMENTS.md`.
+
+The later official macOS FFXIV client is for A Realm Reborn/current FFXIV and is not compatible with this 1.23b server protocol.
+
+For the future launcher/runtime plan, see `docs/LAUNCHER_DESIGN.md` and `docs/WINE_RUNTIME_STRATEGY.md`.

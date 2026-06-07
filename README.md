@@ -23,8 +23,8 @@ Until then, the main branch is mostly for reference. Old Project:Meteor targeted
 ## Startup order
 Start the servers in this order so downstream dependencies are available:
 1. **Lobby Server** (`Lobby Server/Program.cs`) starts the login/character selection host and listens on the lobby socket configured by `server_ip`/`server_port` in `lobby_config.ini`.
-2. **World Server** (`World Server/Program.cs`) loads world data, connects to map servers, and listens for client world connections via its configured socket.
-3. **Map Server** (`Map Server/Program.cs`) loads zone data and opens its configured socket for world connections.
+2. **Map Server** (`Map Server/Program.cs`) loads zone data and opens its configured socket for world connections.
+3. **World Server** (`World Server/Program.cs`) loads world data, connects to map servers, and listens for client world connections via its configured socket.
 
 The socket listeners are created in each server's `Server.StartServer()` implementation (`Lobby Server/Server.cs`, `World Server/Server.cs`, `Map Server/Server.cs`), where the server binds and listens before accepting connections.
 
@@ -55,42 +55,46 @@ When a player selects a character, the lobby server builds a `SelectCharacterCon
 ## Build & run
 The solution targets .NET Framework 4.7.2 and uses `packages.config` for NuGet restore, so the tooling differs slightly per OS. Make sure MariaDB/MySQL is reachable with credentials configured in the `Data/*_config.ini` files before starting the servers.
 
+For macOS/Linux details, see `docs/MACOS_LINUX_DEV_SETUP.md`. For the current audit and missing-work map, see `docs/PROJECT_AUDIT_2026-06-07.md`. For the modern .NET porting plan, see `docs/PORTING_STRATEGY.md`. For the future client launcher, see `docs/LAUNCHER_DESIGN.md` and `docs/WINE_RUNTIME_STRATEGY.md`.
+
 ### Linux (Ubuntu, etc.)
-1. Install Mono + MSBuild + NuGet (package names vary by distro; common ones are `mono-complete`, `msbuild`, and `nuget`).
-2. Restore NuGet packages:
+1. Install Mono build tooling + NuGet (package names vary by distro; common ones are `mono-complete`, `msbuild`, and `nuget`).
+2. Restore NuGet packages and build:
    ```
-   nuget restore Meteor.sln
+   ./tools/build-legacy.sh
    ```
-3. Build:
+3. Copy or verify the config files are in each output directory (they are marked to copy during build):
+   - `Lobby Server/bin/Release/lobby_config.ini`
+   - `World Server/bin/Release/world_config.ini`
+   - `Map Server/bin/Release/map_config.ini`
+   - `Map Server/bin/Release/scripts/`
+   - `Map Server/bin/Release/staticactors.bin`
+4. On macOS/Linux, run:
    ```
-   msbuild Meteor.sln /p:Configuration=Release
+   CONFIGURATION=Release ./tools/copy-runtime-data.sh
    ```
-4. Copy or verify the config files are in each output directory (they are marked to copy during build):
-   - `Lobby Server/bin/Release/Data/lobby_config.ini`
-   - `World Server/bin/Release/Data/world_config.ini`
-   - `Map Server/bin/Release/Data/map_config.ini`
 5. Run servers in order (from their output folders):
    ```
    mono "Lobby Server/bin/Release/Lobby Server.exe"
-   mono "World Server/bin/Release/World Server.exe"
    mono "Map Server/bin/Release/Map Server.exe"
+   mono "World Server/bin/Release/World Server.exe"
    ```
 
 ### macOS (Intel or Apple Silicon)
 1. Install Mono and NuGet (e.g., via Homebrew).
-2. Restore packages:
+2. Restore packages and build:
    ```
-   nuget restore Meteor.sln
+   ./tools/build-legacy.sh
    ```
-3. Build:
+3. Copy runtime files:
    ```
-   msbuild Meteor.sln /p:Configuration=Release
+   CONFIGURATION=Release ./tools/copy-runtime-data.sh
    ```
 4. Run servers in order:
    ```
    mono "Lobby Server/bin/Release/Lobby Server.exe"
-   mono "World Server/bin/Release/World Server.exe"
    mono "Map Server/bin/Release/Map Server.exe"
+   mono "World Server/bin/Release/World Server.exe"
    ```
 
 ### Windows
@@ -106,6 +110,6 @@ The solution targets .NET Framework 4.7.2 and uses `packages.config` for NuGet r
 4. Run servers in order from their output directories:
    ```
    "Lobby Server\bin\Release\Lobby Server.exe"
-   "World Server\bin\Release\World Server.exe"
    "Map Server\bin\Release\Map Server.exe"
+   "World Server\bin\Release\World Server.exe"
    ```

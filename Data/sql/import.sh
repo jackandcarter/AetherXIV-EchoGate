@@ -1,25 +1,7 @@
-#!/bin/bash
-IMPORT_PATH="path/to/ffxiv-classic-server/sql/"
-USER=root
-PASS=root
-DBNAME=ffxiv_server
+#!/usr/bin/env bash
+set -euo pipefail
 
-echo Creating Database $DBNAME
-mysql -h localhost -u $USER -p$PASS DROP $DBNAME
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
-echo Creating Database $DBNAME
-mysql -h localhost -u $USER -p$PASS CREATE $DBNAME IF NOT EXISTS $DBNAME
-
-echo Loading $DBNAME tables into the database
-
-for X in $IMPORT_PATH'*.sql';
-do
-	for Y in $X
-	do
-		echo Importing $Y;
-		mysql $DBNAME -h localhost -u $USER -p$PASS < $Y
-	done
-done
-
-echo Finished!
-
+exec "$ROOT_DIR/tools/import-db.sh" "$@"

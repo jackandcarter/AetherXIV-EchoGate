@@ -1,0 +1,25 @@
+.DS_Store
+.idea/
+.vscode/
+.vs/
+
+# Build outputs
+bin/
+obj/
+Debug/
+Release/
+packages/
+TestResult*/
+*.user
+*.suo
+*.cache
+*.log
+*.pid
+
+# Runtime data extracted from a local 1.23b client. Do not commit client assets.
+Data/staticactors.bin
+**/staticactors.bin
+
+# Local database and web configuration overrides
+*.local.ini
+*.local.php
