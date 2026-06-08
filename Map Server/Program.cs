@@ -20,7 +20,9 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 */
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using MySql.Data.MySqlClient;
 using NLog;
 
@@ -28,13 +30,20 @@ namespace Meteor.Map
 {
     class Program
     {
+        private const int EXIT_OK = 0;
+        private const int EXIT_CONFIG = 10;
+        private const int EXIT_DATABASE = 20;
+        private const int EXIT_STARTUP = 30;
+        private const int EXIT_RUNTIME = 40;
+        private const int EXIT_UNHANDLED = 50;
+
         public static Logger Log;
         public static Server Server;
         public static Random Random;
         public static DateTime LastTick = DateTime.Now;
         public static DateTime Tick = DateTime.Now;
 
-        static void Main(string[] args)
+        static int Main(string[] args)
         {
             // set up logging
             Log = LogManager.GetCurrentClassLogger();
@@ -42,55 +51,132 @@ namespace Meteor.Map
             TextWriterTraceListener myWriter = new TextWriterTraceListener(System.Console.Out);
             Debug.Listeners.Add(myWriter);
 #endif
-            bool startServer = true;
+            bool smoke = HasFlag(args, "smoke");
 
             Log.Info("==================================");
             Log.Info("Project Meteor: Map Server");
             Log.Info("Version: 0.1");
             Log.Info("==================================");
 
-            //Load Config
-            ConfigConstants.Load();
-            ConfigConstants.ApplyLaunchArgs(args);
-
-            //Test DB Connection
-            Program.Log.Info("Testing DB connection... ");
-            using (MySqlConnection conn = new MySqlConnection(String.Format("Server={0}; Port={1}; Database={2}; UID={3}; Password={4}", ConfigConstants.DATABASE_HOST, ConfigConstants.DATABASE_PORT, ConfigConstants.DATABASE_NAME, ConfigConstants.DATABASE_USERNAME, ConfigConstants.DATABASE_PASSWORD)))
+            try
             {
-                try
-                {
-                    conn.Open();
-                    conn.Close();
-
-                    Program.Log.Info("Connection ok.");
-                }
-                catch (MySqlException e)
-                {
-                    Program.Log.Error(e.ToString());
-                    startServer = false; 
-                }
+                ConfigConstants.Load();
+                ConfigConstants.ApplyLaunchArgs(FilterSmokeArgs(args));
             }
-            
-            //Start server if A-OK
-            if (startServer)
+            catch (Exception e)
+            {
+                return ExitOrPrompt(smoke, SmokeFail("Map", "config", e.Message, EXIT_CONFIG));
+            }
+
+            try
+            {
+                TestDatabaseConnection();
+            }
+            catch (MySqlException e)
+            {
+                Log.Error(e.ToString());
+                return ExitOrPrompt(smoke, SmokeFail("Map", "database", e.Message, EXIT_DATABASE));
+            }
+            catch (Exception e)
+            {
+                Log.Error(e.ToString());
+                return ExitOrPrompt(smoke, SmokeFail("Map", "unhandled", e.Message, EXIT_UNHANDLED));
+            }
+
+            if (!File.Exists(Meteor.Map.Server.STATIC_ACTORS_PATH))
+                return ExitOrPrompt(smoke, SmokeFail("Map", "runtime prerequisite", Meteor.Map.Server.STATIC_ACTORS_PATH + " is missing", EXIT_RUNTIME));
+
+            try
             {
                 Random = new Random();
                 Server = new Server();
                 Tick = DateTime.Now;
                 Server.StartServer();
 
-                while (startServer)
+                if (smoke)
+                    return SmokeOk("Map", GetEndpoint());
+
+                while (true)
                 {
                     String input = Console.ReadLine();
                     Log.Info("[Console Input] " + input);
                     Server.GetCommandProcessor().DoCommand(input, null);
                 }
             }
-
-            Program.Log.Info("Press any key to continue...");
-            Console.ReadKey();
+            catch (Exception e)
+            {
+                Log.Error(e.ToString());
+                return ExitOrPrompt(smoke, SmokeFail("Map", "startup", e.Message, EXIT_STARTUP));
+            }
         }
 
-    
+        private static void TestDatabaseConnection()
+        {
+            Log.Info("Testing DB connection... ");
+            using (MySqlConnection conn = new MySqlConnection(String.Format("Server={0}; Port={1}; Database={2}; UID={3}; Password={4}", ConfigConstants.DATABASE_HOST, ConfigConstants.DATABASE_PORT, ConfigConstants.DATABASE_NAME, ConfigConstants.DATABASE_USERNAME, ConfigConstants.DATABASE_PASSWORD)))
+            {
+                conn.Open();
+                conn.Close();
+                Log.Info("Connection ok.");
+            }
+        }
+
+        private static bool HasFlag(string[] args, string flagName)
+        {
+            foreach (string arg in args)
+            {
+                if (arg.Trim().TrimStart('-').Equals(flagName, StringComparison.OrdinalIgnoreCase))
+                    return true;
+            }
+
+            return false;
+        }
+
+        private static string[] FilterSmokeArgs(string[] args)
+        {
+            List<string> filtered = new List<string>();
+            foreach (string arg in args)
+            {
+                if (!arg.Trim().TrimStart('-').Equals("smoke", StringComparison.OrdinalIgnoreCase))
+                    filtered.Add(arg);
+            }
+
+            return filtered.ToArray();
+        }
+
+        private static string GetEndpoint()
+        {
+            return String.Format("{0}:{1}", ConfigConstants.OPTIONS_BINDIP, ConfigConstants.OPTIONS_PORT);
+        }
+
+        private static int SmokeOk(string serverName, string endpoint)
+        {
+            Console.WriteLine("SMOKE_OK {0} {1}", serverName, endpoint);
+            return EXIT_OK;
+        }
+
+        private static int SmokeFail(string serverName, string category, string message, int exitCode)
+        {
+            Console.WriteLine("SMOKE_FAIL {0} {1}: {2}", serverName, category, Sanitize(message));
+            return exitCode;
+        }
+
+        private static string Sanitize(string message)
+        {
+            if (String.IsNullOrEmpty(message))
+                return "unknown";
+
+            return message.Replace(Environment.NewLine, " ").Replace("\n", " ").Replace("\r", " ");
+        }
+
+        private static int ExitOrPrompt(bool smoke, int exitCode)
+        {
+            if (smoke)
+                return exitCode;
+
+            Log.Info("Press any key to continue...");
+            Console.ReadKey();
+            return exitCode;
+        }
     }
 }

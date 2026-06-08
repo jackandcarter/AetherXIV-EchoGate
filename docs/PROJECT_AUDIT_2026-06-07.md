@@ -137,7 +137,7 @@ The historical feature-status wiki is older, but it confirms the project was not
    - Capture Lobby -> World -> Map packet phases and fill `CLIENT_REQUIREMENTS.md`.
 
 4. Launcher development
-   - Start with a developer-first launcher/CLI that validates the client path, prepares `staticactors.bin`, writes server profiles, and launches through a user-selected Wine/CrossOver runtime.
+   - Start with an Echo Gate desktop app that validates the client path, prepares `staticactors.bin`, writes server profiles, and launches through a user-selected Wine/CrossOver runtime.
    - Keep client download/patching out of scope pending a clear legal/source model.
 
 5. Unknown opcode instrumentation

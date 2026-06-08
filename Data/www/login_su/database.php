@@ -4,11 +4,11 @@ include("config.php");
 
 mysqli_report(MYSQLI_REPORT_STRICT);
 
-function CreateDatabaseConnection($server, $username, $password, $database)
+function CreateDatabaseConnection($server, $username, $password, $database, $port = 3306)
 {
 	try
 	{
-		$dataConnection = new mysqli($server, $username, $password);
+		$dataConnection = new mysqli($server, $username, $password, "", $port);
 	}
 	catch(Exception $e)
 	{
@@ -21,7 +21,7 @@ function CreateDatabaseConnection($server, $username, $password, $database)
 	return $dataConnection;
 }
 
-$g_databaseConnection = CreateDatabaseConnection($db_server, $db_username, $db_password, $db_database);
+$g_databaseConnection = CreateDatabaseConnection($db_server, $db_username, $db_password, $db_database, $db_port);
 
 function GenerateRandomSha224()
 {

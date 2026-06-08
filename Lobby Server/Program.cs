@@ -20,6 +20,7 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 */
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
 
@@ -30,58 +31,138 @@ namespace Meteor.Lobby
 {
     class Program
     {
+        private const int EXIT_OK = 0;
+        private const int EXIT_CONFIG = 10;
+        private const int EXIT_DATABASE = 20;
+        private const int EXIT_STARTUP = 30;
+        private const int EXIT_UNHANDLED = 50;
+
         public static Logger Log;
 
-        static void Main(string[] args)
+        static int Main(string[] args)
         {
-
             // set up logging
             Log = LogManager.GetCurrentClassLogger();
 #if DEBUG
             TextWriterTraceListener myWriter = new TextWriterTraceListener(System.Console.Out);
             Debug.Listeners.Add(myWriter);
 #endif
+            bool smoke = HasFlag(args, "smoke");
+
             Log.Info("==================================");
             Log.Info("Project Meteor: Lobby Server");
             Log.Info("Version: 0.1");            
             Log.Info("==================================");
 
-            bool startServer = true;
-
-            //Load Config
-            ConfigConstants.Load();
-            ConfigConstants.ApplyLaunchArgs(args);
-            
-            //Test DB Connection
-            Program.Log.Info("Testing DB connection to \"{0}\"... ", ConfigConstants.DATABASE_HOST);
-            using (MySqlConnection conn = new MySqlConnection(String.Format("Server={0}; Port={1}; Database={2}; UID={3}; Password={4}", ConfigConstants.DATABASE_HOST, ConfigConstants.DATABASE_PORT, ConfigConstants.DATABASE_NAME, ConfigConstants.DATABASE_USERNAME, ConfigConstants.DATABASE_PASSWORD)))
+            try
             {
-                try
-                {
-                    conn.Open();
-                    conn.Close();
-
-                    Program.Log.Info("Connection ok.");
-                }
-                catch (MySqlException e)
-                {
-                    Program.Log.Error(e.ToString());                  
-                    startServer = false; 
-                }
+                ConfigConstants.Load();
+                ConfigConstants.ApplyLaunchArgs(FilterSmokeArgs(args));
+            }
+            catch (Exception e)
+            {
+                return ExitOrPrompt(smoke, SmokeFail("Lobby", "config", e.Message, EXIT_CONFIG));
             }
 
-            //Start Server if A-OK
-            if (startServer)
+            try
+            {
+                TestDatabaseConnection();
+            }
+            catch (MySqlException e)
+            {
+                Log.Error(e.ToString());
+                return ExitOrPrompt(smoke, SmokeFail("Lobby", "database", e.Message, EXIT_DATABASE));
+            }
+            catch (Exception e)
+            {
+                Log.Error(e.ToString());
+                return ExitOrPrompt(smoke, SmokeFail("Lobby", "unhandled", e.Message, EXIT_UNHANDLED));
+            }
+
+            try
             {
                 Server server = new Server();
                 server.StartServer();
+
+                if (smoke)
+                    return SmokeOk("Lobby", GetEndpoint());
+
                 while (true) Thread.Sleep(10000);
             }
-
-            Program.Log.Info("Press any key to continue...");
-            Console.ReadKey();
+            catch (Exception e)
+            {
+                Log.Error(e.ToString());
+                return ExitOrPrompt(smoke, SmokeFail("Lobby", "startup", e.Message, EXIT_STARTUP));
+            }
         }
 
-    
+        private static void TestDatabaseConnection()
+        {
+            Log.Info("Testing DB connection to \"{0}\"... ", ConfigConstants.DATABASE_HOST);
+            using (MySqlConnection conn = new MySqlConnection(String.Format("Server={0}; Port={1}; Database={2}; UID={3}; Password={4}", ConfigConstants.DATABASE_HOST, ConfigConstants.DATABASE_PORT, ConfigConstants.DATABASE_NAME, ConfigConstants.DATABASE_USERNAME, ConfigConstants.DATABASE_PASSWORD)))
+            {
+                conn.Open();
+                conn.Close();
+                Log.Info("Connection ok.");
+            }
+        }
+
+        private static bool HasFlag(string[] args, string flagName)
+        {
+            foreach (string arg in args)
+            {
+                if (arg.Trim().TrimStart('-').Equals(flagName, StringComparison.OrdinalIgnoreCase))
+                    return true;
+            }
+
+            return false;
+        }
+
+        private static string[] FilterSmokeArgs(string[] args)
+        {
+            List<string> filtered = new List<string>();
+            foreach (string arg in args)
+            {
+                if (!arg.Trim().TrimStart('-').Equals("smoke", StringComparison.OrdinalIgnoreCase))
+                    filtered.Add(arg);
+            }
+
+            return filtered.ToArray();
+        }
+
+        private static string GetEndpoint()
+        {
+            return String.Format("{0}:{1}", ConfigConstants.OPTIONS_BINDIP, ConfigConstants.OPTIONS_PORT);
+        }
+
+        private static int SmokeOk(string serverName, string endpoint)
+        {
+            Console.WriteLine("SMOKE_OK {0} {1}", serverName, endpoint);
+            return EXIT_OK;
+        }
+
+        private static int SmokeFail(string serverName, string category, string message, int exitCode)
+        {
+            Console.WriteLine("SMOKE_FAIL {0} {1}: {2}", serverName, category, Sanitize(message));
+            return exitCode;
+        }
+
+        private static string Sanitize(string message)
+        {
+            if (String.IsNullOrEmpty(message))
+                return "unknown";
+
+            return message.Replace(Environment.NewLine, " ").Replace("\n", " ").Replace("\r", " ");
+        }
+
+        private static int ExitOrPrompt(bool smoke, int exitCode)
+        {
+            if (smoke)
+                return exitCode;
+
+            Log.Info("Press any key to continue...");
+            Console.ReadKey();
+            return exitCode;
+        }
     }
 }

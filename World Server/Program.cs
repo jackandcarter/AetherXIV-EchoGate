@@ -21,6 +21,7 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 
 using NLog;
@@ -31,14 +32,18 @@ namespace Meteor.World
 {
     class Program
     {
+        private const int EXIT_OK = 0;
+        private const int EXIT_CONFIG = 10;
+        private const int EXIT_DATABASE = 20;
+        private const int EXIT_STARTUP = 30;
+        private const int EXIT_UNHANDLED = 50;
+
         public static Logger Log;
 
-        static void Main(string[] args)
+        static int Main(string[] args)
         {
             // set up logging
             Log = LogManager.GetCurrentClassLogger();
-
-            bool startServer = true;
 
             Log.Info("==================================");
             Log.Info("Project Meteor: World Server");
@@ -56,57 +61,147 @@ namespace Meteor.World
 
 #endif
 
-            //Load Config
-            ConfigConstants.Load();
-            ConfigConstants.ApplyLaunchArgs(args);
+            bool smoke = HasFlag(args, "smoke");
 
-            //Test DB Connection
-            Log.Info("Testing DB connection... ");
-            using (MySqlConnection conn = new MySqlConnection(String.Format("Server={0}; Port={1}; Database={2}; UID={3}; Password={4}", ConfigConstants.DATABASE_HOST, ConfigConstants.DATABASE_PORT, ConfigConstants.DATABASE_NAME, ConfigConstants.DATABASE_USERNAME, ConfigConstants.DATABASE_PASSWORD)))
+            try
             {
-                try
-                {
-                    conn.Open();
-                    conn.Close();
-
-                    Log.Info("Connection ok.");
-                }
-                catch (MySqlException e)
-                {
-                    Log.Error(e.ToString());
-                    startServer = false;
-                }
+                ConfigConstants.Load();
+                ConfigConstants.ApplyLaunchArgs(FilterSmokeArgs(args));
+            }
+            catch (Exception e)
+            {
+                return ExitOrPrompt(smoke, SmokeFail("World", "config", e.Message, EXIT_CONFIG));
             }
 
-            //Check World ID
-            DBWorld thisWorld = Database.GetServer(ConfigConstants.DATABASE_WORLDID);
-            if (thisWorld != null)
+            try
             {
-                Program.Log.Info("Successfully pulled world info from DB. Server name is {0}.", thisWorld.name);
-                ConfigConstants.PREF_SERVERNAME = thisWorld.name;
+                TestDatabaseConnection();
             }
-            else
+            catch (MySqlException e)
             {
-                Program.Log.Info("World info could not be retrieved from the DB. Welcome and MOTD will not be displayed.");
-                ConfigConstants.PREF_SERVERNAME = "Unknown";
+                Log.Error(e.ToString());
+                return ExitOrPrompt(smoke, SmokeFail("World", "database", e.Message, EXIT_DATABASE));
             }
-          
-            //Start server if A-OK
-            if (startServer)
+            catch (Exception e)
+            {
+                Log.Error(e.ToString());
+                return ExitOrPrompt(smoke, SmokeFail("World", "unhandled", e.Message, EXIT_UNHANDLED));
+            }
+
+            try
+            {
+                LoadWorldInfo();
+            }
+            catch (Exception e)
+            {
+                Log.Error(e.ToString());
+                return ExitOrPrompt(smoke, SmokeFail("World", "unhandled", e.Message, EXIT_UNHANDLED));
+            }
+
+            try
             {
                 Server server = new Server();                
                 server.StartServer();
 
-                while (startServer)
+                if (smoke)
+                    return SmokeOk("World", GetEndpoint());
+
+                while (true)
                 {
                     String input = Console.ReadLine();
                     Log.Info("[Console Input] " + input);
                     //cp.DoCommand(input, null);
                 }
             }
+            catch (Exception e)
+            {
+                Log.Error(e.ToString());
+                return ExitOrPrompt(smoke, SmokeFail("World", "startup", e.Message, EXIT_STARTUP));
+            }
+        }
 
-            Program.Log.Info("Press any key to continue...");
+        private static void TestDatabaseConnection()
+        {
+            Log.Info("Testing DB connection... ");
+            using (MySqlConnection conn = new MySqlConnection(String.Format("Server={0}; Port={1}; Database={2}; UID={3}; Password={4}", ConfigConstants.DATABASE_HOST, ConfigConstants.DATABASE_PORT, ConfigConstants.DATABASE_NAME, ConfigConstants.DATABASE_USERNAME, ConfigConstants.DATABASE_PASSWORD)))
+            {
+                conn.Open();
+                conn.Close();
+                Log.Info("Connection ok.");
+            }
+        }
+
+        private static void LoadWorldInfo()
+        {
+            DBWorld thisWorld = Database.GetServer(ConfigConstants.DATABASE_WORLDID);
+            if (thisWorld != null)
+            {
+                Log.Info("Successfully pulled world info from DB. Server name is {0}.", thisWorld.name);
+                ConfigConstants.PREF_SERVERNAME = thisWorld.name;
+            }
+            else
+            {
+                Log.Info("World info could not be retrieved from the DB. Welcome and MOTD will not be displayed.");
+                ConfigConstants.PREF_SERVERNAME = "Unknown";
+            }
+        }
+
+        private static bool HasFlag(string[] args, string flagName)
+        {
+            foreach (string arg in args)
+            {
+                if (arg.Trim().TrimStart('-').Equals(flagName, StringComparison.OrdinalIgnoreCase))
+                    return true;
+            }
+
+            return false;
+        }
+
+        private static string[] FilterSmokeArgs(string[] args)
+        {
+            List<string> filtered = new List<string>();
+            foreach (string arg in args)
+            {
+                if (!arg.Trim().TrimStart('-').Equals("smoke", StringComparison.OrdinalIgnoreCase))
+                    filtered.Add(arg);
+            }
+
+            return filtered.ToArray();
+        }
+
+        private static string GetEndpoint()
+        {
+            return String.Format("{0}:{1}", ConfigConstants.OPTIONS_BINDIP, ConfigConstants.OPTIONS_PORT);
+        }
+
+        private static int SmokeOk(string serverName, string endpoint)
+        {
+            Console.WriteLine("SMOKE_OK {0} {1}", serverName, endpoint);
+            return EXIT_OK;
+        }
+
+        private static int SmokeFail(string serverName, string category, string message, int exitCode)
+        {
+            Console.WriteLine("SMOKE_FAIL {0} {1}: {2}", serverName, category, Sanitize(message));
+            return exitCode;
+        }
+
+        private static string Sanitize(string message)
+        {
+            if (String.IsNullOrEmpty(message))
+                return "unknown";
+
+            return message.Replace(Environment.NewLine, " ").Replace("\n", " ").Replace("\r", " ");
+        }
+
+        private static int ExitOrPrompt(bool smoke, int exitCode)
+        {
+            if (smoke)
+                return exitCode;
+
+            Log.Info("Press any key to continue...");
             Console.ReadKey();
+            return exitCode;
         }
     }
 }

@@ -1,6 +1,6 @@
 # Echo Gate
 
-This folder is reserved for Echo Gate, the cross-platform launcher/client runner for Meteor.
+This folder contains Echo Gate, the cross-platform launcher/client runner for Meteor.
 
 Initial launcher goals:
 
@@ -11,6 +11,13 @@ Initial launcher goals:
 - launch through CrossOver/Wine on macOS and Linux
 - launch directly on Windows
 - collect client launch logs and server test notes
+
+Current project:
+
+- `EchoGate/EchoGate.sln`
+- `EchoGate/EchoGate.Core`
+- `EchoGate/EchoGate.App`
+- `EchoGate/EchoGate.Tests`
 
 Design docs:
 

@@ -1,0 +1,86 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="EchoGate.App.MainWindow"
+        Title="Echo Gate"
+        Width="980"
+        Height="640"
+        MinWidth="820"
+        MinHeight="560"
+        Background="#F7F8FA">
+  <Grid RowDefinitions="Auto,*">
+    <Border Background="#202A33" Padding="20,14">
+      <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto">
+        <TextBlock Text="Echo Gate" Foreground="#FFFFFF" FontSize="24" FontWeight="SemiBold" />
+        <TextBlock Grid.Row="1" Text="FFXIV 1.x local server launcher" Foreground="#C9D3DD" FontSize="13" />
+        <StackPanel Grid.Column="1" Grid.RowSpan="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+          <Button Content="Check" Click="ValidateBackend_Click" />
+          <Button Content="Plan" Click="BuildLaunchPlan_Click" />
+        </StackPanel>
+      </Grid>
+    </Border>
+
+    <TabControl Grid.Row="1" Margin="16">
+      <TabItem Header="Backend">
+        <Grid Margin="4,16,4,4" ColumnDefinitions="180,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto" RowSpacing="12" ColumnSpacing="12">
+          <TextBlock Text="Profile name" VerticalAlignment="Center" />
+          <TextBox x:Name="ServerNameBox" Grid.Column="1" Text="Local Meteor" />
+
+          <TextBlock Grid.Row="1" Text="Server host" VerticalAlignment="Center" />
+          <TextBox x:Name="ServerHostBox" Grid.Row="1" Grid.Column="1" Text="127.0.0.1" />
+
+          <TextBlock Grid.Row="2" Text="Lobby port" VerticalAlignment="Center" />
+          <NumericUpDown x:Name="LobbyPortBox" Grid.Row="2" Grid.Column="1" Minimum="1" Maximum="65535" Value="54994" />
+
+          <TextBlock Grid.Row="3" Text="World port" VerticalAlignment="Center" />
+          <NumericUpDown x:Name="WorldPortBox" Grid.Row="3" Grid.Column="1" Minimum="1" Maximum="65535" Value="54992" />
+
+          <TextBlock Grid.Row="4" Text="Map port" VerticalAlignment="Center" />
+          <NumericUpDown x:Name="MapPortBox" Grid.Row="4" Grid.Column="1" Minimum="1" Maximum="65535" Value="1989" />
+        </Grid>
+      </TabItem>
+
+      <TabItem Header="Client">
+        <Grid Margin="4,16,4,4" ColumnDefinitions="180,*" RowDefinitions="Auto,Auto,Auto" RowSpacing="12" ColumnSpacing="12">
+          <TextBlock Text="Client root" VerticalAlignment="Center" />
+          <TextBox x:Name="ClientPathBox" Grid.Column="1" PlaceholderText="/path/to/FINAL FANTASY XIV 1.x" />
+
+          <TextBlock Grid.Row="1" Text="Static actors source" VerticalAlignment="Center" />
+          <TextBlock x:Name="StaticActorsStatus" Grid.Row="1" Grid.Column="1" Text="Not checked" VerticalAlignment="Center" />
+
+          <Button Grid.Row="2" Grid.Column="1" Content="Validate Client" HorizontalAlignment="Left" Click="ValidateClient_Click" />
+        </Grid>
+      </TabItem>
+
+      <TabItem Header="Runtime">
+        <Grid Margin="4,16,4,4" ColumnDefinitions="180,*" RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="12" ColumnSpacing="12">
+          <TextBlock Text="Runtime type" VerticalAlignment="Center" />
+          <ComboBox x:Name="RuntimeKindBox" Grid.Column="1" SelectedIndex="0">
+            <ComboBoxItem>CrossOver bottle</ComboBoxItem>
+            <ComboBoxItem>Wine prefix</ComboBoxItem>
+            <ComboBoxItem>Custom command</ComboBoxItem>
+          </ComboBox>
+
+          <TextBlock Grid.Row="1" Text="Runtime name" VerticalAlignment="Center" />
+          <TextBox x:Name="RuntimeNameBox" Grid.Row="1" Grid.Column="1" Text="Local Wine Runtime" />
+
+          <TextBlock Grid.Row="2" Text="Command" VerticalAlignment="Center" />
+          <TextBox x:Name="RuntimeCommandBox" Grid.Row="2" Grid.Column="1" Text="wine" />
+
+          <TextBlock Grid.Row="3" Text="Bottle or prefix" VerticalAlignment="Center" />
+          <TextBox x:Name="RuntimeValueBox" Grid.Row="3" Grid.Column="1" PlaceholderText="CrossOver bottle name or WINEPREFIX path" />
+        </Grid>
+      </TabItem>
+
+      <TabItem Header="Launch Log">
+        <Grid Margin="4,16,4,4" RowDefinitions="*,Auto">
+          <TextBox x:Name="LaunchLogBox"
+                   IsReadOnly="True"
+                   AcceptsReturn="True"
+                   TextWrapping="Wrap"
+                   FontFamily="Menlo,Consolas,monospace" />
+          <Button Grid.Row="1" Margin="0,12,0,0" Content="Clear" HorizontalAlignment="Right" Click="ClearLog_Click" />
+        </Grid>
+      </TabItem>
+    </TabControl>
+  </Grid>
+</Window>

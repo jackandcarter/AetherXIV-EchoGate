@@ -371,6 +371,9 @@ namespace Meteor.World
                         Linkshell lsRankChange = mWorldManager.GetLinkshellManager().GetLinkshell(linkshellRankChangePacket.lsName);                        
                         lsRankChange.RankChangeRequest(GetSession(subpacket.header.sourceId), linkshellRankChangePacket.name, linkshellRankChangePacket.rank);                       
                         break;
+                    default:
+                        PacketDiagnostics.LogUnknownGameMessage("World", "zone server game message", subpacket);
+                        break;
                 }
             }
             else if (mZoneSessionList.ContainsKey(sessionId))
@@ -378,6 +381,10 @@ namespace Meteor.World
                 ClientConnection conn = mZoneSessionList[sessionId].clientConnection;
                 conn.QueuePacket(subpacket);
                 conn.FlushQueuedSendPackets();
+            }
+            else
+            {
+                PacketDiagnostics.LogUnknownSubPacket("World", "zone server subpacket without session", subpacket);
             }
 
         }

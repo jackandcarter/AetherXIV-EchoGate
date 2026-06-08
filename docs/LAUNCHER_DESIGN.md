@@ -86,41 +86,28 @@ client/script/rq9q1797qvs.san
 - Account management beyond linking to the local PHP `create_user.php` flow.
 - Public launcher polish before the launch path is reproducible.
 
-## Candidate App Stack
+## App Stack
 
-### Primary Candidate: Tauri
-
-Rationale:
-
-- small cross-platform desktop application footprint
-- Rust backend suitable for process launching, paths, filesystem checks, and runtime probes
-- simple frontend surface for the first version
-- macOS, Linux, and Windows build support
-- independent of the legacy server runtime
-
-### Alternative Candidate: Avalonia/.NET
+### Selected Stack: Avalonia/.NET
 
 Rationale:
 
 - alignment with the planned .NET server modernization
 - cross-platform UI support
-- potential shared configuration models with server tooling
-
-### Initial Decision
-
-Use Tauri for the first launcher implementation unless the .NET server port creates a clear need for shared launcher/server libraries.
+- shared configuration and launch models with server tooling
+- native desktop application structure for Windows, macOS, and Linux
+- UI-first launcher flow without terminal-based launcher operation
 
 ## Repository Layout
 
 ```text
 launcher/
   README.md
-  app/
-    # Tauri or Avalonia project
-  docs/
-    # launcher-specific notes and screenshots
-  scripts/
-    # runtime probes and packaging helpers
+  EchoGate/
+    EchoGate.sln
+    EchoGate.Core/
+    EchoGate.App/
+    EchoGate.Tests/
 ```
 
 ## Runtime Model
@@ -177,27 +164,20 @@ The same server profile must be testable through multiple runtime profiles.
 - Record Seventh Umbral Launcher requirements.
 - Record working runtime settings.
 
-### Milestone 1: CLI Helper
-
-- Validate a client path.
-- Generate or update `servers.xml`.
-- Copy `staticactors.bin`.
-- Launch through a user-supplied command.
-
-### Milestone 2: Desktop Shell
+### Milestone 1: Desktop Shell
 
 - Add folder picker.
 - Add server profile editor.
 - Add runtime selector.
 - Add launch log viewer.
 
-### Milestone 3: Runtime Manager
+### Milestone 2: Runtime Manager
 
 - Support CrossOver bottle selection on macOS.
 - Support Wine prefix selection on Linux.
 - Add runtime probes and diagnostics.
 
-### Milestone 4: Integrated Development Loop
+### Milestone 3: Integrated Development Loop
 
 - Check local Meteor service readiness.
 - Launch client.

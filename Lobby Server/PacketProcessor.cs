@@ -75,8 +75,13 @@ namespace Meteor.Lobby
                         //Mod Retainers
                         default:
                             Program.Log.Debug("Unknown command 0x{0:X} received.", subpacket.gameMessage.opcode);
+                            PacketDiagnostics.LogUnknownGameMessage("Lobby", "lobby game message", subpacket);
                             break;
                     }
+                }
+                else
+                {
+                    PacketDiagnostics.LogUnknownSubPacket("Lobby", "lobby subpacket", subpacket);
                 }
             }
         }

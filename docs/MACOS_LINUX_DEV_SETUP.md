@@ -54,7 +54,7 @@ The web root lives at `Data/www`.
 For local testing:
 
 ```sh
-php -S 127.0.0.1:8080 -t Data/www
+./tools/run-web.sh
 ```
 
 Launcher login URL example:
@@ -99,12 +99,24 @@ For a full local client path:
 From build output folders:
 
 ```sh
-mono "Lobby Server/bin/Release/Lobby Server.exe"
-mono "Map Server/bin/Release/Map Server.exe"
-mono "World Server/bin/Release/World Server.exe"
+./tools/run-lobby.sh
+./tools/run-map.sh
+./tools/run-world.sh
 ```
 
 World Server connects to map/zone servers at startup. Map Server must be listening before World Server starts.
+
+For pre-client server validation:
+
+```sh
+./tools/smoke-local.sh --allow-missing-staticactors
+```
+
+For strict validation after `Data/staticactors.bin` is prepared:
+
+```sh
+./tools/smoke-local.sh
+```
 
 ## Apple Silicon Client Notes
 

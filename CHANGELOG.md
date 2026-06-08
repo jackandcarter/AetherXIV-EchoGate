@@ -12,3 +12,6 @@ Use concise entries and link to issues, pull requests, packet captures, or test 
 - Fixed non-Windows legacy builds by keeping `Microsoft.Net.Compilers` imports Windows-only.
 - Added Echo Gate launcher architecture and Wine/CrossOver runtime strategy docs.
 - Added `tools/prepare-client-data.sh` for preparing local `staticactors.bin` from a user-owned 1.23b client install.
+- Added server `--smoke` checks, Release-mode unknown packet diagnostics, and local run/smoke scripts.
+- Added PHP login database overrides through `METEOR_DB_*` environment variables and ignored `config.local.php` files.
+- Added the initial Echo Gate Avalonia desktop app foundation with core launcher models and unit tests.

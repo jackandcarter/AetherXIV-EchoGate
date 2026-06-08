@@ -95,6 +95,7 @@ namespace Meteor.World
                     //Response, client's current [actorID][time]
                     //BasePacket init = Login0x7ResponsePacket.BuildPacket(BitConverter.ToUInt32(packet.data, 0x10), Utils.UnixTimeStampUTC(), 0x07);
                     //client.QueuePacket(init);
+                    PacketDiagnostics.LogUnknownSubPacket("World", "world type 0x08", subpacket);
                     packet.DebugPrintPacket();
                 }
                 //Game Message
@@ -160,11 +161,17 @@ namespace Meteor.World
                             }
                            
                             break;
+                        default:
+                            PacketDiagnostics.LogUnknownSubPacket("World", "world server subpacket", subpacket);
+                            break;
                     }
 
                 }
                 else
+                {
+                    PacketDiagnostics.LogUnknownSubPacket("World", "world subpacket", subpacket);
                     packet.DebugPrintPacket();
+                }
             }
         }    
 
@@ -193,6 +200,9 @@ namespace Meteor.World
                     GroupCreatedPacket groupCreatedPacket = new GroupCreatedPacket(subpacket.data);
                     if (!mServer.GetWorldManager().SendGroupInit(session, groupCreatedPacket.groupId))                                    
                         session.clientConnection.QueuePacket(subpacket);
+                    break;
+                default:
+                    PacketDiagnostics.LogUnknownGameMessage("World", "world game message passthrough", subpacket);
                     break;
             }
         }

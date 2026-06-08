@@ -56,7 +56,10 @@ namespace Meteor.Map
                 Session session = mServer.GetSession(subpacket.header.sourceId);
 
                 if (session == null && subpacket.gameMessage.opcode != 0x1000)
+                {
+                    PacketDiagnostics.LogUnknownGameMessage("Map", "missing session", subpacket);
                     return;
+                }
 
                 //Normal Game Opcode
                 switch (subpacket.gameMessage.opcode)
@@ -121,6 +124,7 @@ namespace Meteor.Map
                     //Unknown
                     case 0x0002:
 
+                        PacketDiagnostics.LogUnknownGameMessage("Map", "map opcode 0x0002", subpacket);
                         subpacket.DebugPrintSubPacket();
                         session.QueuePacket(_0x2Packet.BuildPacket(session.id));
                         client.FlushQueuedSendPackets();
@@ -227,6 +231,7 @@ namespace Meteor.Map
                         break;
                     //Unknown, happens at npc spawn and cutscene play????
                     case 0x00CE:
+                        PacketDiagnostics.LogUnknownGameMessage("Map", "map opcode 0x00CE", subpacket);
                         subpacket.DebugPrintSubPacket();
                         break;
                     //Countdown requested
@@ -383,6 +388,7 @@ namespace Meteor.Map
                         break;
                     default:
                         Program.Log.Debug("Unknown command 0x{0:X} received.", subpacket.gameMessage.opcode);
+                        PacketDiagnostics.LogUnknownGameMessage("Map", "map game message", subpacket);
                         subpacket.DebugPrintSubPacket();
                         break;
                 }
@@ -391,4 +397,3 @@ namespace Meteor.Map
 
     }
 }
-
