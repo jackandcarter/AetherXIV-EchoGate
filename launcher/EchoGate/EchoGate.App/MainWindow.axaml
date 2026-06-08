@@ -40,23 +40,36 @@
       </TabItem>
 
       <TabItem Header="Client">
-        <Grid Margin="4,16,4,4" ColumnDefinitions="180,*" RowDefinitions="Auto,Auto,Auto" RowSpacing="12" ColumnSpacing="12">
+        <Grid Margin="4,16,4,4" ColumnDefinitions="180,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="12" ColumnSpacing="12">
           <TextBlock Text="Client root" VerticalAlignment="Center" />
           <TextBox x:Name="ClientPathBox" Grid.Column="1" PlaceholderText="/path/to/FINAL FANTASY XIV 1.x" />
 
-          <TextBlock Grid.Row="1" Text="Static actors source" VerticalAlignment="Center" />
-          <TextBlock x:Name="StaticActorsStatus" Grid.Row="1" Grid.Column="1" Text="Not checked" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="1" Text="Version" VerticalAlignment="Center" />
+          <TextBlock x:Name="ClientVersionStatus" Grid.Row="1" Grid.Column="1" Text="Not checked" TextWrapping="Wrap" VerticalAlignment="Center" />
 
-          <Button Grid.Row="2" Grid.Column="1" Content="Validate Client" HorizontalAlignment="Left" Click="ValidateClient_Click" />
+          <TextBlock Grid.Row="2" Text="Executables" VerticalAlignment="Center" />
+          <TextBlock x:Name="ExecutableStatus" Grid.Row="2" Grid.Column="1" Text="Not checked" TextWrapping="Wrap" VerticalAlignment="Center" />
+
+          <TextBlock Grid.Row="3" Text="Static actors source" VerticalAlignment="Center" />
+          <TextBlock x:Name="StaticActorsStatus" Grid.Row="3" Grid.Column="1" Text="Not checked" TextWrapping="Wrap" VerticalAlignment="Center" />
+
+          <TextBlock Grid.Row="4" Text="Patch library root" VerticalAlignment="Center" />
+          <TextBox x:Name="PatchLibraryPathBox" Grid.Row="4" Grid.Column="1" PlaceholderText="/path/to/user-provided patch library" />
+
+          <TextBlock Grid.Row="5" Text="Patch library" VerticalAlignment="Center" />
+          <TextBlock x:Name="PatchLibraryStatus" Grid.Row="5" Grid.Column="1" Text="Not checked" TextWrapping="Wrap" VerticalAlignment="Center" />
+
+          <Button Grid.Row="6" Grid.Column="1" Content="Validate Client" HorizontalAlignment="Left" Click="ValidateClient_Click" />
         </Grid>
       </TabItem>
 
       <TabItem Header="Runtime">
-        <Grid Margin="4,16,4,4" ColumnDefinitions="180,*" RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="12" ColumnSpacing="12">
+        <Grid Margin="4,16,4,4" ColumnDefinitions="180,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="12" ColumnSpacing="12">
           <TextBlock Text="Runtime type" VerticalAlignment="Center" />
           <ComboBox x:Name="RuntimeKindBox" Grid.Column="1" SelectedIndex="0">
             <ComboBoxItem>CrossOver bottle</ComboBoxItem>
             <ComboBoxItem>Wine prefix</ComboBoxItem>
+            <ComboBoxItem>Whisky bottle</ComboBoxItem>
             <ComboBoxItem>Custom command</ComboBoxItem>
           </ComboBox>
 
@@ -68,6 +81,18 @@
 
           <TextBlock Grid.Row="3" Text="Bottle or prefix" VerticalAlignment="Center" />
           <TextBox x:Name="RuntimeValueBox" Grid.Row="3" Grid.Column="1" PlaceholderText="CrossOver bottle name or WINEPREFIX path" />
+
+          <TextBlock Grid.Row="4" Text="Detected runtimes" VerticalAlignment="Top" />
+          <TextBox x:Name="RuntimeCandidatesBox"
+                   Grid.Row="4"
+                   Grid.Column="1"
+                   Height="130"
+                   IsReadOnly="True"
+                   AcceptsReturn="True"
+                   TextWrapping="Wrap"
+                   FontFamily="Menlo,Consolas,monospace" />
+
+          <Button Grid.Row="5" Grid.Column="1" Content="Scan Runtimes" HorizontalAlignment="Left" Click="ScanRuntime_Click" />
         </Grid>
       </TabItem>
 

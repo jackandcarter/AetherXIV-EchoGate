@@ -7,6 +7,8 @@ Echo Gate is the cross-platform client runner for a user-owned Final Fantasy XIV
 Primary responsibilities:
 
 - validate a local 1.23b client installation
+- classify base, patched, and unknown client version states
+- validate a user-provided 1.x patch library
 - manage local and private server profiles
 - configure the legacy launcher/client connection path
 - prepare local server runtime data derived from the client installation
@@ -31,10 +33,32 @@ Repository exclusions:
 - game client files
 - extracted client assets
 - patch files
+- patch torrent/metainfo files
 - packet captures containing credentials or private account data
 - local secrets
 
 Echo Gate may read local client files for validation and setup. Echo Gate must not distribute, bundle, commit, or publish client assets.
+
+## Patch Source Policy
+
+Patch files and torrent/metainfo files are user-provided local artifacts.
+
+Echo Gate must not:
+
+- bundle patch payloads
+- commit patch payloads
+- publish patch payloads
+- require an unofficial mirror as project infrastructure
+- download patch payloads without an explicit user-selected source and validation plan
+
+Echo Gate may:
+
+- identify the known 1.x patch chain by filename
+- validate local patch files by expected size and CRC32
+- validate local torrent/metainfo files by expected path
+- apply patches to a backup or controlled copy after a patcher implementation is available
+
+Remote acquisition, torrent downloading, and mirror configuration are future patcher features. Those features require source selection, progress reporting, integrity validation, and failure rollback.
 
 ## Design Laws
 
@@ -51,6 +75,18 @@ Echo Gate may read local client files for validation and setup. Echo Gate must n
 
 - Client folder picker or path setting.
 - Client validation checklist.
+- Client readiness states:
+  - missing
+  - base install
+  - patch required
+  - 1.23b ready
+  - unknown version
+- Patch library validator:
+  - expects one boot patch and 51 game patches from the known 1.x chain
+  - validates patch files by path and expected byte size
+  - supports CRC32 verification in the core patch-library model
+  - validates torrent metainfo files by path
+  - reports missing entries without downloading or applying patches
 - Server profile editor:
   - profile name
   - lobby address
@@ -79,6 +115,8 @@ client/script/rq9q1797qvs.san
 
 - Client download.
 - Patch download.
+- Torrent download.
+- Patch application.
 - Client redistribution.
 - Plugin or mod support.
 - Client code injection.
@@ -117,9 +155,23 @@ Echo Gate models the launch path as data:
 ```text
 ClientInstall
   path
-  detectedVersion
+  bootVersion
+  gameVersion
+  readiness
   staticActorsSource
   executableCandidates
+
+PatchLibrary
+  rootPath
+  expectedPatchCount
+  presentPatchCount
+  presentMetainfoCount
+  invalidPatchCount
+  expectedSizeBytes
+  expectedCrc32
+  missingPatchEntries
+  missingMetainfoEntries
+  invalidPatchEntries
 
 ServerProfile
   name
@@ -141,14 +193,16 @@ The same server profile must be testable through multiple runtime profiles.
 ## Launch Procedure
 
 1. Validate local client path.
-2. Validate selected server profile.
-3. Check login URL.
-4. Check configured server ports.
-5. Prepare or validate `Data/staticactors.bin`.
-6. Write or update launcher server configuration.
-7. Start the selected Windows/Wine/CrossOver/Proton runtime.
-8. Stream launch logs into a local log folder.
-9. Record launch outcome:
+2. Classify client version state.
+3. Validate user-provided patch library when selected.
+4. Validate selected server profile.
+5. Check login URL.
+6. Check configured server ports.
+7. Prepare or validate `Data/staticactors.bin`.
+8. Write or update launcher server configuration.
+9. Start the selected Windows/Wine/CrossOver/Proton runtime.
+10. Stream launch logs into a local log folder.
+11. Record launch outcome:
    - launched
    - login reached
    - world selected
@@ -167,6 +221,8 @@ The same server profile must be testable through multiple runtime profiles.
 ### Milestone 1: Desktop Shell
 
 - Add folder picker.
+- Add version/readiness status rows.
+- Add patch library validation.
 - Add server profile editor.
 - Add runtime selector.
 - Add launch log viewer.
@@ -187,7 +243,7 @@ The same server profile must be testable through multiple runtime profiles.
 ## Research Items
 
 - Exact 1.23b executable after Seventh Umbral setup.
-- Required launcher-generated arguments or tokens.
+- Required launcher-generated arguments or tokens for `ffxivgame.exe`.
 - Seventh Umbral Launcher behavior under modern Wine/CrossOver.
 - Best renderer path for 1.x DirectX 9 on Apple Silicon.
 - Required registry keys.
@@ -196,6 +252,11 @@ The same server profile must be testable through multiple runtime profiles.
 ## References
 
 - Project Meteor client guide: https://wiki.ffxivrp.org/pages/ClientAndLauncher
+- Project Novum client patching: https://project-novum.github.io/game-patching/patching/
+- Project Novum ZiPatch format: https://project-novum.github.io/game-patching/zipatch/
+- XIV Dev Wiki ZiPatch: https://xiv.dev/data-files/zipatch
+- Seventh Umbral patch manifest reference: https://github.com/jpd002/SeventhUmbral/blob/eead5fef6a2e5db9ffd82e9377bea72b23bf58af/launcher/PatcherWindow.cpp
+- Meteor launcher patch manifest reference: https://github.com/ThiconZ/FFXIV-Meteor-Launcher/blob/d770d4132e7d550aa89d6617484933ac5b6a0244/FFXIV%20Meteor%20Launcher/PatchData.cs
 - XIV on Mac: https://www.xivmac.com/about-uscredits
 - XIV on Mac source: https://github.com/marzent/XIV-on-Mac
 - FFXIVQuickLauncher source: https://github.com/goatcorp/FFXIVQuickLauncher

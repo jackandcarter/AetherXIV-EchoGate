@@ -123,9 +123,39 @@ For strict validation after `Data/staticactors.bin` is prepared:
 The server supports Apple Silicon development. The 1.23b game client is a legacy Windows client. Runtime options:
 
 - Try CrossOver, Wineskin, or another maintained Wine wrapper for the Windows client and Seventh Umbral launcher.
+- Echo Gate can detect available runtime tools such as XIV on Mac's bundled Wine, Game Porting Toolkit Wine, and Whisky's command helper, then model them as explicit runtime profiles.
 - Use a Windows x86 environment on another machine or VM/emulator for client testing when Wine compatibility blocks a path.
 - Use client packet captures to update `CLIENT_REQUIREMENTS.md`.
 
 The later official macOS FFXIV client is for A Realm Reborn/current FFXIV and is not compatible with this 1.23b server protocol.
+
+## Patch Library Shape
+
+The base client reports:
+
+```text
+boot.ver = 2010.07.10.0000
+game.ver = 2010.07.10.0000
+```
+
+The 1.23b target reports:
+
+```text
+boot.ver = 2010.09.18.0000
+game.ver = 2012.09.19.0001
+```
+
+Echo Gate validates a user-provided patch library by checking for the known one-boot-patch and 51-game-patch sequence. Patch files are checked by path and expected byte size. CRC32 verification is available in the core patch-library model and is reserved for explicit integrity passes. The expected local shape is:
+
+```text
+ffxiv/2d2a390f/patch/D<version>.patch
+ffxiv/2d2a390f/metainfo/D<version>.torrent
+ffxiv/48eca647/patch/D<version>.patch
+ffxiv/48eca647/metainfo/D<version>.torrent
+```
+
+Patch files and metainfo files are local user-provided artifacts and remain excluded from repository state.
+
+Echo Gate does not bundle, host, or automatically download patch payloads. Internet Archive entries, torrent metainfo files, historical S3 URLs, and private mirrors are treated as user-selected sources outside repository state until a controlled patcher flow is implemented.
 
 For Echo Gate launcher/runtime design, see `docs/LAUNCHER_DESIGN.md` and `docs/WINE_RUNTIME_STRATEGY.md`.

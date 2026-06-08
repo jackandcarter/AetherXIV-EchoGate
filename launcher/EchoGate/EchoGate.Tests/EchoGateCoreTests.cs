@@ -1,4 +1,5 @@
 using System.Xml.Linq;
+using System.Text;
 using EchoGate.Core;
 
 namespace EchoGate.Tests;
@@ -51,6 +52,119 @@ public sealed class EchoGateCoreTests
         Assert.Contains("ffxivboot.exe", plan.Arguments);
         Assert.Equal("127.0.0.1", plan.Environment["ECHO_GATE_SERVER_HOST"]);
         Assert.Equal("/tmp/echo-gate-prefix", plan.Environment["WINEPREFIX"]);
+    }
+
+    [Fact]
+    public void ClientInstallReportClassifiesBaseInstall()
+    {
+        string root = CreateTempDirectory();
+        File.WriteAllText(Path.Combine(root, "ffxivboot.exe"), "");
+        File.WriteAllText(Path.Combine(root, "ffxivupdater.exe"), "");
+        File.WriteAllText(Path.Combine(root, "boot.ver"), ClientVersionInfo.BaseVersion);
+        File.WriteAllText(Path.Combine(root, "game.ver"), ClientVersionInfo.BaseVersion);
+
+        ClientInstallReport report = ClientInstall.FromPath(root).Inspect();
+
+        Assert.Equal(ClientInstallState.BaseInstall, report.State);
+        Assert.False(report.HasDirectGameExecutable);
+        Assert.Contains(report.RequiredActions, action => action.Contains("patch chain", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void ClientInstallReportClassifiesTargetInstall()
+    {
+        string root = CreateTempDirectory();
+        File.WriteAllText(Path.Combine(root, "ffxivboot.exe"), "");
+        File.WriteAllText(Path.Combine(root, "ffxivupdater.exe"), "");
+        File.WriteAllText(Path.Combine(root, "ffxivgame.exe"), "");
+        File.WriteAllText(Path.Combine(root, "boot.ver"), ClientVersionInfo.TargetBootVersion);
+        File.WriteAllText(Path.Combine(root, "game.ver"), ClientVersionInfo.TargetGameVersion);
+
+        ClientInstallReport report = ClientInstall.FromPath(root).Inspect();
+
+        Assert.Equal(ClientInstallState.Ready123b, report.State);
+        Assert.True(report.IsLaunchReady);
+    }
+
+    [Fact]
+    public void LegacyPatchManifestMatchesKnownPatchChain()
+    {
+        IReadOnlyList<PatchEntry> entries = LegacyPatchManifest.Entries;
+
+        Assert.Equal(52, entries.Count);
+        Assert.Equal(PatchRepository.Boot, entries[0].Repository);
+        Assert.Equal(ClientVersionInfo.TargetBootVersion, entries[0].ToVersion);
+        Assert.Equal(5571687, entries[0].ExpectedSizeBytes);
+        Assert.Equal(0x47DDE5EDu, entries[0].ExpectedCrc32);
+        Assert.Equal(PatchRepository.Game, entries[^1].Repository);
+        Assert.Equal(ClientVersionInfo.TargetGameVersion, entries[^1].ToVersion);
+        Assert.Equal(20874726, entries[^1].ExpectedSizeBytes);
+        Assert.Equal(0x8A775526u, entries[^1].ExpectedCrc32);
+    }
+
+    [Fact]
+    public void PatchLibraryReportDetectsCompleteLibrary()
+    {
+        string root = CreateTempDirectory();
+        foreach (PatchEntry entry in LegacyPatchManifest.Entries)
+        {
+            string patchPath = Path.Combine(root, entry.RelativePatchPath);
+            string metainfoPath = Path.Combine(root, entry.RelativeMetainfoPath);
+            Directory.CreateDirectory(Path.GetDirectoryName(patchPath)!);
+            Directory.CreateDirectory(Path.GetDirectoryName(metainfoPath)!);
+            File.WriteAllText(patchPath, "patch");
+            File.WriteAllText(metainfoPath, "torrent");
+        }
+
+        PatchLibraryReport report = LegacyPatchManifest.InspectLibrary(
+            root,
+            PatchLibraryInspectionMode.PresenceOnly);
+
+        Assert.True(report.IsComplete);
+        Assert.Equal(52, report.PresentPatchCount);
+        Assert.Equal(52, report.PresentMetainfoCount);
+    }
+
+    [Fact]
+    public void PatchLibraryReportDetectsInvalidPatchSize()
+    {
+        string root = CreateTempDirectory();
+        PatchEntry entry = LegacyPatchManifest.Entries[0];
+        string patchPath = Path.Combine(root, entry.RelativePatchPath);
+        string metainfoPath = Path.Combine(root, entry.RelativeMetainfoPath);
+        Directory.CreateDirectory(Path.GetDirectoryName(patchPath)!);
+        Directory.CreateDirectory(Path.GetDirectoryName(metainfoPath)!);
+        File.WriteAllText(patchPath, "patch");
+        File.WriteAllText(metainfoPath, "torrent");
+
+        PatchLibraryReport report = LegacyPatchManifest.InspectLibrary(root);
+
+        PatchFileReport invalid = Assert.Single(report.InvalidPatchFiles);
+        Assert.Equal(entry, invalid.Entry);
+        Assert.Equal(5, invalid.ActualSizeBytes);
+        Assert.False(report.IsComplete);
+    }
+
+    [Fact]
+    public void Crc32MatchesStandardCheckValue()
+    {
+        byte[] data = Encoding.ASCII.GetBytes("123456789");
+
+        uint crc32 = Crc32.Compute(data);
+
+        Assert.Equal(0xCBF43926u, crc32);
+    }
+
+    [Fact]
+    public void RuntimeDiscoveryFindsKnownMacRuntimeTools()
+    {
+        IReadOnlyList<RuntimeCandidate> candidates = RuntimeDiscovery.Discover(
+            path => path.Contains("XIV on Mac", StringComparison.Ordinal)
+                || path.Contains("WhiskyCmd", StringComparison.Ordinal),
+            _ => false);
+
+        Assert.Contains(candidates, candidate => candidate.Name == "XIV on Mac Wine");
+        Assert.Contains(candidates, candidate => candidate.Kind == WineRuntimeKind.WhiskyBottle);
     }
 
     [Fact]

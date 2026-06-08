@@ -64,6 +64,44 @@ Excluded assumptions:
 - current-game patching
 - DirectX 11 defaults
 
+Detected runtime tool:
+
+```text
+/Applications/XIV on Mac.app/Contents/Resources/wine/bin/wine
+```
+
+This runtime is modeled as a Wine prefix profile. Echo Gate does not assume the XIV on Mac application profile or current-game configuration.
+
+### Whisky
+
+Secondary macOS evaluation target.
+
+Runtime command shape:
+
+```text
+WhiskyCmd run <bottle-name> <windows-executable> [args]
+```
+
+Detected runtime tool:
+
+```text
+/Applications/Whisky.app/Contents/Resources/WhiskyCmd
+```
+
+Echo Gate models Whisky as a bottle runtime. Bottle selection remains explicit.
+
+### Game Porting Toolkit
+
+Secondary macOS evaluation target.
+
+Detected runtime tool:
+
+```text
+/usr/local/Cellar/game-porting-toolkit/1.1/bin/wine64
+```
+
+Echo Gate models Game Porting Toolkit as a Wine prefix profile. Renderer behavior must be validated against the 1.x DirectX 9 client before it becomes a recommended default.
+
 ### WineCX / Wineskin / Other Wine Builds
 
 Secondary macOS evaluation targets.

@@ -4,6 +4,7 @@ public enum WineRuntimeKind
 {
     CrossOverBottle,
     WinePrefix,
+    WhiskyBottle,
     CustomCommand
 }
 
@@ -43,6 +44,17 @@ public sealed record WineRuntimeProfile(
             });
     }
 
+    public static WineRuntimeProfile WhiskyBottle(string name, string bottleName, string command)
+    {
+        return new WineRuntimeProfile(
+            name,
+            WineRuntimeKind.WhiskyBottle,
+            command,
+            bottleName,
+            null,
+            new Dictionary<string, string>());
+    }
+
     public static WineRuntimeProfile Custom(string name, string command)
     {
         return new WineRuntimeProfile(
@@ -61,6 +73,14 @@ public sealed record WineRuntimeProfile(
 
         if (string.IsNullOrWhiteSpace(windowsExecutablePath))
             throw new InvalidOperationException("Windows executable path is required.");
+
+        if (Kind == WineRuntimeKind.WhiskyBottle)
+        {
+            if (string.IsNullOrWhiteSpace(BottleName))
+                throw new InvalidOperationException("Whisky bottle name is required.");
+
+            return $"{Command} run \"{BottleName}\" \"{windowsExecutablePath}\"";
+        }
 
         return $"{Command} \"{windowsExecutablePath}\"";
     }
