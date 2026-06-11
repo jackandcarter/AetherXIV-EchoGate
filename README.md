@@ -1,5 +1,5 @@
-# MeteorXIV Core
-MeteorXIV Core for XIV 1.x macOS and Linux
+# MeteorXIV Core + Echo Gate XIV Launcher v1.1
+MeteorXIV Core for XIV 1.x Windows, macOS, and Linux
 
 A few notes:
 
