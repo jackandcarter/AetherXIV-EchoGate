@@ -21,7 +21,7 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 
 using System.Collections.Generic;
 
-namespace Meteor.Map.packets.send.actor.battle
+namespace MeteorXIV.Core.Map.packets.send.actor.battle
 {
     class CommandResultContainer
     {

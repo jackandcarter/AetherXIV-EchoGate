@@ -22,9 +22,9 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 using System;
 using System.IO;
 
-using Meteor.Common;
+using MeteorXIV.Core.Common;
 
-namespace Meteor.World.Packets.Send
+namespace MeteorXIV.Core.World.Packets.Send
 {
     class _0x2Packet
     {

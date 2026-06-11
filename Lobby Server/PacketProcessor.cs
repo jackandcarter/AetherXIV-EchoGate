@@ -1,4 +1,4 @@
-﻿/*
+/*
 ===========================================================================
 Copyright (C) 2015-2019 Project Meteor Dev Team
 
@@ -25,12 +25,12 @@ using System.IO;
 using System.Security.Cryptography;
 using System.Text;
 
-using Meteor.Common;
-using Meteor.Lobby.DataObjects;
-using Meteor.Lobby.Packets;
-using Meteor.Lobby.Packets.Receive;
+using MeteorXIV.Core.Common;
+using MeteorXIV.Core.Lobby.DataObjects;
+using MeteorXIV.Core.Lobby.Packets;
+using MeteorXIV.Core.Lobby.Packets.Receive;
 
-namespace Meteor.Lobby
+namespace MeteorXIV.Core.Lobby
 {
     class PacketProcessor
     {
@@ -94,10 +94,17 @@ namespace Meteor.Lobby
             client.blowfish = new Blowfish(blowfishKey);
 
             Program.Log.Info("SecCNum: 0x{0:X}", securityHandshake.clientNumber);
+            Program.Log.Info(
+                "Secure handshake parsed from {0}; ticketLength={1}; packetSize={2}",
+                client.GetAddress(),
+                securityHandshake.ticketPhrase == null ? 0 : securityHandshake.ticketPhrase.Length,
+                packet.header.packetSize);
 
             //Respond with acknowledgment
             BasePacket outgoingPacket = new BasePacket(HardCoded_Packets.g_secureConnectionAcknowledgment);
+            PacketDiagnostics.LogBasePacket("Lobby", "secure-ack-out-plain", outgoingPacket);
             BasePacket.EncryptPacket(client.blowfish, outgoingPacket);
+            PacketDiagnostics.LogBasePacket("Lobby", "secure-ack-out-encrypted", outgoingPacket);
             client.QueuePacket(outgoingPacket);
         }
 
@@ -105,6 +112,13 @@ namespace Meteor.Lobby
         {
             packet.DebugPrintSubPacket();
             SessionPacket sessionPacket = new SessionPacket(packet.data);
+	    Program.Log.Info(
+		"SESSION PACKET PARSED: session='{0}' len={1} version='{2}' sequence={3}",
+		sessionPacket.session,
+                sessionPacket.session == null ? 0 : sessionPacket.session.Length,
+                sessionPacket.version,
+                sessionPacket.sequence
+            );
             String clientVersion = sessionPacket.version;
 
             Program.Log.Info("Got acknowledgment for secure session.");         

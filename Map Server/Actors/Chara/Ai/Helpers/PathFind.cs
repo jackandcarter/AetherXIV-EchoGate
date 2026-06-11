@@ -21,14 +21,14 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 
 using System;
 using System.Collections.Generic;
-using Meteor.Map.Actors;
-using Meteor.Map.utils;
-using Meteor.Common;
-using Meteor.Map.actors.area;
+using MeteorXIV.Core.Map.Actors;
+using MeteorXIV.Core.Map.utils;
+using MeteorXIV.Core.Common;
+using MeteorXIV.Core.Map.actors.area;
 
 // port of https://github.com/DarkstarProject/darkstar/blob/master/src/map/ai/helpers/pathfind.h
 
-namespace Meteor.Map.actors.chara.ai
+namespace MeteorXIV.Core.Map.actors.chara.ai
 {
     // todo: check for obstacles, los, etc
     public enum PathFindFlags

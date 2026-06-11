@@ -19,18 +19,18 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 ===========================================================================
 */
 
-using Meteor.Common;
-using Meteor.Map.actors.area;
-using Meteor.Map.actors.chara.npc;
-using Meteor.Map.lua;
-using Meteor.Map.packets.send.actor;
+using MeteorXIV.Core.Common;
+using MeteorXIV.Core.Map.actors.area;
+using MeteorXIV.Core.Map.actors.chara.npc;
+using MeteorXIV.Core.Map.lua;
+using MeteorXIV.Core.Map.packets.send.actor;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Meteor.Map.packets.send;
-using Meteor.Map.actors.director;
+using MeteorXIV.Core.Map.packets.send;
+using MeteorXIV.Core.Map.actors.director;
 
-namespace Meteor.Map.Actors
+namespace MeteorXIV.Core.Map.Actors
 {
     class Area : Actor
     {

@@ -22,7 +22,7 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 using System;
 using System.IO;
 
-namespace Meteor.Map.packets.receive.supportdesk
+namespace MeteorXIV.Core.Map.packets.receive.supportdesk
 {
     class FaqListRequestPacket
     {

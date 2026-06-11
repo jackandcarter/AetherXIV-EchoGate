@@ -24,10 +24,10 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 
-using Meteor.Common;
-using Meteor.World.DataObjects;
+using MeteorXIV.Core.Common;
+using MeteorXIV.Core.World.DataObjects;
 
-namespace Meteor.World.Packets.Send.Subpackets
+namespace MeteorXIV.Core.World.Packets.Send.Subpackets
 {
     class GameMessagePacket
     {        

@@ -19,7 +19,7 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 ===========================================================================
 */
 
-namespace Meteor.World.DataObjects.Group
+namespace MeteorXIV.Core.World.DataObjects.Group
 {
     class RetainerGroupMember
     {

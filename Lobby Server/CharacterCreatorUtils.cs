@@ -21,7 +21,7 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 
 using System.Collections.Generic;
 
-namespace Meteor.Lobby
+namespace MeteorXIV.Core.Lobby
 {
     class CharacterCreatorUtils
     {

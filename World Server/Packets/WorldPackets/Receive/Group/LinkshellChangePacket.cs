@@ -23,7 +23,7 @@ using System;
 using System.IO;
 using System.Text;
 
-namespace Meteor.World.Packets.WorldPackets.Receive.Group
+namespace MeteorXIV.Core.World.Packets.WorldPackets.Receive.Group
 {
     class LinkshellChangePacket
     {

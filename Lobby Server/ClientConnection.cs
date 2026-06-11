@@ -25,9 +25,9 @@ using System.Net;
 using System.Net.Sockets;
 
 using Cyotek.Collections.Generic;
-using Meteor.Common;
+using MeteorXIV.Core.Common;
 
-namespace Meteor.Lobby
+namespace MeteorXIV.Core.Lobby
 {
     class ClientConnection
     {
@@ -80,6 +80,7 @@ namespace Meteor.Lobby
                 byte[] buffer = new byte[0xffff];
                 Array.Copy(packetBytes, buffer, packetBytes.Length);
                 try { 
+                    PacketDiagnostics.LogBasePacket("Lobby", "send " + GetAddress(), packet);
                     socket.Send(packetBytes);
                 }
                 catch(Exception e)

@@ -21,7 +21,7 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 
 using System.Collections.Generic;
 
-namespace Meteor.Map.actors
+namespace MeteorXIV.Core.Map.actors
 {
     class EventList
     {

@@ -19,7 +19,7 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 ===========================================================================
 */
 
-namespace Meteor.World.DataObjects
+namespace MeteorXIV.Core.World.DataObjects
 {
     class DBWorld
     {

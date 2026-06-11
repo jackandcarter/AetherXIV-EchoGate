@@ -2,10 +2,18 @@ namespace EchoGate.Core;
 
 public enum WineRuntimeKind
 {
+    NativeWindows,
     CrossOverBottle,
     WinePrefix,
     WhiskyBottle,
     CustomCommand
+}
+
+public enum RuntimeSelectionMode
+{
+    AutomaticManaged,
+    DetectedRuntime,
+    CustomRuntime
 }
 
 public sealed record WineRuntimeProfile(
@@ -16,6 +24,17 @@ public sealed record WineRuntimeProfile(
     string? PrefixPath,
     Dictionary<string, string> Environment)
 {
+    public static WineRuntimeProfile NativeWindows()
+    {
+        return new WineRuntimeProfile(
+            "Windows native",
+            WineRuntimeKind.NativeWindows,
+            "",
+            null,
+            null,
+            new Dictionary<string, string>());
+    }
+
     public static WineRuntimeProfile CrossOverBottle(string name, string bottleName, string command = "wine")
     {
         return new WineRuntimeProfile(
@@ -30,18 +49,18 @@ public sealed record WineRuntimeProfile(
             });
     }
 
-    public static WineRuntimeProfile WinePrefix(string name, string prefixPath, string command = "wine")
+    public static WineRuntimeProfile WinePrefix(
+        string name,
+        string prefixPath,
+        string command = "wine",
+        IReadOnlyDictionary<string, string>? environment = null)
     {
-        return new WineRuntimeProfile(
-            name,
-            WineRuntimeKind.WinePrefix,
-            command,
-            null,
-            prefixPath,
-            new Dictionary<string, string>
-            {
-                ["WINEPREFIX"] = prefixPath
-            });
+        Dictionary<string, string> variables = environment is null
+            ? new Dictionary<string, string>()
+            : new Dictionary<string, string>(environment);
+        variables["WINEPREFIX"] = prefixPath;
+
+        return new WineRuntimeProfile(name, WineRuntimeKind.WinePrefix, command, null, prefixPath, variables);
     }
 
     public static WineRuntimeProfile WhiskyBottle(string name, string bottleName, string command)
@@ -66,8 +85,11 @@ public sealed record WineRuntimeProfile(
             new Dictionary<string, string>());
     }
 
-    public string BuildArguments(string windowsExecutablePath)
+    public string BuildArguments(string windowsExecutablePath, string? applicationArguments = null)
     {
+        if (Kind == WineRuntimeKind.NativeWindows)
+            return applicationArguments ?? "";
+
         if (string.IsNullOrWhiteSpace(Command))
             throw new InvalidOperationException("Runtime command is required.");
 
@@ -79,9 +101,15 @@ public sealed record WineRuntimeProfile(
             if (string.IsNullOrWhiteSpace(BottleName))
                 throw new InvalidOperationException("Whisky bottle name is required.");
 
-            return $"{Command} run \"{BottleName}\" \"{windowsExecutablePath}\"";
+            string whiskyArguments = $"run {CommandLineArguments.Quote(BottleName)} {CommandLineArguments.Quote(windowsExecutablePath)}";
+            return string.IsNullOrWhiteSpace(applicationArguments)
+                ? whiskyArguments
+                : $"{whiskyArguments} -- {applicationArguments}";
         }
 
-        return $"{Command} \"{windowsExecutablePath}\"";
+        string arguments = CommandLineArguments.Quote(windowsExecutablePath);
+        return string.IsNullOrWhiteSpace(applicationArguments)
+            ? arguments
+            : $"{arguments} {applicationArguments}";
     }
 }

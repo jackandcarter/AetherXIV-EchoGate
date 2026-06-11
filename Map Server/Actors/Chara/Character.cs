@@ -20,24 +20,24 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 */
 
 
-using Meteor.Common;
-using Meteor.Map.actors.chara.player;
-using Meteor.Map.actors.group;
-using Meteor.Map.Actors.Chara;
-using Meteor.Map.dataobjects;
-using Meteor.Map.packets.send.actor;
-using Meteor.Map.packets.send.actor.inventory;
-using Meteor.Map.utils;
-using Meteor.Map.actors.chara.ai;
+using MeteorXIV.Core.Common;
+using MeteorXIV.Core.Map.actors.chara.player;
+using MeteorXIV.Core.Map.actors.group;
+using MeteorXIV.Core.Map.Actors.Chara;
+using MeteorXIV.Core.Map.dataobjects;
+using MeteorXIV.Core.Map.packets.send.actor;
+using MeteorXIV.Core.Map.packets.send.actor.inventory;
+using MeteorXIV.Core.Map.utils;
+using MeteorXIV.Core.Map.actors.chara.ai;
 using System;
 using System.Collections.Generic;
-using Meteor.Map.actors.chara;
-using Meteor.Map.packets.send.actor.battle;
-using Meteor.Map.actors.chara.ai.state;
-using Meteor.Map.actors.chara.ai.utils;
-using Meteor.Map.actors.chara.npc;
+using MeteorXIV.Core.Map.actors.chara;
+using MeteorXIV.Core.Map.packets.send.actor.battle;
+using MeteorXIV.Core.Map.actors.chara.ai.state;
+using MeteorXIV.Core.Map.actors.chara.ai.utils;
+using MeteorXIV.Core.Map.actors.chara.npc;
 
-namespace Meteor.Map.Actors
+namespace MeteorXIV.Core.Map.Actors
 {
     /// <summary> Which Character types am I friendly with </summary>
     enum CharacterTargetingAllegiance
@@ -201,6 +201,12 @@ namespace Meteor.Map.Actors
 
         public void SetQuestGraphic(Player player, int graphicNum)
         {
+            DevDiagnostics.Trace(
+                "actor.questGraphic",
+                "player", player == null ? "" : player.customDisplayName,
+                "actor", String.Format("0x{0:X}", actorId),
+                "actorName", customDisplayName != null ? customDisplayName : actorName,
+                "graphic", graphicNum);
             player.QueuePacket(SetActorQuestGraphicPacket.BuildPacket(actorId, graphicNum));
         }
 

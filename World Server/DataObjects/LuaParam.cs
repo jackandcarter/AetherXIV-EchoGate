@@ -21,7 +21,7 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 
 using System;
 
-namespace Meteor.World.DataObjects
+namespace MeteorXIV.Core.World.DataObjects
 {
     class LuaParam
     {

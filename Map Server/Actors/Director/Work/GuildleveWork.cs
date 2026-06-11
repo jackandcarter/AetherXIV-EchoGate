@@ -19,7 +19,7 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 ===========================================================================
 */
 
-namespace Meteor.Map.actors.director.Work
+namespace MeteorXIV.Core.Map.actors.director.Work
 {
 
     class GuildleveWork

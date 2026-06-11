@@ -22,11 +22,11 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 using System;
 using System.Collections.Generic;
 
-using Meteor.World.DataObjects;
-using Meteor.World.DataObjects.Group;
+using MeteorXIV.Core.World.DataObjects;
+using MeteorXIV.Core.World.DataObjects.Group;
 using MySql.Data.MySqlClient;
 
-namespace Meteor.World
+namespace MeteorXIV.Core.World
 {
     class Database
     {

@@ -23,12 +23,12 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-using Meteor.Map.Actors;
-using Meteor.Map.packets.send.actor.battle;
-using Meteor.Map.actors.chara.npc;
-using Meteor.Common;
+using MeteorXIV.Core.Map.Actors;
+using MeteorXIV.Core.Map.packets.send.actor.battle;
+using MeteorXIV.Core.Map.actors.chara.npc;
+using MeteorXIV.Core.Common;
 
-namespace Meteor.Map.actors.chara.ai.utils
+namespace MeteorXIV.Core.Map.actors.chara.ai.utils
 {
     static class BattleUtils
     {

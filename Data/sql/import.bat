@@ -6,9 +6,9 @@ REM =============
 REM NOTE: No spaces before or after the '='!!!
 
 REM =============
-SET PATH_MYSQL="C:\wamp\bin\mysql\mysql5.6.17\bin\mysql.exe"
-SET PATH_MYSQLADMIN="C:\wamp\bin\mysql\mysql5.6.17\bin\mysqladmin.exe"
-SET PATH_SQL="D:\Coding\FFXIV Related\ffxiv-classic-map-server\sql"
+SET PATH_MYSQL=mysql.exe
+SET PATH_MYSQLADMIN=mysqladmin.exe
+SET PATH_SQL="%~dp0"
 
 SET USER=root
 SET PASSWORD=

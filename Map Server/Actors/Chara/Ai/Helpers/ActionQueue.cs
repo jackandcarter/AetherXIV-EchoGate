@@ -21,10 +21,10 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 
 using System;
 using System.Collections.Generic;
-using Meteor.Map.Actors;
-using Meteor.Map.lua;
+using MeteorXIV.Core.Map.Actors;
+using MeteorXIV.Core.Map.lua;
 
-namespace Meteor.Map.actors.chara.ai
+namespace MeteorXIV.Core.Map.actors.chara.ai
 {
     class Action
     {

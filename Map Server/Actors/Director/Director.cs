@@ -20,17 +20,17 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 */
 
 
-using Meteor.Common;
-using Meteor.Map.actors.area;
-using Meteor.Map.actors.group;
-using Meteor.Map.Actors;
-using Meteor.Map.lua;
-using Meteor.Map.packets.send.actor;
+using MeteorXIV.Core.Common;
+using MeteorXIV.Core.Map.actors.area;
+using MeteorXIV.Core.Map.actors.group;
+using MeteorXIV.Core.Map.Actors;
+using MeteorXIV.Core.Map.lua;
+using MeteorXIV.Core.Map.packets.send.actor;
 using MoonSharp.Interpreter;
 using System;
 using System.Collections.Generic;
 
-namespace Meteor.Map.actors.director
+namespace MeteorXIV.Core.Map.actors.director
 {
     class Director : Actor
     {
@@ -121,7 +121,7 @@ namespace Meteor.Map.actors.director
             args2[0] = this;
             Array.Copy(args, 0, args2, 1, args.Length);
 
-            List<LuaParam> lparams = CallLuaScript("init", args2);
+            List<LuaParam> lparams = CallLuaScript("init", false, args2);
             
             if (lparams != null && lparams.Count >= 1 && lparams[0].value is string)
             {
@@ -148,7 +148,7 @@ namespace Meteor.Map.actors.director
                 ((GuildleveDirector)this).LoadGuildleve();
             }
 
-            CallLuaScript("main", this, contentGroup);
+            CallLuaScript("main", true, this, contentGroup);
         }
 
         public void StartContentGroup()
@@ -286,23 +286,43 @@ namespace Meteor.Map.actors.director
             string luaPath = String.Format(LuaEngine.FILEPATH_DIRECTORS, GetScriptPath());
             directorScript = LuaEngine.LoadScript(luaPath);
             if (directorScript == null)
-                Program.Log.Error("Could not find script for director {0}.", GetName());
+                Program.Log.Error("Could not load director script: director={0} script={1} path={2}.", GetName(), GetScriptPath(), luaPath);
         }
 
-        private List<LuaParam> CallLuaScript(string funcName, params object[] args)
+        private List<LuaParam> CallLuaScript(string funcName, bool optional, params object[] args)
         {
-            if (directorScript != null)
+            string luaPath = String.Format(LuaEngine.FILEPATH_DIRECTORS, directorScriptPath);
+            directorScript = LuaEngine.LoadScript(luaPath);
+
+            if (directorScript == null)
             {
-                directorScript = LuaEngine.LoadScript(String.Format(LuaEngine.FILEPATH_DIRECTORS, directorScriptPath));
-                if (!directorScript.Globals.Get(funcName).IsNil())
-                {
-                    DynValue result = directorScript.Call(directorScript.Globals[funcName], args);
-                    List<LuaParam> lparams = LuaUtils.CreateLuaParamList(result);
-                    return lparams;
-                }
-                else
-                    Program.Log.Error("Could not find script for director {0}.", GetName());
+                if (!optional)
+                    Program.Log.Error("Could not load director script: director={0} script={1} path={2}.", GetName(), GetScriptPath(), luaPath);
+                return null;
             }
+
+            DynValue function = directorScript.Globals.Get(funcName);
+            if (function.IsNil())
+            {
+                if (!optional)
+                    Program.Log.Error("Could not find Lua function '{0}' for director {1} script={2} path={3}.", funcName, GetName(), GetScriptPath(), luaPath);
+                return null;
+            }
+
+            try
+            {
+                DynValue result = directorScript.Call(function, args);
+                return LuaUtils.CreateLuaParamList(result);
+            }
+            catch (ScriptRuntimeException e)
+            {
+                Program.Log.Error("Lua director function failed: director={0} script={1} function={2}: {3}", GetName(), GetScriptPath(), funcName, e.DecoratedMessage);
+            }
+            catch (Exception e)
+            {
+                Program.Log.Error("Lua director function failed: director={0} script={1} function={2}: {3}", GetName(), GetScriptPath(), funcName, e.Message);
+            }
+
             return null;
         }
 
@@ -317,7 +337,7 @@ namespace Meteor.Map.actors.director
                     LuaEngine.GetInstance().ResolveResume(null, currentCoroutine, value);
                 }
                 else
-                    Program.Log.Error("Could not find script for director {0}.", GetName());
+                    Program.Log.Error("Could not find Lua function '{0}' for director {1} script={2}.", funcName, GetName(), GetScriptPath());
             }
             return null;
         }
@@ -334,9 +354,61 @@ namespace Meteor.Map.actors.director
             else
                 args2[0] = this;
 
-            Coroutine coroutine = directorScript.CreateCoroutine(directorScript.Globals["onEventStarted"]).Coroutine;
-            DynValue value = coroutine.Resume(args2);
-            LuaEngine.GetInstance().ResolveResume(player, coroutine, value);
+            string luaPath = String.Format(LuaEngine.FILEPATH_DIRECTORS, directorScriptPath);
+            directorScript = LuaEngine.LoadScript(luaPath);
+            if (directorScript == null)
+            {
+                Program.Log.Error("Could not load director script for event: player={0} director={1} script={2} path={3}.",
+                    player != null ? player.customDisplayName : "(none)",
+                    GetName(),
+                    GetScriptPath(),
+                    luaPath);
+                if (player != null)
+                    player.EndEvent();
+                return;
+            }
+
+            DynValue function = directorScript.Globals.Get("onEventStarted");
+            if (function.IsNil())
+            {
+                Program.Log.Error("Could not find Lua function 'onEventStarted' for director {0} script={1} path={2}.", GetName(), GetScriptPath(), luaPath);
+                if (player != null)
+                    player.EndEvent();
+                return;
+            }
+
+            Program.Log.Info("Director event start: player={0} director={1} script={2} trigger={3}.",
+                player != null ? player.customDisplayName : "(none)",
+                GetName(),
+                GetScriptPath(),
+                args.Length > 0 ? args[0] : "(none)");
+
+            try
+            {
+                Coroutine coroutine = directorScript.CreateCoroutine(function).Coroutine;
+                DynValue value = coroutine.Resume(args2);
+                LuaEngine.GetInstance().ResolveResume(player, coroutine, value);
+            }
+            catch (ScriptRuntimeException e)
+            {
+                Program.Log.Error("Lua director event failed: player={0} director={1} script={2}: {3}",
+                    player != null ? player.customDisplayName : "(none)",
+                    GetName(),
+                    GetScriptPath(),
+                    e.DecoratedMessage);
+                if (player != null)
+                    player.EndEvent();
+            }
+            catch (Exception e)
+            {
+                Program.Log.Error("Lua director event failed: player={0} director={1} script={2}: {3}",
+                    player != null ? player.customDisplayName : "(none)",
+                    GetName(),
+                    GetScriptPath(),
+                    e.Message);
+                if (player != null)
+                    player.EndEvent();
+            }
         }
     }    
 }

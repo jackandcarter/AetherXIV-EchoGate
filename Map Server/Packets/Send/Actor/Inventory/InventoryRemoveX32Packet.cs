@@ -23,9 +23,9 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 
-using Meteor.Common;
+using MeteorXIV.Core.Common;
 
-namespace  Meteor.Map.packets.send.actor.inventory
+namespace MeteorXIV.Core.Map.packets.send.actor.inventory
 {
     class InventoryRemoveX32Packet
     {

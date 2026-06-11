@@ -25,7 +25,7 @@ using NLog;
 using MoonSharp.Interpreter.Debugging;
 using System.IO;
 
-namespace Meteor.Map.lua
+namespace MeteorXIV.Core.Map.lua
 {
     class LuaScript : Script
     {

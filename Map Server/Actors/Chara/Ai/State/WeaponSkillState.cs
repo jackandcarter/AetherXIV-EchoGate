@@ -20,11 +20,11 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 */
 
 using System;
-using Meteor.Common;
-using Meteor.Map.Actors;
-using Meteor.Map.packets.send.actor.battle;
+using MeteorXIV.Core.Common;
+using MeteorXIV.Core.Map.Actors;
+using MeteorXIV.Core.Map.packets.send.actor.battle;
 
-namespace Meteor.Map.actors.chara.ai.state
+namespace MeteorXIV.Core.Map.actors.chara.ai.state
 {
     class WeaponSkillState : State
     {

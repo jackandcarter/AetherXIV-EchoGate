@@ -22,19 +22,19 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 using MySql.Data.MySqlClient;
 using System;
 using System.Collections.Generic;
-using Meteor.Common;
-using Meteor.Map.utils;
+using MeteorXIV.Core.Common;
+using MeteorXIV.Core.Map.utils;
 
-using Meteor.Map.packets.send.player;
-using Meteor.Map.dataobjects;
-using Meteor.Map.Actors;
-using Meteor.Map.actors.chara.player;
-using Meteor.Map.packets.receive.supportdesk;
-using Meteor.Map.actors.chara.npc;
-using Meteor.Map.actors.chara.ai;
-using Meteor.Map.packets.send.actor.battle;
+using MeteorXIV.Core.Map.packets.send.player;
+using MeteorXIV.Core.Map.dataobjects;
+using MeteorXIV.Core.Map.Actors;
+using MeteorXIV.Core.Map.actors.chara.player;
+using MeteorXIV.Core.Map.packets.receive.supportdesk;
+using MeteorXIV.Core.Map.actors.chara.npc;
+using MeteorXIV.Core.Map.actors.chara.ai;
+using MeteorXIV.Core.Map.packets.send.actor.battle;
 
-namespace Meteor.Map
+namespace MeteorXIV.Core.Map
 {
 
     class Database

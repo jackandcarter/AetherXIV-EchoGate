@@ -19,11 +19,11 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 ===========================================================================
 */
 
-using Meteor.Map.actors.group.Work;
-using Meteor.Map.packets.send.group;
+using MeteorXIV.Core.Map.actors.group.Work;
+using MeteorXIV.Core.Map.packets.send.group;
 using System.Collections.Generic;
 
-namespace Meteor.Map.actors.group
+namespace MeteorXIV.Core.Map.actors.group
 {
     class Party : Group
     {

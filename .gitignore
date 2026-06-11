@@ -8,13 +8,35 @@ bin/
 obj/
 Debug/
 Release/
+build/
 packages/
 TestResult*/
 *.user
+*.DS_Store
+launcher/EchoGate/Image/Reels/
+launcher/EchoGate/Runtimes/
+launcher/EchoGate/RuntimeCache/
+launcher/EchoGate/Prefixes/
+launcher/EchoGate/Logs/
+launcher/EchoGate/Client/
+launcher/EchoGate/PatchLibrary/
+launcher/EchoGate/Downloads/
+launcher/EchoGate/**/*.zip
+launcher/EchoGate/**/*.7z
+launcher/EchoGate/**/*.torrent
+launcher/EchoGate/**/*.patch
 *.suo
 *.cache
 *.log
 *.pid
+.env
+.env.*
+!.env.example
+dev-diagnostics/
+**/dev-diagnostics/
+*.zip
+*.7z
+*.rar
 
 # Runtime data extracted from a local 1.23b client. Do not commit client assets.
 Data/staticactors.bin

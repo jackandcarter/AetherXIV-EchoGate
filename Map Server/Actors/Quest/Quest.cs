@@ -19,12 +19,13 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 ===========================================================================
 */
 
-using Meteor.Map.lua;
+using MeteorXIV.Core.Common;
+using MeteorXIV.Core.Map.lua;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 
-namespace Meteor.Map.Actors
+namespace MeteorXIV.Core.Map.Actors
 {
     class Quest : Actor
     {
@@ -61,7 +62,13 @@ namespace Meteor.Map.Actors
         {            
                 questData[dataName] = data;
 
-            //Inform update
+            DevDiagnostics.Trace(
+                "quest.data",
+                "player", PlayerName(),
+                "quest", actorName,
+                "questId", GetQuestId(),
+                "dataName", dataName,
+                "value", data);
         }
 
         public uint GetQuestId()
@@ -80,11 +87,28 @@ namespace Meteor.Map.Actors
         public void ClearQuestData()
         {
             questData.Clear();
+
+            DevDiagnostics.Trace(
+                "quest.data",
+                "player", PlayerName(),
+                "quest", actorName,
+                "questId", GetQuestId(),
+                "action", "clear");
         }       
 
         public void ClearQuestFlags()
         {
+            uint oldFlags = questFlags;
             questFlags = 0;
+
+            DevDiagnostics.Trace(
+                "quest.flags",
+                "player", PlayerName(),
+                "quest", actorName,
+                "questId", GetQuestId(),
+                "action", "clear",
+                "oldFlags", Hex(oldFlags),
+                "newFlags", Hex(questFlags));
         }
 
         public void SetQuestFlag(int bitIndex, bool value)
@@ -96,11 +120,22 @@ namespace Meteor.Map.Actors
             }
             
             int mask = 1 << bitIndex;
+            uint oldFlags = questFlags;
 
             if (value)
                 questFlags |= (uint)(1 << bitIndex);
             else
                 questFlags &= (uint)~(1 << bitIndex);
+
+            DevDiagnostics.Trace(
+                "quest.flags",
+                "player", PlayerName(),
+                "quest", actorName,
+                "questId", GetQuestId(),
+                "bitIndex", bitIndex,
+                "value", value,
+                "oldFlags", Hex(oldFlags),
+                "newFlags", Hex(questFlags));
 
             DoCompletionCheck();
         }
@@ -123,7 +158,15 @@ namespace Meteor.Map.Actors
 
         public void NextPhase(uint phaseNumber)
         {
+            uint oldPhase = currentPhase;
             currentPhase = phaseNumber;
+            DevDiagnostics.Trace(
+                "quest.phase",
+                "player", PlayerName(),
+                "quest", actorName,
+                "questId", GetQuestId(),
+                "oldPhase", oldPhase,
+                "newPhase", currentPhase);
             owner.SendGameMessage(Server.GetWorldManager().GetActor(), 25116, 0x20, (object)GetQuestId());
             SaveData();
 
@@ -142,6 +185,13 @@ namespace Meteor.Map.Actors
 
         public void SaveData()
         {
+            DevDiagnostics.Trace(
+                "quest.save",
+                "player", PlayerName(),
+                "quest", actorName,
+                "questId", GetQuestId(),
+                "phase", currentPhase,
+                "flags", Hex(questFlags));
             Database.SaveQuest(owner, this);
         }
 
@@ -159,6 +209,22 @@ namespace Meteor.Map.Actors
         {
             LuaEngine.GetInstance().CallLuaFunctionForReturn(owner, this, "onAbandonQuest", true);
             owner.SendGameMessage(owner, Server.GetWorldManager().GetActor(), 25236, 0x20, (object)GetQuestId());
+        }
+
+        private string PlayerName()
+        {
+            if (owner == null)
+                return "";
+
+            if (!String.IsNullOrEmpty(owner.customDisplayName))
+                return owner.customDisplayName;
+
+            return owner.GetName();
+        }
+
+        private static string Hex(uint value)
+        {
+            return String.Format("0x{0:X}", value);
         }
 
     }

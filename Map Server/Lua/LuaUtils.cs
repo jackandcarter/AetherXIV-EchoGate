@@ -19,16 +19,16 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 ===========================================================================
 */
 
-using Meteor.Common;
-using Meteor.Map.Actors;
-using Meteor.Map.lua;
+using MeteorXIV.Core.Common;
+using MeteorXIV.Core.Map.Actors;
+using MeteorXIV.Core.Map.lua;
 using MoonSharp.Interpreter;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
 
-namespace Meteor.Map
+namespace MeteorXIV.Core.Map
 {
     class LuaUtils
     {

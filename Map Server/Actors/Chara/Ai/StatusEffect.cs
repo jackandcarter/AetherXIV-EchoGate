@@ -19,14 +19,14 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 ===========================================================================
 */
 
-using Meteor.Map.Actors;
-using Meteor.Map.lua;
-using Meteor.Map.packets.send.actor.battle;
+using MeteorXIV.Core.Map.Actors;
+using MeteorXIV.Core.Map.lua;
+using MeteorXIV.Core.Map.packets.send.actor.battle;
 using System;
 using MoonSharp.Interpreter;
-using Meteor.Common;
+using MeteorXIV.Core.Common;
 
-namespace Meteor.Map.actors.chara.ai
+namespace MeteorXIV.Core.Map.actors.chara.ai
 {
     enum StatusEffectId : uint
     {

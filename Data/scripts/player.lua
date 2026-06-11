@@ -2,67 +2,80 @@ require("global");
 
 local initClassItems, initRaceItems;
 
+local function ensureOpeningQuest(player, questId, isSilent)
+	if (player:HasQuest(questId) == false and player:IsQuestCompleted(questId) == false) then
+		player:AddQuest(questId, isSilent == true);
+	end
+end
+
+local function startOpeningDirector(player, spawnImmediate)
+	if (player:GetDirector("OpeningDirector") ~= nil) then
+		return;
+	end
+
+	local zone = player:GetZone();
+	if (zone == nil) then
+		return;
+	end
+
+	local director = zone:CreateDirector("OpeningDirector", false);
+	player:AddDirector(director);
+	director:StartDirector(spawnImmediate);
+	player:SetLoginDirector(director);
+	player:KickEvent(director, "noticeEvent", true);
+end
+
 function onBeginLogin(player)		
 	--New character, set the initial quest
 	if (player:GetPlayTime(false) == 0) then
 		initialTown = player:GetInitialTown();
 		if (initialTown == 1 and player:HasQuest(110001) == false) then
-			--player:AddQuest(110001);
+			ensureOpeningQuest(player, 110001, false);
 			player:SetHomePoint(1280001);
 		elseif (initialTown == 2 and player:HasQuest(110005) == false) then
-			--player:AddQuest(110005);
+			ensureOpeningQuest(player, 110005, false);
 			player:SetHomePoint(1280061);
 		elseif (initialTown == 3 and player:HasQuest(110009) == false) then
-			--player:AddQuest(110009);
+			ensureOpeningQuest(player, 110009, false);
 			player:SetHomePoint(1280031);
 		end		
-		
 	end
 
-	--For Opening. Set Director and reset position incase d/c
+	--Repair opening quest state for characters created before tutorial initialization was restored.
+	if (player:GetInitialTown() == 1 and player:GetZoneID() == 193) then
+		ensureOpeningQuest(player, 110001, true);
+	elseif (player:GetInitialTown() == 2 and player:GetZoneID() == 166) then
+		ensureOpeningQuest(player, 110005, true);
+	elseif (player:GetInitialTown() == 3 and player:GetZoneID() == 184) then
+		ensureOpeningQuest(player, 110009, true);
+	end
+end
+
+function onLogin(player)
+
+	--For Opening. Set Director and reset position in case of reconnect.
 	if (player:HasQuest(110001) == true and player:GetZoneID() == 193) then
-		director = player:GetZone():CreateDirector("OpeningDirector", false);		
-		player:AddDirector(director);
-		director:StartDirector(true);
-		player:SetLoginDirector(director);		
-		player:KickEvent(director, "noticeEvent", true);
-				
+		startOpeningDirector(player, true);
+
 		player.positionX = 0.016;
 		player.positionY = 10.35;
 		player.positionZ = -36.91;
 		player.rotation = 0.025;
-		player:GetQuest(110001):ClearQuestData();
-		player:GetQuest(110001):ClearQuestFlags();
 	elseif (player:HasQuest(110005) == true and player:GetZoneID() == 166) then 
-		director = player:GetZone():CreateDirector("OpeningDirector", false);		
-		player:AddDirector(director);
-		director:StartDirector(false);		
-		player:SetLoginDirector(director);		
-		player:KickEvent(director, "noticeEvent", true);
+		startOpeningDirector(player, true);
 		
 		player.positionX = 369.5434;
 		player.positionY = 4.21;
 		player.positionZ = -706.1074;
 		player.rotation = -1.26721;
-		player:GetQuest(110005):ClearQuestData();
-		player:GetQuest(110005):ClearQuestFlags();
 	elseif (player:HasQuest(110009) == true and player:GetZoneID() == 184) then
-		--director = player:GetZone():CreateDirector("OpeningDirector", false);		
-		--player:AddDirector(director);
-		--director:StartDirector(false);		
-		--player:SetLoginDirector(director);		
-		--player:KickEvent(director, "noticeEvent", true);
-		--
+		startOpeningDirector(player, true);
+
 		player.positionX = 5.364327;
 		player.positionY = 196.0;
 		player.positionZ = 133.6561;
 		player.rotation = -2.849384;
-		player:GetQuest(110009):ClearQuestData();
-		player:GetQuest(110009):ClearQuestFlags();
-	end	
-end
-
-function onLogin(player)
+	end
 
 	if (player:GetPlayTime(false) == 0) then
 		player:SendMessage(0x1D,"",">PlayTime == 0, new player!");

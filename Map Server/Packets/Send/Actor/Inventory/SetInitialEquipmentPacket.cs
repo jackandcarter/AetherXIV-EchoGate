@@ -19,7 +19,7 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 ===========================================================================
 */
 
-using FFXIVClassic_Lobby_Server.packets;
+using MeteorXIV.Core.Lobby.Packets;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -27,7 +27,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace FFXIVClassic_Map_Server.packets.send.Actor.inventory
+namespace MeteorXIV.Core.Map.packets.send.actor.inventory
 {
     class SetInitialEquipmentPacket
     {

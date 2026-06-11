@@ -25,7 +25,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace FFXIVClassic_Lobby_Server.dataobjects
+namespace MeteorXIV.Core.Map.dataobjects.database
 {
     class DBWorld
     {

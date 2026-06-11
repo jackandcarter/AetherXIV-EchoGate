@@ -22,9 +22,9 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 using System.IO;
 using System.Text;
 
-using Meteor.Common;
+using MeteorXIV.Core.Common;
 
-namespace Meteor.Map.packets.send.supportdesk
+namespace MeteorXIV.Core.Map.packets.send.supportdesk
 {
     class GMTicketPacket
     {

@@ -19,11 +19,11 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 ===========================================================================
 */
 
-using FFXIVClassic.Common;
+using MeteorXIV.Core.Common;
 using System;
 using System.IO;
 
-namespace FFXIVClassic_Map_Server.packets.send.actor.battle
+namespace MeteorXIV.Core.Map.packets.send.actor.battle
 {
     class BattleActionX10Packet
     {

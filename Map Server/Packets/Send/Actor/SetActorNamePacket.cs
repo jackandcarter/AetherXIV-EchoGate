@@ -23,9 +23,9 @@ using System;
 using System.IO;
 using System.Text;
 
-using Meteor.Common;
+using MeteorXIV.Core.Common;
 
-namespace  Meteor.Map.packets.send.actor
+namespace MeteorXIV.Core.Map.packets.send.actor
 {
     class SetActorNamePacket
     {

@@ -24,10 +24,10 @@ using System.Net.Sockets;
 using System.Collections.Concurrent;
 using System.Net;
 
-using Meteor.Common;
-using Meteor.World.DataObjects;
+using MeteorXIV.Core.Common;
+using MeteorXIV.Core.World.DataObjects;
 
-namespace Meteor.World
+namespace MeteorXIV.Core.World
 {
     class ClientConnection
     {
@@ -91,8 +91,17 @@ namespace Meteor.World
 
         public void Disconnect()
         {
-            if (socket.Connected)
-                socket.Disconnect(false);
+            try
+            {
+                if (socket != null && socket.Connected)
+                    socket.Disconnect(false);
+            }
+            catch (SocketException)
+            {
+            }
+            catch (ObjectDisposedException)
+            {
+            }
         }
     }
 }

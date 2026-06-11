@@ -20,9 +20,9 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 */
 
 using System.Collections.Generic;
-using Meteor.Map.Actors;
+using MeteorXIV.Core.Map.Actors;
 
-namespace Meteor.Map.actors.chara.ai
+namespace MeteorXIV.Core.Map.actors.chara.ai
 {
     // todo: actually implement enmity properly
     class HateEntry

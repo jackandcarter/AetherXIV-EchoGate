@@ -21,9 +21,9 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 
 using System;
 
-using Meteor.Common;
+using MeteorXIV.Core.Common;
 
-namespace  Meteor.Map.packets.send.actor
+namespace MeteorXIV.Core.Map.packets.send.actor
 {
     class SetActorTargetAnimatedPacket
     {

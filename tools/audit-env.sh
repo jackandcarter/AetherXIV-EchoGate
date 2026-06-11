@@ -2,6 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+source "$ROOT_DIR/tools/load-local-env.sh"
 
 status() {
   printf '%-18s %s\n' "$1" "$2"
@@ -45,7 +46,7 @@ fi
 if [[ -d "$ROOT_DIR/packages" ]]; then
   status "packages" "present"
 else
-  status "packages" "missing: run nuget restore Meteor.sln"
+  status "packages" "missing: run nuget restore MeteorXIV.Core.sln"
 fi
 echo
 
@@ -68,7 +69,7 @@ if command -v mysql >/dev/null 2>&1; then
   DB_APP_HOST="${DB_APP_HOST:-127.0.0.1}"
   DB_APP_PORT="${DB_APP_PORT:-3306}"
   DB_APP_USER="${DB_APP_USER:-meteor}"
-  DB_APP_PASS="${DB_APP_PASS:-meteor_dev}"
+  DB_APP_PASS="${DB_APP_PASS:-${METEOR_DB_PASS:-}}"
 
   mysql_args=(-h "$DB_HOST" -u "$DB_USER")
   if [[ "$DB_HOST" != "localhost" ]]; then

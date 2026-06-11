@@ -20,11 +20,11 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 */
 
 
-using Meteor.Map.actors.chara.ai;
-using Meteor.Map.actors.chara.ai.controllers;
-using Meteor.Map.actors.chara.npc;
+using MeteorXIV.Core.Map.actors.chara.ai;
+using MeteorXIV.Core.Map.actors.chara.ai.controllers;
+using MeteorXIV.Core.Map.actors.chara.npc;
 
-namespace Meteor.Map.Actors
+namespace MeteorXIV.Core.Map.Actors
 {
     class Pet : BattleNpc
     {

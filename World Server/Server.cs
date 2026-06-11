@@ -24,14 +24,14 @@ using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
 
-using Meteor.Common;
-using Meteor.World.DataObjects;
-using Meteor.World.DataObjects.Group;
-using Meteor.World.Packets.WorldPackets.Receive;
-using Meteor.World.Packets.WorldPackets.Receive.Group;
-using Meteor.World.Packets.WorldPackets.Send;
+using MeteorXIV.Core.Common;
+using MeteorXIV.Core.World.DataObjects;
+using MeteorXIV.Core.World.DataObjects.Group;
+using MeteorXIV.Core.World.Packets.WorldPackets.Receive;
+using MeteorXIV.Core.World.Packets.WorldPackets.Receive.Group;
+using MeteorXIV.Core.World.Packets.WorldPackets.Send;
 
-namespace Meteor.World
+namespace MeteorXIV.Core.World
 {
     class Server
     {
@@ -51,7 +51,8 @@ namespace Meteor.World
         //Session Management
         private List<ClientConnection> mConnectionList = new List<ClientConnection>();
         private Dictionary<uint, Session> mZoneSessionList = new Dictionary<uint, Session>();
-        private Dictionary<uint, Session> mChatSessionList = new Dictionary<uint, Session>();        
+        private Dictionary<uint, Session> mChatSessionList = new Dictionary<uint, Session>();
+        private Dictionary<uint, ClientConnection> mPendingSessionEnds = new Dictionary<uint, ClientConnection>();
 
         public Server()
         {
@@ -119,15 +120,17 @@ namespace Meteor.World
                     //New character since world server loaded
                     if (!mIdToNameMap.ContainsKey(id))
                         AddNameToMap(id, session.characterName);
-                    //TODO: this is technically wrong!!! Should kick out player and wait till auto-removed.
+
                     if (mZoneSessionList.ContainsKey(id))
-                        mZoneSessionList.Remove(id);
+                        EndExistingSession(mZoneSessionList[id], "duplicate zone login");
 
                     mZoneSessionList.Add(id, session);
                     break;
                 case Session.Channel.CHAT:
-                    if (!mChatSessionList.ContainsKey(id))
-                        mChatSessionList.Add(id, session);
+                    if (mChatSessionList.ContainsKey(id))
+                        EndExistingSession(mChatSessionList[id], "duplicate chat login");
+
+                    mChatSessionList.Add(id, session);
                     break;
             }
         }
@@ -186,6 +189,139 @@ namespace Meteor.World
             return null;
         }
 
+        private void EndExistingSession(Session session, string reason)
+        {
+            if (session == null)
+                return;
+
+            Program.Log.Info(
+                "Ending existing {0} session {1} ({2}) before replacement.",
+                session.type,
+                session.sessionId,
+                reason);
+
+            if (session.type == Session.Channel.ZONE)
+                RequestMapSessionEnd(session, reason);
+
+            RemoveSessionRecord(session);
+            session.clientConnection.Disconnect();
+        }
+
+        private void HandleClientDisconnect(ClientConnection conn, string reason)
+        {
+            if (conn == null)
+                return;
+
+            lock (mConnectionList)
+            {
+                mConnectionList.Remove(conn);
+            }
+
+            Session session = conn.owner;
+            if (session == null)
+                return;
+
+            Program.Log.Info(
+                "Connection {0} disconnected: session={1} channel={2} reason={3}",
+                GetConnectionAddress(conn),
+                session.sessionId,
+                session.type,
+                reason);
+
+            if (IsActiveSessionConnection(session))
+            {
+                if (session.type == Session.Channel.ZONE)
+                    RequestMapSessionEnd(session, reason);
+
+                RemoveSessionRecord(session);
+            }
+
+            conn.owner = null;
+        }
+
+        private bool IsActiveSessionConnection(Session session)
+        {
+            if (session == null)
+                return false;
+
+            switch (session.type)
+            {
+                case Session.Channel.ZONE:
+                    return mZoneSessionList.ContainsKey(session.sessionId)
+                        && Object.ReferenceEquals(mZoneSessionList[session.sessionId].clientConnection, session.clientConnection);
+                case Session.Channel.CHAT:
+                    return mChatSessionList.ContainsKey(session.sessionId)
+                        && Object.ReferenceEquals(mChatSessionList[session.sessionId].clientConnection, session.clientConnection);
+            }
+
+            return false;
+        }
+
+        private void RemoveSessionRecord(Session session)
+        {
+            if (session == null)
+                return;
+
+            switch (session.type)
+            {
+                case Session.Channel.ZONE:
+                    if (mZoneSessionList.ContainsKey(session.sessionId)
+                        && Object.ReferenceEquals(mZoneSessionList[session.sessionId].clientConnection, session.clientConnection))
+                        mZoneSessionList.Remove(session.sessionId);
+                    break;
+                case Session.Channel.CHAT:
+                    if (mChatSessionList.ContainsKey(session.sessionId)
+                        && Object.ReferenceEquals(mChatSessionList[session.sessionId].clientConnection, session.clientConnection))
+                        mChatSessionList.Remove(session.sessionId);
+                    break;
+            }
+
+            mConnectionList.Remove(session.clientConnection);
+        }
+
+        private void RequestMapSessionEnd(Session session, string reason)
+        {
+            if (session == null)
+                return;
+
+            if (session.routing1 == null)
+            {
+                Program.Log.Warn(
+                    "Cannot request map session end: session={0} reason={1} has no map route.",
+                    session.sessionId,
+                    reason);
+                return;
+            }
+
+            mPendingSessionEnds[session.sessionId] = session.clientConnection;
+
+            DevDiagnostics.Trace(
+                "world.session.end.request",
+                "session", session.sessionId,
+                "character", session.characterName,
+                "reason", reason,
+                "zone", session.currentZoneId);
+
+            session.routing1.SendSessionEnd(session);
+        }
+
+        private string GetConnectionAddress(ClientConnection conn)
+        {
+            try
+            {
+                if (conn != null && conn.socket != null && conn.socket.RemoteEndPoint != null)
+                    return conn.GetAddress();
+            }
+            catch (SocketException)
+            {
+            }
+            catch (ObjectDisposedException)
+            {
+            }
+
+            return "unknown";
+        }
+
         public void OnReceiveSubPacketFromZone(ZoneServer zoneServer, SubPacket subpacket)
         {
             uint sessionId = subpacket.header.targetId;
@@ -204,8 +340,10 @@ namespace Meteor.World
                     case 0x1000:
                         SessionBeginConfirmPacket beginConfirmPacket = new SessionBeginConfirmPacket(subpacket.data);
 
-                        if (beginConfirmPacket.invalidPacket || beginConfirmPacket.errorCode == 0)
+                        if (beginConfirmPacket.invalidPacket || beginConfirmPacket.errorCode != 0)
                             Program.Log.Error("Session {0} had a error beginning session.", beginConfirmPacket.sessionId);
+                        else
+                            Program.Log.Info("Map confirmed session begin: session={0} route={1}:{2}", beginConfirmPacket.sessionId, zoneServer.zoneServerIp, zoneServer.zoneServerPort);
 
                         break;
                     //Session End Confirm
@@ -214,14 +352,47 @@ namespace Meteor.World
 
                         if (!endConfirmPacket.invalidPacket && endConfirmPacket.errorCode == 0)
                         {
+                            Program.Log.Info(
+                                "Map confirmed session end: session={0} destinationZone={1} route={2}:{3}",
+                                endConfirmPacket.sessionId,
+                                endConfirmPacket.destinationZone,
+                                zoneServer.zoneServerIp,
+                                zoneServer.zoneServerPort);
+
                             //Check destination, if != 0, update route and start new session
                             if (endConfirmPacket.destinationZone != 0)
                             {
+                                if (session == null)
+                                {
+                                    Program.Log.Error("Session {0} cannot begin destination zone {1}: no active world session.", endConfirmPacket.sessionId, endConfirmPacket.destinationZone);
+                                    break;
+                                }
+
+                                session.currentZoneId = endConfirmPacket.destinationZone;
                                 session.routing1 = Server.GetServer().GetWorldManager().GetZoneServer(endConfirmPacket.destinationZone);
+                                if (session.routing1 == null)
+                                {
+                                    Program.Log.Error("Session {0} cannot begin destination zone {1}: no map route found.", endConfirmPacket.sessionId, endConfirmPacket.destinationZone);
+                                    break;
+                                }
                                 session.routing1.SendSessionStart(session);
                             }
                             else
                             {
+                                ClientConnection endedConnection = null;
+                                bool hadPendingEnd = mPendingSessionEnds.ContainsKey(endConfirmPacket.sessionId);
+                                if (hadPendingEnd)
+                                {
+                                    endedConnection = mPendingSessionEnds[endConfirmPacket.sessionId];
+                                    mPendingSessionEnds.Remove(endConfirmPacket.sessionId);
+                                }
+
+                                if (session != null && hadPendingEnd && !Object.ReferenceEquals(session.clientConnection, endedConnection))
+                                {
+                                    Program.Log.Info("Ignoring stale map session end confirm for session={0}; a newer zone connection is active.", endConfirmPacket.sessionId);
+                                    break;
+                                }
+
                                 RemoveSession(Session.Channel.ZONE, endConfirmPacket.sessionId);
                                 RemoveSession(Session.Channel.CHAT, endConfirmPacket.sessionId);
                             }
@@ -236,8 +407,19 @@ namespace Meteor.World
 
                         if (!zoneChangePacket.invalidPacket)
                         {
+                            Program.Log.Info(
+                                "Map requested zone change: session={0} destinationZone={1} spawnType={2} pos=({3:F2},{4:F2},{5:F2}) rot={6:F2}",
+                                zoneChangePacket.sessionId,
+                                zoneChangePacket.destinationZoneId,
+                                zoneChangePacket.destinationSpawnType,
+                                zoneChangePacket.destinationX,
+                                zoneChangePacket.destinationY,
+                                zoneChangePacket.destinationZ,
+                                zoneChangePacket.destinationRot);
                             GetWorldManager().DoZoneServerChange(session, zoneChangePacket.destinationZoneId, "", zoneChangePacket.destinationSpawnType, zoneChangePacket.destinationX, zoneChangePacket.destinationY, zoneChangePacket.destinationZ, zoneChangePacket.destinationRot);
                         }
+                        else
+                            Program.Log.Error("Invalid zone change request from map route {0}:{1}.", zoneServer.zoneServerIp, zoneServer.zoneServerPort);
 
                         break;
                     //Change leader or kick
@@ -453,17 +635,19 @@ namespace Meteor.World
             //Check if disconnected
             if ((conn.socket.Poll(1, SelectMode.SelectRead) && conn.socket.Available == 0))
             {
-                lock (mConnectionList)
-                {
-                    mConnectionList.Remove(conn);
-                }
-
+                HandleClientDisconnect(conn, "socket closed");
                 return;
             }
 
             try
             {
                 int bytesRead = conn.socket.EndReceive(result);
+
+                if (bytesRead <= 0)
+                {
+                    HandleClientDisconnect(conn, "empty receive");
+                    return;
+                }
 
                 bytesRead += conn.lastPartialSize;
 
@@ -505,22 +689,16 @@ namespace Meteor.World
                 else
                 {
 
-                    lock (mConnectionList)
-                    {
-                        mConnectionList.Remove(conn);
-                    }
+                    HandleClientDisconnect(conn, "receive failed");
                 }
             }
             catch (SocketException)
             {
-                if (conn.socket != null)
-                {
-
-                    lock (mConnectionList)
-                    {
-                        mConnectionList.Remove(conn);
-                    }
-                }
+                HandleClientDisconnect(conn, "socket exception");
+            }
+            catch (ObjectDisposedException)
+            {
+                HandleClientDisconnect(conn, "socket disposed");
             }
         }
 

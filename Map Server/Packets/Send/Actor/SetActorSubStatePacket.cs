@@ -21,10 +21,10 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 
 using System.IO;
 
-using Meteor.Common;
-using Meteor.Map.actors.chara;
+using MeteorXIV.Core.Common;
+using MeteorXIV.Core.Map.actors.chara;
 
-namespace Meteor.Map.packets.send.actor
+namespace MeteorXIV.Core.Map.packets.send.actor
 {
     class SetActorSubStatePacket
     {

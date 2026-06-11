@@ -22,7 +22,7 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 using System;
 using System.IO;
 
-namespace Meteor.World.Packets.WorldPackets.Receive
+namespace MeteorXIV.Core.World.Packets.WorldPackets.Receive
 {
     class SessionEndConfirmPacket
     {

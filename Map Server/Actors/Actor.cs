@@ -20,19 +20,19 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 */
 
 
-using Meteor.Map.actors;
-using Meteor.Map.lua;
-using Meteor.Map.packets.send.actor;
-using Meteor.Map.packets.send.actor.events;
-using Meteor.Common;
+using MeteorXIV.Core.Map.actors;
+using MeteorXIV.Core.Map.lua;
+using MeteorXIV.Core.Map.packets.send.actor;
+using MeteorXIV.Core.Map.packets.send.actor.events;
+using MeteorXIV.Core.Common;
 using System;
 using System.Collections.Generic;
-using Meteor.Map.actors.area;
+using MeteorXIV.Core.Map.actors.area;
 using System.Reflection;
 using System.ComponentModel;
-using Meteor.Map.actors.chara;
+using MeteorXIV.Core.Map.actors.chara;
 
-namespace Meteor.Map.Actors
+namespace MeteorXIV.Core.Map.Actors
 {
     [Flags]
     enum ActorUpdateFlags

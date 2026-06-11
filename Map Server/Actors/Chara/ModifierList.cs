@@ -22,7 +22,7 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 using System;
 using System.Collections.Generic;
 
-namespace Meteor.Map.actors.chara
+namespace MeteorXIV.Core.Map.actors.chara
 {
     class ModifierListEntry
     {

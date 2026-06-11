@@ -19,14 +19,14 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 ===========================================================================
 */
 
-using Meteor.Common;
+using MeteorXIV.Core.Common;
 
-using Meteor.Map.Actors;
-using Meteor.Map.packets.send.actor;
+using MeteorXIV.Core.Map.Actors;
+using MeteorXIV.Core.Map.packets.send.actor;
 using System.Collections.Generic;
-using Meteor.Map.actors.chara.npc;
+using MeteorXIV.Core.Map.actors.chara.npc;
 
-namespace Meteor.Map.dataobjects
+namespace MeteorXIV.Core.Map.dataobjects
 {
     class Session
     {

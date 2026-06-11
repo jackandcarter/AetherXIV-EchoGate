@@ -20,9 +20,9 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 */
 
 using System;
-using Meteor.Map.Actors;
+using MeteorXIV.Core.Map.Actors;
 
-namespace Meteor.Map.actors.chara.ai.controllers
+namespace MeteorXIV.Core.Map.actors.chara.ai.controllers
 {
     abstract class Controller
     {

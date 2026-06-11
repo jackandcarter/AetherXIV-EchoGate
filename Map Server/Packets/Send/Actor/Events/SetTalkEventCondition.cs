@@ -19,14 +19,14 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 ===========================================================================
 */
 
-using Meteor.Map.actors;
+using MeteorXIV.Core.Map.actors;
 using System;
 using System.IO;
 using System.Text;
 
-using Meteor.Common;
+using MeteorXIV.Core.Common;
 
-namespace  Meteor.Map.packets.send.actor.events
+namespace MeteorXIV.Core.Map.packets.send.actor.events
 {
     class SetTalkEventCondition
     {
@@ -42,6 +42,7 @@ namespace  Meteor.Map.packets.send.actor.events
                 using (BinaryWriter binWriter = new BinaryWriter(mem))
                 {
                     condition.unknown1 = 4;
+                    EventConditionDiagnostics.TraceTalk(sourceActorId, condition);
                     binWriter.Write((Byte)condition.unknown1);
                     binWriter.Write((Byte)(condition.isDisabled ? 0x1 : 0x0));
                     binWriter.Write(Encoding.ASCII.GetBytes(condition.conditionName), 0, Encoding.ASCII.GetByteCount(condition.conditionName) >= 0x24 ? 0x24 : Encoding.ASCII.GetByteCount(condition.conditionName));

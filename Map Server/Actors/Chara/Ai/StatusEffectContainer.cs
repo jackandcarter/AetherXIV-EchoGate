@@ -22,14 +22,14 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Meteor.Common;
-using Meteor.Map.Actors;
-using Meteor.Map.lua;
-using Meteor.Map.packets.send.actor;
-using Meteor.Map.packets.send.actor.battle;
-using Meteor.Map.utils;
+using MeteorXIV.Core.Common;
+using MeteorXIV.Core.Map.Actors;
+using MeteorXIV.Core.Map.lua;
+using MeteorXIV.Core.Map.packets.send.actor;
+using MeteorXIV.Core.Map.packets.send.actor.battle;
+using MeteorXIV.Core.Map.utils;
 
-namespace Meteor.Map.actors.chara.ai
+namespace MeteorXIV.Core.Map.actors.chara.ai
 {
     class StatusEffectContainer
     {

@@ -19,14 +19,14 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 ===========================================================================
 */
 
-using Meteor.Common;
+using MeteorXIV.Core.Common;
 using System;
 using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text;
 
-namespace Meteor.Map.packets.send.actor
+namespace MeteorXIV.Core.Map.packets.send.actor
 {
     class SetActorPropetyPacket
     {
@@ -127,7 +127,7 @@ namespace Meteor.Map.packets.send.actor
             return true;
         }
 
-        public bool AddProperty(Meteor.Map.Actors.Actor actor, string name)
+        public bool AddProperty(MeteorXIV.Core.Map.Actors.Actor actor, string name)
         {
             string[] split = name.Split('.');
             int arrayIndex = 0;

@@ -19,11 +19,11 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 ===========================================================================
 */
 
-using Meteor.Common;
+using MeteorXIV.Core.Common;
 using System;
 using System.IO;
 
-namespace Meteor.Map.packets.WorldPackets.Send
+namespace MeteorXIV.Core.Map.packets.WorldPackets.Send
 {
     class WorldRequestZoneChangePacket
     {

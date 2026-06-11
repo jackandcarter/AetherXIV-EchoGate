@@ -20,10 +20,10 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 */
 
 using System;
-using Meteor.Map.Actors;
-using Meteor.Map.packets.send.actor;
+using MeteorXIV.Core.Map.Actors;
+using MeteorXIV.Core.Map.packets.send.actor;
 
-namespace Meteor.Map.actors.chara.ai.state
+namespace MeteorXIV.Core.Map.actors.chara.ai.state
 {
     class DeathState : State
     {

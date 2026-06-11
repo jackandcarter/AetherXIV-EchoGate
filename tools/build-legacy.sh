@@ -11,7 +11,7 @@ if [[ "$RESTORE" == "1" ]]; then
     echo "nuget is required for package restore" >&2
     exit 1
   fi
-  nuget restore "$ROOT_DIR/Meteor.sln"
+  nuget restore "$ROOT_DIR/MeteorXIV.Core.sln"
 fi
 
 if [[ -z "$BUILD_TOOL" ]]; then
@@ -25,5 +25,5 @@ if [[ -z "$BUILD_TOOL" ]]; then
   fi
 fi
 
-echo "Building Meteor.sln with $BUILD_TOOL ($CONFIGURATION)"
-"$BUILD_TOOL" "$ROOT_DIR/Meteor.sln" /p:Configuration="$CONFIGURATION"
+echo "Building MeteorXIV.Core.sln with $BUILD_TOOL ($CONFIGURATION)"
+"$BUILD_TOOL" "$ROOT_DIR/MeteorXIV.Core.sln" /p:Configuration="$CONFIGURATION"

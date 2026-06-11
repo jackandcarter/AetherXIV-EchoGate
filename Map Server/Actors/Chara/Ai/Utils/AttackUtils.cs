@@ -19,8 +19,8 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 ===========================================================================
 */
 
-using Meteor.Map.Actors;
-namespace Meteor.Map.actors.chara.ai.utils
+using MeteorXIV.Core.Map.Actors;
+namespace MeteorXIV.Core.Map.actors.chara.ai.utils
 {
     static class AttackUtils
     {

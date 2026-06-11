@@ -21,19 +21,19 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 
 using System;
 using System.Collections.Generic;
-using Meteor.Common;
-using Meteor.Map.actors.chara.npc;
-using Meteor.Map.actors.chara;
-using Meteor.Map.actors.chara.ai;
-using Meteor.Map.actors.chara.ai.controllers;
-using Meteor.Map.actors.chara.ai.state;
-using Meteor.Map.utils;
-using Meteor.Map.packets.send.actor.battle;
-using Meteor.Map.actors.chara.ai.utils;
-using Meteor.Map.actors.group;
-using Meteor.Map.Actors.Chara;
+using MeteorXIV.Core.Common;
+using MeteorXIV.Core.Map.actors.chara.npc;
+using MeteorXIV.Core.Map.actors.chara;
+using MeteorXIV.Core.Map.actors.chara.ai;
+using MeteorXIV.Core.Map.actors.chara.ai.controllers;
+using MeteorXIV.Core.Map.actors.chara.ai.state;
+using MeteorXIV.Core.Map.utils;
+using MeteorXIV.Core.Map.packets.send.actor.battle;
+using MeteorXIV.Core.Map.actors.chara.ai.utils;
+using MeteorXIV.Core.Map.actors.group;
+using MeteorXIV.Core.Map.Actors.Chara;
 
-namespace Meteor.Map.Actors
+namespace MeteorXIV.Core.Map.Actors
 {
     [Flags]
     enum DetectionType

@@ -19,12 +19,12 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 ===========================================================================
 */
 
-using Meteor.Common;
-using Meteor.Map.actors.group;
+using MeteorXIV.Core.Common;
+using MeteorXIV.Core.Map.actors.group;
 using System;
 using System.IO;
 
-namespace Meteor.Map.packets.send.groups
+namespace MeteorXIV.Core.Map.packets.send.groups
 {
     class DeleteGroupPacket
     {

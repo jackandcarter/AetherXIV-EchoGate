@@ -24,10 +24,11 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
 
+using MeteorXIV.Core.Common;
 using MySql.Data.MySqlClient;
 using NLog;
 
-namespace Meteor.Lobby
+namespace MeteorXIV.Core.Lobby
 {
     class Program
     {
@@ -48,16 +49,17 @@ namespace Meteor.Lobby
             Debug.Listeners.Add(myWriter);
 #endif
             bool smoke = HasFlag(args, "smoke");
+            DevDiagnostics.Configure("Lobby", args);
 
             Log.Info("==================================");
-            Log.Info("Project Meteor: Lobby Server");
+            Log.Info("MeteorXIV Core: Lobby Server");
             Log.Info("Version: 0.1");            
             Log.Info("==================================");
 
             try
             {
                 ConfigConstants.Load();
-                ConfigConstants.ApplyLaunchArgs(FilterSmokeArgs(args));
+                ConfigConstants.ApplyLaunchArgs(FilterLaunchArgs(args));
             }
             catch (Exception e)
             {
@@ -118,12 +120,12 @@ namespace Meteor.Lobby
             return false;
         }
 
-        private static string[] FilterSmokeArgs(string[] args)
+        private static string[] FilterLaunchArgs(string[] args)
         {
             List<string> filtered = new List<string>();
             foreach (string arg in args)
             {
-                if (!arg.Trim().TrimStart('-').Equals("smoke", StringComparison.OrdinalIgnoreCase))
+                if (!arg.Trim().TrimStart('-').Equals("smoke", StringComparison.OrdinalIgnoreCase) && !DevDiagnostics.IsFlag(arg))
                     filtered.Add(arg);
             }
 

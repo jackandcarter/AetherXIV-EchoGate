@@ -23,9 +23,9 @@ using System;
 using System.Collections.Generic;
 using SharpNav;
 using SharpNav.Pathfinding;
-using Meteor.Common;
+using MeteorXIV.Core.Common;
 
-namespace Meteor.Map.utils
+namespace MeteorXIV.Core.Map.utils
 {
     class NavmeshUtils
     {

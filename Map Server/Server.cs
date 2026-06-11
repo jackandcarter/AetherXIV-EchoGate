@@ -23,12 +23,12 @@ using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
-using Meteor.Map.dataobjects;
+using MeteorXIV.Core.Map.dataobjects;
 
-using Meteor.Common;
-using Meteor.Map.Actors;
+using MeteorXIV.Core.Common;
+using MeteorXIV.Core.Map.Actors;
 
-namespace Meteor.Map
+namespace MeteorXIV.Core.Map
 {
     class Server
     {

@@ -19,28 +19,28 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 ===========================================================================
 */
 
-using Meteor.Common;
+using MeteorXIV.Core.Common;
 
 using System;
-using Meteor.Map.dataobjects;
-using Meteor.Map.packets.receive;
-using Meteor.Map.packets.send;
-using Meteor.Map.packets.send.login;
-using Meteor.Map.packets.send.actor;
-using Meteor.Map.packets.send.supportdesk;
-using Meteor.Map.packets.receive.social;
-using Meteor.Map.packets.send.social;
-using Meteor.Map.packets.receive.supportdesk;
-using Meteor.Map.packets.receive.recruitment;
-using Meteor.Map.packets.send.recruitment;
-using Meteor.Map.packets.receive.events;
-using Meteor.Map.lua;
-using Meteor.Map.Actors;
-using Meteor.Map.packets.WorldPackets.Send;
-using Meteor.Map.packets.WorldPackets.Receive;
-using Meteor.Map.actors.director;
+using MeteorXIV.Core.Map.dataobjects;
+using MeteorXIV.Core.Map.packets.receive;
+using MeteorXIV.Core.Map.packets.send;
+using MeteorXIV.Core.Map.packets.send.login;
+using MeteorXIV.Core.Map.packets.send.actor;
+using MeteorXIV.Core.Map.packets.send.supportdesk;
+using MeteorXIV.Core.Map.packets.receive.social;
+using MeteorXIV.Core.Map.packets.send.social;
+using MeteorXIV.Core.Map.packets.receive.supportdesk;
+using MeteorXIV.Core.Map.packets.receive.recruitment;
+using MeteorXIV.Core.Map.packets.send.recruitment;
+using MeteorXIV.Core.Map.packets.receive.events;
+using MeteorXIV.Core.Map.lua;
+using MeteorXIV.Core.Map.Actors;
+using MeteorXIV.Core.Map.packets.WorldPackets.Send;
+using MeteorXIV.Core.Map.packets.WorldPackets.Receive;
+using MeteorXIV.Core.Map.actors.director;
 
-namespace Meteor.Map
+namespace MeteorXIV.Core.Map
 {
     class PacketProcessor
     {
@@ -81,17 +81,35 @@ namespace Meteor.Map
                         SessionBeginPacket beginSessionPacket = new SessionBeginPacket(subpacket.data);
 
                         session = mServer.AddSession(subpacket.header.sourceId);
+                        Program.Log.Info("World requested session begin: session={0} login={1}", session.id, beginSessionPacket.isLogin);
 
                         if (!beginSessionPacket.isLogin)
+                        {
+                            Program.Log.Info(
+                                "Map zone-in starting: session={0} actor={1} destinationSpawnType={2}",
+                                session.id,
+                                session.GetActor().customDisplayName,
+                                session.GetActor().destinationSpawnType);
                             Server.GetWorldManager().DoZoneIn(session.GetActor(), false, session.GetActor().destinationSpawnType);
+                        }
 
                         Program.Log.Info("{0} has been added to the session list.", session.GetActor().customDisplayName);
 
+                        session.QueuePacket(SessionBeginConfirmPacket.BuildPacket(session));
                         client.FlushQueuedSendPackets();
                         break;
                     //World Server - Session End
                     case 0x1001:
                         SessionEndPacket endSessionPacket = new SessionEndPacket(subpacket.data);
+                        Program.Log.Info(
+                            "World requested session end: session={0} destinationZone={1} spawnType={2} pos=({3:F2},{4:F2},{5:F2}) rot={6:F2}",
+                            session.id,
+                            endSessionPacket.destinationZoneId,
+                            endSessionPacket.destinationSpawnType,
+                            endSessionPacket.destinationX,
+                            endSessionPacket.destinationY,
+                            endSessionPacket.destinationZ,
+                            endSessionPacket.destinationRot);
 
                         if (endSessionPacket.destinationZoneId == 0)
                             session.GetActor().CleanupAndSave();
@@ -102,6 +120,7 @@ namespace Meteor.Map
                         Program.Log.Info("{0} has been removed from the session list.", session.GetActor().customDisplayName);
 
                         session.QueuePacket(SessionEndConfirmPacket.BuildPacket(session, endSessionPacket.destinationZoneId));
+                        Program.Log.Info("Map queued session end confirm: session={0} destinationZone={1}", session.id, endSessionPacket.destinationZoneId);
                         client.FlushQueuedSendPackets();
                         break;
                     //World Server - Party Synch
@@ -174,6 +193,7 @@ namespace Meteor.Map
                         //subpacket.DebugPrintSubPacket();
 
                         SetTargetPacket setTarget = new SetTargetPacket(subpacket.data);
+                        ClientInteractionDiagnostics.TraceTarget(session, setTarget);
                         session.GetActor().currentTarget = setTarget.actorID;
                         session.GetActor().isAutoAttackEnabled = setTarget.attackTarget != 0xE0000000;
                         session.GetActor().BroadcastPacket(SetActorTargetAnimatedPacket.BuildPacket(session.id, setTarget.actorID), true);
@@ -181,6 +201,7 @@ namespace Meteor.Map
                     //Lock Target
                     case 0x00CC:
                         LockTargetPacket lockTarget = new LockTargetPacket(subpacket.data);
+                        ClientInteractionDiagnostics.TraceLockTarget(session, lockTarget);
                         session.GetActor().currentLockedTarget = lockTarget.actorID;
                         break;
                     //Start Event
@@ -220,6 +241,7 @@ namespace Meteor.Map
                                 else
                                 {
                                     Program.Log.Debug("\n===Event START===\nCould not find actor 0x{0:X} for event started by caller: 0x{1:X}\nEvent Starter: {2}\nParams: {3}", eventStart.triggerActorID, eventStart.ownerActorID, eventStart.eventName, LuaUtils.DumpParams(eventStart.luaParams));
+                                    ClientInteractionDiagnostics.TraceEventStartOwnerMissing(session, eventStart);
                                     break;
                                 }
                             }                                    
@@ -231,6 +253,7 @@ namespace Meteor.Map
                         break;
                     //Unknown, happens at npc spawn and cutscene play????
                     case 0x00CE:
+                        ClientInteractionDiagnostics.TraceStateMessage(session, subpacket);
                         PacketDiagnostics.LogUnknownGameMessage("Map", "map opcode 0x00CE", subpacket);
                         subpacket.DebugPrintSubPacket();
                         break;

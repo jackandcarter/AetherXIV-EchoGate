@@ -19,12 +19,12 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 ===========================================================================
 */
 
-using Meteor.Map.actors.director;
-using Meteor.Map.Actors;
-using Meteor.Map.lua;
+using MeteorXIV.Core.Map.actors.director;
+using MeteorXIV.Core.Map.Actors;
+using MeteorXIV.Core.Map.lua;
 using System;
 
-namespace Meteor.Map.actors.area
+namespace MeteorXIV.Core.Map.actors.area
 {
 
     class PrivateAreaContent : PrivateArea

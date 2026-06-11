@@ -22,10 +22,10 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 using System;
 using System.Collections.Generic;
 
-using Meteor.Lobby.DataObjects;
+using MeteorXIV.Core.Lobby.DataObjects;
 using MySql.Data.MySqlClient;
 
-namespace Meteor.Lobby
+namespace MeteorXIV.Core.Lobby
 {
     //charState: 0 - Reserved, 1 - Inactive, 2 - Active
 

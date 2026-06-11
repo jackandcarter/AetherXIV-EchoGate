@@ -19,35 +19,35 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 ===========================================================================
 */
 
-using Meteor.Common;
+using MeteorXIV.Core.Common;
 using System;
 using System.Collections.Generic;
 using MoonSharp.Interpreter;
-using Meteor.Map.dataobjects;
-using Meteor.Map.dataobjects.chara;
-using Meteor.Map.lua;
-using Meteor.Map.packets.WorldPackets.Send.Group;
-using Meteor.Map.utils;
-using Meteor.Map.actors.group;
-using Meteor.Map.actors.chara.player;
-using Meteor.Map.actors.director;
-using Meteor.Map.actors.chara.npc;
-using Meteor.Map.actors.chara.ai;
-using Meteor.Map.actors.chara.ai.controllers;
-using Meteor.Map.actors.chara.ai.utils;
-using Meteor.Map.actors.chara.ai.state;
-using Meteor.Map.actors.chara;
-using Meteor.Map.packets.send;
-using Meteor.Map.packets.send.actor;
-using Meteor.Map.packets.send.events;
-using Meteor.Map.packets.send.actor.inventory;
-using Meteor.Map.packets.send.player;
-using Meteor.Map.packets.send.actor.battle;
-using Meteor.Map.packets.receive.events;
-using static Meteor.Map.LuaUtils;
-using Meteor.Map.packets.send.actor.events;
+using MeteorXIV.Core.Map.dataobjects;
+using MeteorXIV.Core.Map.dataobjects.chara;
+using MeteorXIV.Core.Map.lua;
+using MeteorXIV.Core.Map.packets.WorldPackets.Send.Group;
+using MeteorXIV.Core.Map.utils;
+using MeteorXIV.Core.Map.actors.group;
+using MeteorXIV.Core.Map.actors.chara.player;
+using MeteorXIV.Core.Map.actors.director;
+using MeteorXIV.Core.Map.actors.chara.npc;
+using MeteorXIV.Core.Map.actors.chara.ai;
+using MeteorXIV.Core.Map.actors.chara.ai.controllers;
+using MeteorXIV.Core.Map.actors.chara.ai.utils;
+using MeteorXIV.Core.Map.actors.chara.ai.state;
+using MeteorXIV.Core.Map.actors.chara;
+using MeteorXIV.Core.Map.packets.send;
+using MeteorXIV.Core.Map.packets.send.actor;
+using MeteorXIV.Core.Map.packets.send.events;
+using MeteorXIV.Core.Map.packets.send.actor.inventory;
+using MeteorXIV.Core.Map.packets.send.player;
+using MeteorXIV.Core.Map.packets.send.actor.battle;
+using MeteorXIV.Core.Map.packets.receive.events;
+using static MeteorXIV.Core.Map.LuaUtils;
+using MeteorXIV.Core.Map.packets.send.actor.events;
 
-namespace Meteor.Map.Actors
+namespace MeteorXIV.Core.Map.Actors
 {
     class Player : Character
     {
@@ -1805,6 +1805,12 @@ namespace Meteor.Map.Actors
         public void SendDataPacket(params object[] parameters)
         {
             List<LuaParam> lParams = LuaUtils.CreateLuaParamList(parameters);
+            DevDiagnostics.Trace(
+                "event.data",
+                "player", customDisplayName,
+                "actor", String.Format("0x{0:X}", actorId),
+                "paramCount", lParams.Count,
+                "params", LuaUtils.DumpParams(lParams));
             SubPacket spacket = GenericDataPacket.BuildPacket(actorId, lParams);
             spacket.DebugPrintSubPacket();
             QueuePacket(spacket);
@@ -1815,11 +1821,29 @@ namespace Meteor.Map.Actors
             currentEventOwner = start.ownerActorID;
             currentEventName = start.eventName;
             currentEventType = start.eventType;
+            DevDiagnostics.Trace(
+                "event.start",
+                "player", customDisplayName,
+                "actor", String.Format("0x{0:X}", actorId),
+                "owner", String.Format("0x{0:X}", start.ownerActorID),
+                "ownerName", owner == null ? "(none)" : owner.GetName(),
+                "trigger", String.Format("0x{0:X}", start.triggerActorID),
+                "eventName", start.eventName,
+                "eventType", start.eventType,
+                "params", LuaUtils.DumpParams(start.luaParams));
             LuaEngine.GetInstance().EventStarted(this, owner, start);
         }
 
         public void UpdateEvent(EventUpdatePacket update)
         {
+            DevDiagnostics.Trace(
+                "event.update",
+                "player", customDisplayName,
+                "actor", String.Format("0x{0:X}", actorId),
+                "owner", String.Format("0x{0:X}", currentEventOwner),
+                "eventName", currentEventName,
+                "eventType", currentEventType,
+                "params", LuaUtils.DumpParams(update.luaParams));
             LuaEngine.GetInstance().OnEventUpdate(this, update.luaParams);
         }
 
@@ -1829,6 +1853,15 @@ namespace Meteor.Map.Actors
                 return;
 
             List<LuaParam> lParams = LuaUtils.CreateLuaParamList(parameters);
+            DevDiagnostics.Trace(
+                "event.kick",
+                "player", customDisplayName,
+                "actor", String.Format("0x{0:X}", actorId),
+                "owner", String.Format("0x{0:X}", actor.actorId),
+                "ownerName", actor.GetName(),
+                "eventName", eventName,
+                "eventType", 5,
+                "params", LuaUtils.DumpParams(lParams));
             SubPacket spacket = KickEventPacket.BuildPacket(actorId, actor.actorId, eventName, 5, lParams);
             spacket.DebugPrintSubPacket();
             QueuePacket(spacket);
@@ -1840,6 +1873,16 @@ namespace Meteor.Map.Actors
                 return;
 
             List<LuaParam> lParams = LuaUtils.CreateLuaParamList(parameters);
+            DevDiagnostics.Trace(
+                "event.kickSpecial",
+                "player", customDisplayName,
+                "actor", String.Format("0x{0:X}", actorId),
+                "owner", String.Format("0x{0:X}", actor.actorId),
+                "ownerName", actor.GetName(),
+                "eventName", eventName,
+                "eventType", 0,
+                "unknown", String.Format("0x{0:X}", unknown),
+                "params", LuaUtils.DumpParams(lParams));
             SubPacket spacket = KickEventPacket.BuildPacket(actorId, actor.actorId, eventName, 0, lParams);
             spacket.DebugPrintSubPacket();
             QueuePacket(spacket);
@@ -1853,6 +1896,15 @@ namespace Meteor.Map.Actors
         public void RunEventFunction(string functionName, params object[] parameters)
         {
             List<LuaParam> lParams = LuaUtils.CreateLuaParamList(parameters);
+            DevDiagnostics.Trace(
+                "event.runFunction",
+                "player", customDisplayName,
+                "actor", String.Format("0x{0:X}", actorId),
+                "owner", String.Format("0x{0:X}", currentEventOwner),
+                "eventName", currentEventName,
+                "eventType", currentEventType,
+                "function", functionName,
+                "params", LuaUtils.DumpParams(lParams));
             SubPacket spacket = RunEventFunctionPacket.BuildPacket(actorId, currentEventOwner, currentEventName, currentEventType, functionName, lParams);
             spacket.DebugPrintSubPacket();
             QueuePacket(spacket);
@@ -1860,6 +1912,13 @@ namespace Meteor.Map.Actors
 
         public void EndEvent()
         {
+            DevDiagnostics.Trace(
+                "event.end",
+                "player", customDisplayName,
+                "actor", String.Format("0x{0:X}", actorId),
+                "owner", String.Format("0x{0:X}", currentEventOwner),
+                "eventName", currentEventName,
+                "eventType", currentEventType);
             SubPacket p = EndEventPacket.BuildPacket(actorId, currentEventOwner, currentEventName, currentEventType);
             p.DebugPrintSubPacket();
             QueuePacket(p);

@@ -22,7 +22,7 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 using System;
 using System.IO;
 
-namespace Meteor.Lobby.Packets.Receive
+namespace MeteorXIV.Core.Lobby.Packets.Receive
 {
     class SelectCharacterPacket
     {

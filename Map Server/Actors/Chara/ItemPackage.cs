@@ -19,16 +19,16 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 ===========================================================================
 */
 
-using Meteor.Common;
-using Meteor.Map.actors.chara.npc;
-using Meteor.Map.Actors;
-using Meteor.Map.dataobjects;
-using Meteor.Map.packets.send.actor.inventory;
+using MeteorXIV.Core.Common;
+using MeteorXIV.Core.Map.actors.chara.npc;
+using MeteorXIV.Core.Map.Actors;
+using MeteorXIV.Core.Map.dataobjects;
+using MeteorXIV.Core.Map.packets.send.actor.inventory;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 
-namespace Meteor.Map.actors.chara.player
+namespace MeteorXIV.Core.Map.actors.chara.player
 {
     class ItemPackage
     {       

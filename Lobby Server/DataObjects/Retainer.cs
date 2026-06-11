@@ -19,7 +19,7 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 ===========================================================================
 */
 
-namespace Meteor.Lobby.DataObjects
+namespace MeteorXIV.Core.Lobby.DataObjects
 {
     class Retainer
     {

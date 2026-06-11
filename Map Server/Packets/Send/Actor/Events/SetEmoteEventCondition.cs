@@ -19,13 +19,13 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 ===========================================================================
 */
 
-using Meteor.Common;
-using Meteor.Map.actors;
+using MeteorXIV.Core.Common;
+using MeteorXIV.Core.Map.actors;
 using System;
 using System.IO;
 using System.Text;
 
-namespace Meteor.Map.packets.send.actor.events
+namespace MeteorXIV.Core.Map.packets.send.actor.events
 {
     class SetEmoteEventCondition
     {
@@ -40,6 +40,7 @@ namespace Meteor.Map.packets.send.actor.events
             {
                 using (BinaryWriter binWriter = new BinaryWriter(mem))
                 {
+                    EventConditionDiagnostics.TraceEmote(sourceActorId, condition);
                     binWriter.Write((Byte)condition.unknown1); //4
                     binWriter.Write((UInt16)condition.emoteId); //82, 76, 6E
                     binWriter.Write(Encoding.ASCII.GetBytes(condition.conditionName), 0, Encoding.ASCII.GetByteCount(condition.conditionName) >= 0x24 ? 0x24 : Encoding.ASCII.GetByteCount(condition.conditionName));

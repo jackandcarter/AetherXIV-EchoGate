@@ -19,14 +19,14 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 ===========================================================================
 */
 
-using Meteor.Map.Actors;
+using MeteorXIV.Core.Map.Actors;
 using System;
 using System.Collections.Generic;
-using Meteor.Map.packets.send.actor.battle;
-using Meteor.Map.actors.chara.ai.utils;
+using MeteorXIV.Core.Map.packets.send.actor.battle;
+using MeteorXIV.Core.Map.actors.chara.ai.utils;
 using MoonSharp.Interpreter;
 
-namespace Meteor.Map.actors.chara.ai
+namespace MeteorXIV.Core.Map.actors.chara.ai
 {
 
     public enum BattleCommandRequirements : ushort

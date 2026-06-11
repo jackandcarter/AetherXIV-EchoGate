@@ -2,7 +2,7 @@
 
 ## Scope
 
-This audit reviews the local state of `jackandcarter/Meteor`, a fork/port of Project Meteor for the Final Fantasy XIV 1.23b client. It focuses on repository readiness, macOS/Linux development setup, server/database runtime requirements, client compatibility, and known gaps.
+This audit reviews the local state of `jackandcarter/Meteor`, a fork/port of MeteorXIV Core for the Final Fantasy XIV 1.23b client. It focuses on repository readiness, macOS/Linux development setup, server/database runtime requirements, client compatibility, and known gaps.
 
 ## Local Repository State
 
@@ -15,7 +15,7 @@ This audit reviews the local state of `jackandcarter/Meteor`, a fork/port of Pro
 
 ## Current Project Shape
 
-- C# solution: `Meteor.sln`.
+- C# solution: `MeteorXIV.Core.sln`.
 - Projects:
   - `Lobby Server`: login/session/character-list socket server.
   - `World Server`: session routing, chat, party/linkshell/group coordination, zone server routing.
@@ -30,7 +30,7 @@ This audit reviews the local state of `jackandcarter/Meteor`, a fork/port of Pro
 
 - The solution targets .NET Framework 4.7.2 and old-style `packages.config` NuGet packages.
 - The local machine has modern `dotnet` SDKs, but this legacy solution needs Mono build tooling plus NuGet.
-- A `dotnet build Meteor.sln` attempt stalled and was stopped; modern `dotnet build` is not a reliable path for this legacy solution.
+- A `dotnet build MeteorXIV.Core.sln` attempt stalled and was stopped; modern `dotnet build` is not a reliable path for this legacy solution.
 - Required local tooling for the current codebase:
   - Mono with `msbuild` or `xbuild`
   - NuGet CLI
@@ -39,7 +39,7 @@ This audit reviews the local state of `jackandcarter/Meteor`, a fork/port of Pro
 - Current local machine status:
   - `mono`, `xbuild`, `nuget`, and `php` are installed through Homebrew.
   - `msbuild` is not available from the current Homebrew Mono package, so `tools/build-legacy.sh` uses `xbuild`.
-  - `xbuild Meteor.sln /p:Configuration=Release` succeeds after guarding `Microsoft.Net.Compilers` imports on non-Windows.
+  - `xbuild MeteorXIV.Core.sln /p:Configuration=Release` succeeds after guarding `Microsoft.Net.Compilers` imports on non-Windows.
   - NuGet restore works, but reports known vulnerabilities in `DotNetZip` 1.10.1 and `Newtonsoft.Json` 9.0.1.
   - `mysql` client exists, MariaDB client 12.1.2.
   - MariaDB 12.1.2 is installed through Homebrew.
@@ -49,7 +49,7 @@ This audit reviews the local state of `jackandcarter/Meteor`, a fork/port of Pro
 ## Runtime Data State
 
 - `Data/staticactors.bin` is missing.
-- The historical Project Meteor compile guide says this file is created by copying the 1.23b client file `client/script/rq9q1797qvs.san` into the server data folder as `staticactors.bin`.
+- The historical MeteorXIV Core compile guide says this file is created by copying the 1.23b client file `client/script/rq9q1797qvs.san` into the server data folder as `staticactors.bin`.
 - `Map Server/Server.cs` loads `./staticactors.bin` at startup. Map runtime readiness requires this file in the Map Server output folder.
 - `tools/copy-runtime-data.sh` copies configs and scripts into the output folders. It warns when `Data/staticactors.bin` is missing.
 - `tools/prepare-client-data.sh` can prepare `Data/staticactors.bin` from a local 1.23b client install once one is available.
@@ -61,8 +61,8 @@ This audit reviews the local state of `jackandcarter/Meteor`, a fork/port of Pro
   - port: `3306`
   - database: `ffxiv_server`
   - username: `meteor`
-  - password: `meteor_dev`
-- These credentials are local-lab defaults and are not suitable for exposed deployments.
+  - password: provided by ignored local override or environment variable
+- Database credentials must stay in ignored local overrides or process environment.
 - `Data/sql/import.sh` was stale and syntactically invalid for MySQL/MariaDB. Use `tools/import-db.sh` instead.
 - `tools/import-db.sh` now defaults to `localhost` socket auth and the current OS username, with `DB_HOST`, `DB_PORT`, `DB_USER`, and `DB_PASS` overrides.
 - `tools/create-db-user.sh` creates or updates the default local `meteor` DB user.
@@ -95,7 +95,7 @@ Reason: `World Server/Server.cs` calls `LoadZoneServerList()` and `ConnectToZone
 ## Client Compatibility
 
 - This project targets the Final Fantasy XIV 1.23b client, not A Realm Reborn or current retail FFXIV.
-- The Project Meteor setup wiki lists Final Fantasy XIV 1.23b version `2012.09.19.0001` and Seventh Umbral Launcher 1.03 as the expected client stack.
+- The MeteorXIV Core setup wiki lists Final Fantasy XIV 1.23b version `2012.09.19.0001` and Seventh Umbral Launcher 1.03 as the expected client stack.
 - There was no native official Mac client for the 1.x era. The later official macOS client belongs to A Realm Reborn/Heavensward era, not this protocol.
 - On Apple Silicon, the practical client paths are:
   - CrossOver/Wine/Wineskin style wrapper for the Windows 1.23b client and Seventh Umbral launcher.
@@ -116,7 +116,7 @@ The local `CLIENT_REQUIREMENTS.md` is the best project-owned status matrix. It m
 - Map event update as partial.
 - Bazaar/trade, some inventory checks, company systems, quests, shops, and several NPC flows as partial/TODO.
 
-The historical feature-status wiki is older, but it confirms the project was not feature-complete and that many gameplay systems were missing or partial in earlier Project Meteor history.
+The historical feature-status wiki is older, but it confirms the project was not feature-complete and that many gameplay systems were missing or partial in earlier MeteorXIV Core history.
 
 ## High Priority Gaps
 
@@ -138,7 +138,7 @@ The historical feature-status wiki is older, but it confirms the project was not
 
 4. Launcher development
    - Start with an Echo Gate desktop app that validates the client path, prepares `staticactors.bin`, writes server profiles, and launches through a user-selected Wine/CrossOver runtime.
-   - Keep client download/patching out of scope pending a clear legal/source model.
+   - Keep client acquisition outside the project. Preserve manual client selection, manual patch-library validation, and explicitly configured patch-file retrieval.
 
 5. Unknown opcode instrumentation
    - Add structured logging for unknown lobby/world/map opcodes.
@@ -166,10 +166,10 @@ The historical feature-status wiki is older, but it confirms the project was not
 
 ## Useful External References
 
-- Project Meteor setup wiki: https://wiki.ffxivrp.org/pages/Project_Meteor_Setup
-- Project Meteor server setup wiki: https://wiki.ffxivrp.org/pages/ServerSetup
-- Project Meteor compile guide: https://wiki.ffxivrp.org/pages/Compiling-Simple
-- Project Meteor client/launcher guide: https://wiki.ffxivrp.org/pages/ClientAndLauncher
+- MeteorXIV Core setup wiki: https://wiki.ffxivrp.org/pages/Project_Meteor_Setup
+- MeteorXIV Core server setup wiki: https://wiki.ffxivrp.org/pages/ServerSetup
+- MeteorXIV Core compile guide: https://wiki.ffxivrp.org/pages/Compiling-Simple
+- MeteorXIV Core client/launcher guide: https://wiki.ffxivrp.org/pages/ClientAndLauncher
 - Packet headers: https://wiki.ffxivrp.org/pages/Packet_Headers
 - Game opcodes: https://wiki.ffxivrp.org/pages/Game_Opcodes
 - Project Novum documentation index: https://project-novum.github.io/

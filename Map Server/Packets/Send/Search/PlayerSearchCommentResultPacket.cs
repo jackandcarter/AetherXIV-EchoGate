@@ -22,10 +22,10 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 using System.IO;
 using System.Text;
 
-using Meteor.Common;
+using MeteorXIV.Core.Common;
 using System;
 
-namespace Meteor.Map.packets.send.search
+namespace MeteorXIV.Core.Map.packets.send.search
 {
     class PlayerSearchCommentResultPacket
     {

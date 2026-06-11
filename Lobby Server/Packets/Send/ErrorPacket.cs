@@ -22,9 +22,9 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 using System;
 using System.IO;
 using System.Text;
-using Meteor.Common;
+using MeteorXIV.Core.Common;
 
-namespace Meteor.Lobby.Packets
+namespace MeteorXIV.Core.Lobby.Packets
 {
     class ErrorPacket
     {

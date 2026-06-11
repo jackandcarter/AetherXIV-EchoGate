@@ -21,7 +21,7 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 
 using NLog;
 
-namespace Meteor.Common
+namespace MeteorXIV.Core.Common
 {
     // todo:
     // havent decided whether it's worth wrapping every sql class

@@ -19,13 +19,13 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 ===========================================================================
 */
 
-using Meteor.Common;
-using Meteor.Map.lua;
+using MeteorXIV.Core.Common;
+using MeteorXIV.Core.Map.lua;
 using System;
 using System.Collections.Generic;
 using System.IO;
 
-namespace Meteor.Map.packets.receive.events
+namespace MeteorXIV.Core.Map.packets.receive.events
 {
     class EventStartPacket
     {

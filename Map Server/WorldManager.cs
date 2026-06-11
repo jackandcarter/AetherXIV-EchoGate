@@ -19,29 +19,29 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 ===========================================================================
 */
 
-using Meteor.Common;
-using Meteor.Map.actors.area;
-using Meteor.Map.actors.chara.npc;
-using Meteor.Map.Actors;
-using Meteor.Map.dataobjects;
-using Meteor.Map.lua;
-using Meteor.Map.packets.send;
-using Meteor.Map.packets.send.actor;
+using MeteorXIV.Core.Common;
+using MeteorXIV.Core.Map.actors.area;
+using MeteorXIV.Core.Map.actors.chara.npc;
+using MeteorXIV.Core.Map.Actors;
+using MeteorXIV.Core.Map.dataobjects;
+using MeteorXIV.Core.Map.lua;
+using MeteorXIV.Core.Map.packets.send;
+using MeteorXIV.Core.Map.packets.send.actor;
 using MySql.Data.MySqlClient;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Meteor.Map.actors.group;
-using Meteor.Map.packets.WorldPackets.Receive;
-using Meteor.Map.packets.WorldPackets.Send.Group;
+using MeteorXIV.Core.Map.actors.group;
+using MeteorXIV.Core.Map.packets.WorldPackets.Receive;
+using MeteorXIV.Core.Map.packets.WorldPackets.Send.Group;
 using System.Threading;
-using Meteor.Map.actors.director;
-using Meteor.Map.actors.chara.ai;
-using Meteor.Map.actors.chara;
-using Meteor.Map.actors.chara.player;
-using Meteor.Map.packets.send.actor.inventory;
+using MeteorXIV.Core.Map.actors.director;
+using MeteorXIV.Core.Map.actors.chara.ai;
+using MeteorXIV.Core.Map.actors.chara;
+using MeteorXIV.Core.Map.actors.chara.player;
+using MeteorXIV.Core.Map.packets.send.actor.inventory;
 
-namespace Meteor.Map
+namespace MeteorXIV.Core.Map
 {
     class WorldManager
     {
@@ -896,7 +896,22 @@ namespace Meteor.Map
 
         //Moves actor to new zone, and sends packets to spawn at the given coords.
         public void DoZoneChange(Player player, uint destinationZoneId, string destinationPrivateArea, int destinationPrivateAreaType, byte spawnType, float spawnX, float spawnY, float spawnZ, float spawnRotation)
-        {       
+        {
+            uint currentZoneId = player.zoneId;
+            string currentPrivateArea = player.privateArea ?? "";
+            Program.Log.Info("Zone change requested: player={0} fromZone={1} fromPrivateArea={2} toZone={3} toPrivateArea={4} toPrivateAreaType={5} spawnType={6} position=({7}, {8}, {9}, {10})",
+                player.customDisplayName,
+                currentZoneId,
+                currentPrivateArea,
+                destinationZoneId,
+                destinationPrivateArea ?? "",
+                destinationPrivateAreaType,
+                spawnType,
+                spawnX,
+                spawnY,
+                spawnZ,
+                spawnRotation);
+
             //Add player to new zone and update
             Area newArea;
 
@@ -908,7 +923,10 @@ namespace Meteor.Map
             //This server does not contain that zoneId
             if (newArea == null)
             {
-                Program.Log.Debug("Request to change to zone not on this server by: {0}.", player.customDisplayName);
+                Program.Log.Info("Zone change requires world handoff: player={0} destinationZone={1} destinationPrivateArea={2}",
+                    player.customDisplayName,
+                    destinationZoneId,
+                    destinationPrivateArea ?? "");
                 RequestWorldServerZoneChange(player, destinationZoneId, spawnType, spawnX, spawnY, spawnZ, spawnRotation);
                 return;
             }
@@ -977,14 +995,31 @@ namespace Meteor.Map
             ZoneEntrance ze = zoneEntranceList[zoneEntrance];
 
             if (ze.zoneId != player.zoneId)
+            {
+                Program.Log.Info("Move in zone skipped: player={0} currentZone={1} entrance={2} entranceZone={3}",
+                    player.customDisplayName,
+                    player.zoneId,
+                    zoneEntrance,
+                    ze.zoneId);
                 return;
+            }
 
             DoPlayerMoveInZone(player, ze.spawnX, ze.spawnY, ze.spawnZ, ze.spawnRotation, ze.spawnType);
         }
 
         //Moves actor within the zone
         public void DoPlayerMoveInZone(Player player, float spawnX, float spawnY, float spawnZ, float spawnRotation, byte spawnType = 0xF)
-        {            
+        {
+            Program.Log.Info("Move in zone requested: player={0} zone={1} privateArea={2} spawnType={3} position=({4}, {5}, {6}, {7})",
+                player.customDisplayName,
+                player.zoneId,
+                player.privateArea ?? "",
+                spawnType,
+                spawnX,
+                spawnY,
+                spawnZ,
+                spawnRotation);
+
             //Remove player from currentZone if transfer else it's login
             if (player.zone != null)
             {
@@ -1756,6 +1791,17 @@ namespace Meteor.Map
 
         private void RequestWorldServerZoneChange(Player player, uint destinationZoneId, byte spawnType, float spawnX, float spawnY, float spawnZ, float spawnRotation)
         {
+            Program.Log.Info(
+                "Requesting world zone handoff: session={0} actor={1} fromZone={2} destinationZone={3} spawnType={4} pos=({5:F2},{6:F2},{7:F2}) rot={8:F2}",
+                player.playerSession.id,
+                player.customDisplayName,
+                player.zoneId,
+                destinationZoneId,
+                spawnType,
+                spawnX,
+                spawnY,
+                spawnZ,
+                spawnRotation);
             ZoneConnection zc = Server.GetWorldConnection();
             zc.RequestZoneChange(player.playerSession.id, destinationZoneId, spawnType, spawnX, spawnY, spawnZ, spawnRotation);
         }

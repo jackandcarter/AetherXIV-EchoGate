@@ -19,13 +19,13 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 ===========================================================================
 */
 
-using Meteor.Common;
+using MeteorXIV.Core.Common;
 using System;
 using System.IO;
 
 using System.Collections.Generic;
 
-namespace  Meteor.Map.packets.send.actor.battle
+namespace MeteorXIV.Core.Map.packets.send.actor.battle
 {
     class CommandResultX10Packet
     {

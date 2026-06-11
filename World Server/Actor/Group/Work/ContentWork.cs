@@ -19,7 +19,7 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 ===========================================================================
 */
 
-namespace Meteor.World.Actor.Group.Work
+namespace MeteorXIV.Core.World.Actor.Group.Work
 {
     class ContentWork
     {

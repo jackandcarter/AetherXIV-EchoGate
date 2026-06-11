@@ -19,7 +19,7 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 ===========================================================================
 */
 
-namespace Meteor.Map.Actors.Chara
+namespace MeteorXIV.Core.Map.Actors.Chara
 {
     class EventSave
     {

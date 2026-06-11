@@ -19,7 +19,7 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 ===========================================================================
 */
 
-namespace Meteor.Map.actors.chara.npc
+namespace MeteorXIV.Core.Map.actors.chara.npc
 {
     class ActorClass
     {

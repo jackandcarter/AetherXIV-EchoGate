@@ -1,9 +1,9 @@
-# Meteor
-Project Meteor for XIV 1.x MacOS and Linux
+# MeteorXIV Core
+MeteorXIV Core for XIV 1.x macOS and Linux
 
 A few notes:
 
-This Meteor project is a port and fork of the original Project:Meteor. It is in no way connected to anyone from that project.
+MeteorXIV Core is a port and fork of the original Project:Meteor. It is in no way connected to anyone from that project.
 The current source targets a legacy .NET Framework runtime. The planned modernization target is dotnet10.
 
 Until then, the main branch is mostly for reference. Old Project:Meteor targeted Windows as the hosting platform, while this project targets Windows, Linux, and MacOS.
@@ -14,6 +14,7 @@ Until then, the main branch is mostly for reference. Old Project:Meteor targeted
 - `Map Server/`: Zone/map simulation and gameplay state.
 - `Common Class Lib/`: Shared libraries used by all servers.
 - `Data/`: Runtime configuration, SQL, and web assets.
+- `launcher/EchoGate/`: Cross-platform FFXIV Classic launcher, patcher, runtime manager, and launch diagnostics.
 
 ## High-level flow
 1. Client connects to the lobby server to authenticate and select a character.
@@ -55,7 +56,20 @@ When a player selects a character, the lobby server builds a `SelectCharacterCon
 ## Build & run
 The solution targets .NET Framework 4.7.2 and uses `packages.config` for NuGet restore, so the tooling differs slightly per OS. Make sure MariaDB/MySQL is reachable with credentials configured in the `Data/*_config.ini` files before starting the servers.
 
-For macOS/Linux details, see `docs/MACOS_LINUX_DEV_SETUP.md`. For the current audit and missing-work map, see `docs/PROJECT_AUDIT_2026-06-07.md`. For the modern .NET porting plan, see `docs/PORTING_STRATEGY.md`. For Echo Gate launcher design, see `docs/LAUNCHER_DESIGN.md` and `docs/WINE_RUNTIME_STRATEGY.md`.
+For macOS/Linux details, see `docs/MACOS_LINUX_DEV_SETUP.md`. For the current audit and missing-work map, see `docs/PROJECT_AUDIT_2026-06-07.md`. For the modern .NET porting plan, see `docs/PORTING_STRATEGY.md`. For dev-only reverse-engineering workflow support, see `docs/REVERSE_ENGINEERING_TOOLS.md`. For Echo Gate launcher design and services, see `docs/LAUNCHER_DESIGN.md`, `docs/LAUNCHER_SERVICES.md`, and `docs/WINE_RUNTIME_STRATEGY.md`.
+
+Local server readiness:
+
+```sh
+./tools/smoke-local.sh --allow-missing-staticactors
+```
+
+Echo Gate test/build:
+
+```sh
+AVALONIA_TELEMETRY_OPTOUT=1 dotnet test launcher/EchoGate/EchoGate.sln -m:1 /nr:false
+./tools/build-echo-gate-macos.sh
+```
 
 ### Linux (Ubuntu, etc.)
 1. Install Mono build tooling + NuGet (package names vary by distro; common ones are `mono-complete`, `msbuild`, and `nuget`).
@@ -75,9 +89,9 @@ For macOS/Linux details, see `docs/MACOS_LINUX_DEV_SETUP.md`. For the current au
    ```
 5. Run servers in order (from their output folders):
    ```
-   mono "Lobby Server/bin/Release/Lobby Server.exe"
-   mono "Map Server/bin/Release/Map Server.exe"
-   mono "World Server/bin/Release/World Server.exe"
+   mono "Lobby Server/bin/Release/MeteorXIV.Core.Lobby.exe"
+   mono "Map Server/bin/Release/MeteorXIV.Core.Map.exe"
+   mono "World Server/bin/Release/MeteorXIV.Core.World.exe"
    ```
 
 ### macOS (Intel or Apple Silicon)
@@ -92,24 +106,24 @@ For macOS/Linux details, see `docs/MACOS_LINUX_DEV_SETUP.md`. For the current au
    ```
 4. Run servers in order:
    ```
-   mono "Lobby Server/bin/Release/Lobby Server.exe"
-   mono "Map Server/bin/Release/Map Server.exe"
-   mono "World Server/bin/Release/World Server.exe"
+   mono "Lobby Server/bin/Release/MeteorXIV.Core.Lobby.exe"
+   mono "Map Server/bin/Release/MeteorXIV.Core.Map.exe"
+   mono "World Server/bin/Release/MeteorXIV.Core.World.exe"
    ```
 
 ### Windows
 1. Install Visual Studio (with .NET Framework 4.7.2 developer pack) or MSBuild + NuGet.
 2. Restore packages:
    ```
-   nuget restore Meteor.sln
+   nuget restore MeteorXIV.Core.sln
    ```
 3. Build (Visual Studio or command line):
    ```
-   msbuild Meteor.sln /p:Configuration=Release
+   msbuild MeteorXIV.Core.sln /p:Configuration=Release
    ```
 4. Run servers in order from their output directories:
    ```
-   "Lobby Server\bin\Release\Lobby Server.exe"
-   "Map Server\bin\Release\Map Server.exe"
-   "World Server\bin\Release\World Server.exe"
+   "Lobby Server\bin\Release\MeteorXIV.Core.Lobby.exe"
+   "Map Server\bin\Release\MeteorXIV.Core.Map.exe"
+   "World Server\bin\Release\MeteorXIV.Core.World.exe"
    ```

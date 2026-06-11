@@ -25,10 +25,10 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 
-using Meteor.Common;
-using Meteor.World.DataObjects.Group;
+using MeteorXIV.Core.Common;
+using MeteorXIV.Core.World.DataObjects.Group;
 
-namespace Meteor.World.Packets.Send.Subpackets.Groups
+namespace MeteorXIV.Core.World.Packets.Send.Subpackets.Groups
 {
     class SynchGroupWorkValuesPacket
     {

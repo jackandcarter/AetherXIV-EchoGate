@@ -24,9 +24,9 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 
-using Meteor.Common;
+using MeteorXIV.Core.Common;
 
-namespace Meteor.World.Packets.Send.Subpackets.Groups
+namespace MeteorXIV.Core.World.Packets.Send.Subpackets.Groups
 {
     class GroupMembersX08Packet
     {

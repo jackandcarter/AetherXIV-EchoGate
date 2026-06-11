@@ -21,11 +21,11 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 
 
 using System.Collections.Generic;
-using Meteor.Map.packets.send.actor;
-using Meteor.Map.Actors;
-using Meteor.Common;
+using MeteorXIV.Core.Map.packets.send.actor;
+using MeteorXIV.Core.Map.Actors;
+using MeteorXIV.Core.Common;
 
-namespace Meteor.Map.utils
+namespace MeteorXIV.Core.Map.utils
 {
     class ActorPropertyPacketUtil
     {

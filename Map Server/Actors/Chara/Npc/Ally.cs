@@ -19,11 +19,11 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 ===========================================================================
 */
 
-using Meteor.Map.Actors;
-using Meteor.Map.actors.chara.ai;
-using Meteor.Map.actors.chara.ai.controllers;
+using MeteorXIV.Core.Map.Actors;
+using MeteorXIV.Core.Map.actors.chara.ai;
+using MeteorXIV.Core.Map.actors.chara.ai.controllers;
 
-namespace Meteor.Map.actors.chara.npc
+namespace MeteorXIV.Core.Map.actors.chara.npc
 {
     class Ally : BattleNpc
     {

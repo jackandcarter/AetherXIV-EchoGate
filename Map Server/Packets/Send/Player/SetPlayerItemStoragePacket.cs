@@ -19,10 +19,10 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 ===========================================================================
 */
 
-using Meteor.Common;
+using MeteorXIV.Core.Common;
 using System.IO;
 
-namespace Meteor.Map.packets.send.player
+namespace MeteorXIV.Core.Map.packets.send.player
 {
     class SetPlayerItemStoragePacket
     {

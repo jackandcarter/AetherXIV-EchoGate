@@ -19,15 +19,15 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 ===========================================================================
 */
 
-using Meteor.Common;
-using Meteor.Map.Actors;
-using Meteor.Map.lua;
-using Meteor.Map.packets.send.actor;
+using MeteorXIV.Core.Common;
+using MeteorXIV.Core.Map.Actors;
+using MeteorXIV.Core.Map.lua;
+using MeteorXIV.Core.Map.packets.send.actor;
 using System;
 using System.Collections.Generic;
-using Meteor.Map.actors.director;
+using MeteorXIV.Core.Map.actors.director;
 
-namespace Meteor.Map.actors.area
+namespace MeteorXIV.Core.Map.actors.area
 {
     class Zone : Area
     {        

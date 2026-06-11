@@ -22,14 +22,14 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Meteor.Map.Actors;
-using Meteor.Common;
-using Meteor.Map.actors.chara.ai.controllers;
-using Meteor.Map.actors.group;
+using MeteorXIV.Core.Map.Actors;
+using MeteorXIV.Core.Common;
+using MeteorXIV.Core.Map.actors.chara.ai.controllers;
+using MeteorXIV.Core.Map.actors.group;
 
 // port of dsp's ai code https://github.com/DarkstarProject/darkstar/blob/master/src/map/ai/
 
-namespace Meteor.Map.actors.chara.ai
+namespace MeteorXIV.Core.Map.actors.chara.ai
 {
     [Flags]
     public enum ValidTarget : ushort
