@@ -6,7 +6,7 @@ A few notes:
 MeteorXIV Core is a port and fork of the original Project:Meteor. It is in no way connected to anyone from that project.
 The current source targets a legacy .NET Framework runtime. The planned modernization target is dotnet10.
 
-Until then, the main branch is mostly for reference. Old Project:Meteor targeted Windows as the hosting platform, while this project targets Windows, Linux, and MacOS.
+Old Project:Meteor targeted Windows as the hosting platform, while this project targets Windows, Linux, and MacOS.
 
 ## Solution layout
 - `Lobby Server/`: Login and character selection service.
