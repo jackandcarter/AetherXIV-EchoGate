@@ -50,7 +50,7 @@ Useful options:
 ./tools/bootstrap-ubuntu-build.sh --yes --rid linux-arm64
 ```
 
-Wine and Winetricks are installed by default for local client testing. `--no-client-runtime` installs Wine packages but skips prefix preparation. `--no-wine` skips Wine/Winetricks package installation and prefix setup for server-only build machines. This does not replace Echo Gate runtime validation, and it does not install a project-owned Wine runtime archive.
+Wine and Winetricks are installed by default for local client testing. If `wine` is already present on `PATH`, the helper reuses that detected Wine and does not request `wine`, `wine32`, or `winehq-stable` from apt. `--no-client-runtime` installs Wine packages but skips prefix preparation. `--no-wine` skips Wine/Winetricks package installation and prefix setup for server-only build machines. This does not replace Echo Gate runtime validation, and it does not install a project-owned Wine runtime archive.
 
 Some newer Ubuntu releases list `nuget` in package metadata but do not provide an install candidate. When that happens, the bootstrap helper downloads the official NuGet command-line executable into the ignored local `.tools/` folder and creates a `nuget` wrapper that runs through Mono.
 

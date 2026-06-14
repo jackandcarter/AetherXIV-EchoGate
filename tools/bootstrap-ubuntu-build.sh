@@ -385,16 +385,16 @@ collect_dependencies() {
 
   if [[ "$WITH_WINE" -eq 1 ]]; then
     enable_i386_architecture
-    if [[ "$WINE_SOURCE" == "winehq" ]]; then
+    if command_exists wine; then
+      log "ok: wine ($(command -v wine))"
+      log "Keeping detected Wine; no Wine package will be requested."
+    elif [[ "$WINE_SOURCE" == "winehq" ]]; then
       prepare_winehq_package_source
-      if command_exists wine; then
-        log "ok: wine ($(command -v wine))"
-      else
-        log "missing: wine -> winehq-stable"
-        add_available_package winehq-stable
-      fi
+      log "missing: wine -> winehq-stable"
+      add_available_package winehq-stable
     else
-      need_command wine wine
+      log "missing: wine -> wine"
+      add_available_package wine
       add_available_package wine32
     fi
     need_command winetricks winetricks
