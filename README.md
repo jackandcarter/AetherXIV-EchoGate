@@ -79,7 +79,7 @@ AVALONIA_TELEMETRY_OPTOUT=1 dotnet test launcher/EchoGate/EchoGate.sln -m:1 /nr:
    ```
    ./tools/setup-local-db.sh
    ```
-   The script uses `.env.defaults` and can fall back to Ubuntu socket-auth root through `sudo`. Create `.env.local` only if your MariaDB admin account uses different values.
+   The script uses `.env.defaults`, creates database `ffxiv_server`, and creates app user `meteor` with password `meteor_dev`. It can fall back to Ubuntu socket-auth root through `sudo`, and if MariaDB uses password auth it will ask for admin credentials. Create `.env.local` only if you want to override the defaults.
 3. Restore NuGet packages and build:
    ```
    ./tools/build-legacy.sh
@@ -107,6 +107,7 @@ AVALONIA_TELEMETRY_OPTOUT=1 dotnet test launcher/EchoGate/EchoGate.sln -m:1 /nr:
    ```
    ./tools/setup-local-db.sh
    ```
+   The default local app login is `meteor` / `meteor_dev` against database `ffxiv_server`; the script asks for MariaDB admin credentials only when needed.
 3. Restore packages and build:
    ```
    ./tools/build-legacy.sh

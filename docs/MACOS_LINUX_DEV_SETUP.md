@@ -78,13 +78,26 @@ The helper restores NuGet packages, then uses `msbuild` when present or `xbuild`
 
 ## Database Bootstrap
 
-Start MariaDB/MySQL first. The repo includes `.env.defaults`, which is loaded by all local helper scripts. For the default local setup, run:
+Start MariaDB/MySQL first. The repo includes `.env.defaults`, which is loaded by all local helper scripts. No local env file is required for the default setup.
+
+The checked-in defaults create:
+
+```text
+Database: ffxiv_server
+App username: meteor
+App password: meteor_dev
+App hosts: localhost, 127.0.0.1
+```
+
+Run:
 
 ```sh
 ./tools/setup-local-db.sh
 ```
 
-The checked-in defaults are:
+The setup script first tries the current OS user for MariaDB admin access. If that fails on Ubuntu/Debian, it tries sudo/root socket auth. If MariaDB uses password auth instead, it asks for the MariaDB admin username and password in the terminal. You do not need to create or edit any env files for the normal local path.
+
+The same defaults are also exposed to the servers and PHP services:
 
 ```sh
 DB_NAME=ffxiv_server
@@ -94,20 +107,19 @@ METEOR_DB_USER=meteor
 METEOR_DB_PASS=meteor_dev
 ```
 
-On Ubuntu/Debian, MariaDB often lets only the OS root account use the MariaDB `root` user over the local socket. If login as your OS user fails, `setup-local-db.sh` tries Ubuntu-style `sudo root` socket auth automatically.
+If you want a different local database name or app password, create `.env.local` and override the values there. For example:
 
-If your MariaDB root account uses password auth instead, create `.env.local` and set:
+```sh
+DB_APP_PASS=your-local-app-password
+METEOR_DB_PASS=your-local-app-password
+```
+
+To force a known MariaDB admin account without being prompted, put admin values in `.env.local`:
 
 ```sh
 DB_ADMIN_USER=root
 DB_ADMIN_PASS=your-local-root-password
 DB_ADMIN_SUDO=0
-```
-
-Then create the database, import all SQL files, create the app user, and validate the app login:
-
-```sh
-./tools/setup-local-db.sh
 ```
 
 To drop and recreate the database during local development:

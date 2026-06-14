@@ -7,18 +7,23 @@ source "$ROOT_DIR/tools/load-local-env.sh"
 DROP_DATABASE="${DROP_DATABASE:-0}"
 IMPORT_SQL=1
 CREATE_APP_USER=1
+PROMPT_ADMIN=1
 
 usage() {
   cat <<'EOF'
-Usage: tools/setup-local-db.sh [--drop] [--no-import] [--no-user] [--admin-sudo]
+Usage: tools/setup-local-db.sh [--drop] [--no-import] [--no-user] [--admin-sudo] [--no-prompt]
 
 Creates or refreshes the local Meteor MariaDB database and app account.
 
-Typical Ubuntu socket-auth setup:
-  DB_ADMIN_USER=root DB_ADMIN_SUDO=1 ./tools/setup-local-db.sh
+Default created resources:
+  database:       ffxiv_server
+  app username:   meteor
+  app password:   meteor_dev
+  app hosts:      localhost, 127.0.0.1
 
-Typical password-auth setup:
-  DB_ADMIN_USER=root DB_ADMIN_PASS='root-password' ./tools/setup-local-db.sh
+Default setup needs no local env file. The script first tries the current OS
+user, then Ubuntu-style sudo root socket auth, then asks for MariaDB admin
+credentials when running in an interactive terminal.
 
 Environment is read from .env.defaults, then .env.local when present.
 Key values:
@@ -32,6 +37,11 @@ Key values:
   DB_APP_PASS      default meteor_dev
   DB_APP_HOST      default 127.0.0.1
   DB_APP_HOSTS     default "localhost 127.0.0.1"
+
+Options:
+  --drop           drop and recreate the database before importing
+  --admin-sudo     use sudo root socket auth for admin commands
+  --no-prompt      fail instead of asking for MariaDB admin credentials
 EOF
 }
 
@@ -51,6 +61,10 @@ while [[ "$#" -gt 0 ]]; do
       ;;
     --admin-sudo)
       DB_ADMIN_SUDO=1
+      shift
+      ;;
+    --no-prompt)
+      PROMPT_ADMIN=0
       shift
       ;;
     -h|--help)
@@ -113,30 +127,63 @@ sql_identifier() {
   printf '%s' "$value"
 }
 
-admin_cmd=()
-if [[ "$DB_ADMIN_SUDO" == "1" ]]; then
-  admin_cmd+=(sudo)
-fi
-admin_cmd+=("$MYSQL_BIN" -h "$DB_HOST" -u "$DB_ADMIN_USER")
-if [[ "$DB_HOST" != "localhost" ]]; then
-  admin_cmd+=(-P "$DB_PORT")
-fi
-if [[ -n "$DB_ADMIN_PASS" ]]; then
-  admin_cmd+=("-p$DB_ADMIN_PASS")
-fi
-
 app_cmd=("$MYSQL_BIN" -h "$DB_APP_HOST" -P "$DB_APP_PORT" -u "$DB_APP_USER")
 if [[ -n "$DB_APP_PASS" ]]; then
   app_cmd+=("-p$DB_APP_PASS")
 fi
 
+build_admin_cmd() {
+  admin_cmd=()
+  if [[ "$DB_ADMIN_SUDO" == "1" ]]; then
+    admin_cmd+=(sudo)
+  fi
+  admin_cmd+=("$MYSQL_BIN" -h "$DB_HOST" -u "$DB_ADMIN_USER")
+  if [[ "$DB_HOST" != "localhost" ]]; then
+    admin_cmd+=(-P "$DB_PORT")
+  fi
+  if [[ -n "$DB_ADMIN_PASS" ]]; then
+    admin_cmd+=("-p$DB_ADMIN_PASS")
+  fi
+}
+
 run_admin_sql() {
   "${admin_cmd[@]}" -e "$1"
 }
 
+admin_label() {
+  if [[ "$DB_ADMIN_SUDO" == "1" ]]; then
+    printf 'sudo %s@%s' "$DB_ADMIN_USER" "$DB_HOST"
+  else
+    printf '%s@%s' "$DB_ADMIN_USER" "$DB_HOST"
+  fi
+}
+
+prompt_admin_credentials() {
+  if [[ "$PROMPT_ADMIN" != "1" || ! -t 0 || ! -t 1 ]]; then
+    return 1
+  fi
+
+  echo
+  echo "MariaDB admin login is needed to create the local database and app user."
+  read -r -p "MariaDB admin username [root]: " prompted_admin_user
+  prompted_admin_user="${prompted_admin_user:-root}"
+  read -r -s -p "MariaDB admin password (leave blank for none): " prompted_admin_pass
+  echo
+
+  DB_ADMIN_USER="$prompted_admin_user"
+  DB_ADMIN_PASS="$prompted_admin_pass"
+  DB_ADMIN_SUDO=0
+  build_admin_cmd
+}
+
+build_admin_cmd
+
 echo "Meteor local database setup"
-echo "Admin connection: $DB_ADMIN_USER@$DB_HOST"
-echo "App connection:   $DB_APP_USER@$DB_APP_HOST:$DB_APP_PORT/$DB_NAME"
+echo "Database to create: $DB_NAME"
+echo "App account:        $DB_APP_USER / $DB_APP_PASS"
+echo "App hosts:          $DB_APP_HOSTS"
+echo "Admin connection:   $(admin_label)"
+echo "App connection:     $DB_APP_USER@$DB_APP_HOST:$DB_APP_PORT/$DB_NAME"
 echo
 
 if ! run_admin_sql "SELECT 1;" >/dev/null 2>&1; then
@@ -145,20 +192,24 @@ if ! run_admin_sql "SELECT 1;" >/dev/null 2>&1; then
     DB_ADMIN_USER=root
     DB_ADMIN_PASS=
     DB_ADMIN_SUDO=1
-    admin_cmd=(sudo "$MYSQL_BIN" -h "$DB_HOST" -u "$DB_ADMIN_USER")
-    if [[ "$DB_HOST" != "localhost" ]]; then
-      admin_cmd+=(-P "$DB_PORT")
-    fi
+    build_admin_cmd
     if ! run_admin_sql "SELECT 1;" >/dev/null 2>&1; then
-      echo "Could not connect with the admin MariaDB account." >&2
-      echo "If MariaDB root uses a password, put DB_ADMIN_USER and DB_ADMIN_PASS in .env.local." >&2
-      exit 20
+      if prompt_admin_credentials && run_admin_sql "SELECT 1;" >/dev/null 2>&1; then
+        echo "Connected with MariaDB admin account: $(admin_label)"
+      else
+        echo "Could not connect with the MariaDB admin account." >&2
+        echo "Run again with the correct admin username/password, or set DB_ADMIN_USER and DB_ADMIN_PASS in .env.local." >&2
+        exit 20
+      fi
     fi
   else
-    echo "Could not connect with the admin MariaDB account." >&2
-    echo "On Ubuntu, try: DB_ADMIN_USER=root DB_ADMIN_SUDO=1 ./tools/setup-local-db.sh" >&2
-    echo "If your root account uses a password, use DB_ADMIN_PASS in .env.local." >&2
-    exit 20
+    if prompt_admin_credentials && run_admin_sql "SELECT 1;" >/dev/null 2>&1; then
+      echo "Connected with MariaDB admin account: $(admin_label)"
+    else
+      echo "Could not connect with the MariaDB admin account." >&2
+      echo "Run again with the correct admin username/password, or set DB_ADMIN_USER and DB_ADMIN_PASS in .env.local." >&2
+      exit 20
+    fi
   fi
 fi
 
