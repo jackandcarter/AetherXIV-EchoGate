@@ -78,21 +78,49 @@ The helper restores NuGet packages, then uses `msbuild` when present or `xbuild`
 
 ## Database Bootstrap
 
-Start MariaDB/MySQL first, then import the SQL files:
+Start MariaDB/MySQL first. The repo includes `.env.defaults`, which is loaded by all local helper scripts. For the default local setup, run:
 
 ```sh
-DB_NAME=ffxiv_server ./tools/import-db.sh
-DB_NAME=ffxiv_server ./tools/create-db-user.sh
-mysql ffxiv_server < Data/sql/launcher_services.sql
+./tools/setup-local-db.sh
+```
+
+The checked-in defaults are:
+
+```sh
+DB_NAME=ffxiv_server
+DB_APP_USER=meteor
+DB_APP_PASS=meteor_dev
+METEOR_DB_USER=meteor
+METEOR_DB_PASS=meteor_dev
+```
+
+On Ubuntu/Debian, MariaDB often lets only the OS root account use the MariaDB `root` user over the local socket. If login as your OS user fails, `setup-local-db.sh` tries Ubuntu-style `sudo root` socket auth automatically.
+
+If your MariaDB root account uses password auth instead, create `.env.local` and set:
+
+```sh
+DB_ADMIN_USER=root
+DB_ADMIN_PASS=your-local-root-password
+DB_ADMIN_SUDO=0
+```
+
+Then create the database, import all SQL files, create the app user, and validate the app login:
+
+```sh
+./tools/setup-local-db.sh
 ```
 
 To drop and recreate the database during local development:
 
 ```sh
-DROP_DATABASE=1 DB_NAME=ffxiv_server ./tools/import-db.sh
+./tools/setup-local-db.sh --drop
 ```
 
-The import helper defaults to `DB_HOST=localhost` and `DB_USER=$USER`, which matches Homebrew MariaDB socket auth on macOS. Server run scripts read ignored `.env.local` values when present, then pass database settings to the server processes. Override `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASS`, `DB_ADMIN_USER`, `DB_ADMIN_PASS`, `DB_APP_USER`, or `DB_APP_PASS` for Linux, CI, or dedicated database accounts.
+The app account is separate from the admin account. `DB_ADMIN_*` is used only for setup/import. `DB_APP_*` and `METEOR_DB_*` are used by Lobby, Map, World, and the PHP launcher/login services. Do not create grants for your Ubuntu login user unless you intentionally want that login to be the database admin.
+
+`tools/load-local-env.sh` is an internal helper that the other scripts source; it is not a standalone setup step. It loads `.env.defaults` first, then `.env.local` if present. Use `tools/setup-local-db.sh` for database setup.
+
+The lower-level `tools/import-db.sh` and `tools/create-db-user.sh` remain available for advanced cases, but the one-command setup path above should be the default for local development. `Data/sql/launcher_services.sql` is imported with the rest of `Data/sql/*.sql`.
 
 ## PHP Login/Vercheck Server
 

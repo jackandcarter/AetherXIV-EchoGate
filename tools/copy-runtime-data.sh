@@ -8,7 +8,7 @@ DB_NAME="${DB_NAME:-${METEOR_DB_NAME:-ffxiv_server}}"
 DB_APP_HOST="${DB_APP_HOST:-${METEOR_DB_HOST:-127.0.0.1}}"
 DB_APP_PORT="${DB_APP_PORT:-${METEOR_DB_PORT:-3306}}"
 DB_APP_USER="${DB_APP_USER:-${METEOR_DB_USER:-meteor}}"
-DB_APP_PASS="${DB_APP_PASS:-${METEOR_DB_PASS:-}}"
+DB_APP_PASS="${DB_APP_PASS:-${METEOR_DB_PASS:-meteor_dev}}"
 
 copy_file() {
   local source="$1"

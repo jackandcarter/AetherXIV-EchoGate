@@ -35,6 +35,7 @@ __pycache__/
 *.pid
 .env
 .env.*
+!.env.defaults
 !.env.example
 dev-diagnostics/
 **/dev-diagnostics/

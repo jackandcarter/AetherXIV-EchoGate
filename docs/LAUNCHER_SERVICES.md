@@ -81,7 +81,13 @@ Runtime catalog response:
 
 ## Database
 
-Apply:
+The launcher service tables are included in the normal local database bootstrap:
+
+```sh
+./tools/setup-local-db.sh
+```
+
+For manual database maintenance, the SQL file is:
 
 ```text
 Data/sql/launcher_services.sql
