@@ -63,8 +63,22 @@ hydrate_db_config "$ROOT_DIR/World Server/bin/$CONFIGURATION/world_config.ini"
 hydrate_db_config "$ROOT_DIR/Map Server/bin/$CONFIGURATION/map_config.ini"
 copy_dir "$ROOT_DIR/Data/scripts" "$ROOT_DIR/Map Server/bin/$CONFIGURATION"
 
+if [[ ! -f "$ROOT_DIR/Data/staticactors.bin" && "${AUTO_PREPARE_STATICACTORS:-1}" != "0" ]]; then
+  prepare_args=()
+  if [[ ! -t 0 || ! -t 1 ]]; then
+    prepare_args+=(--no-prompt)
+  fi
+
+  if "$ROOT_DIR/tools/prepare-client-data.sh" "${prepare_args[@]}"; then
+    echo "prepared: Data/staticactors.bin"
+  else
+    echo "warning: static actor data was not prepared automatically."
+  fi
+fi
+
 if [[ -f "$ROOT_DIR/Data/staticactors.bin" ]]; then
   copy_file "$ROOT_DIR/Data/staticactors.bin" "$ROOT_DIR/Map Server/bin/$CONFIGURATION"
 else
   echo "warning: Data/staticactors.bin is missing; Map Server will not be runtime-ready."
+  echo "hint: run CLIENT_DIR=\"/path/to/FINAL FANTASY XIV\" ./tools/prepare-client-data.sh"
 fi

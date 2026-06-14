@@ -189,12 +189,16 @@ CONFIGURATION=Release ./tools/copy-runtime-data.sh
 client/script/rq9q1797qvs.san -> Data/staticactors.bin
 ```
 
-When a local client install is available:
+If Echo Gate has already saved your client path, or `CLIENT_DIR` is set in the environment, `tools/copy-runtime-data.sh` and `tools/run-map.sh` try to prepare `Data/staticactors.bin` automatically when it is missing.
+
+To prepare it explicitly:
 
 ```sh
 CLIENT_DIR="/path/to/FINAL FANTASY XIV" ./tools/prepare-client-data.sh
 CONFIGURATION=Release ./tools/copy-runtime-data.sh
 ```
+
+If the client path is not known, run `./tools/prepare-client-data.sh` and enter the client folder when prompted.
 
 Client-derived files remain local and excluded from version control.
 

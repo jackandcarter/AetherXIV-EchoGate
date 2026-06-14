@@ -95,6 +95,7 @@ AVALONIA_TELEMETRY_OPTOUT=1 dotnet test launcher/EchoGate/EchoGate.sln -m:1 /nr:
    ```
    CONFIGURATION=Release ./tools/copy-runtime-data.sh
    ```
+   If `Data/staticactors.bin` is missing, this tries to prepare it from `CLIENT_DIR` or Echo Gate's saved client path. You can also run `./tools/prepare-client-data.sh` and enter the client folder when prompted.
 6. Run servers in order:
    ```
    ./tools/run-lobby.sh
