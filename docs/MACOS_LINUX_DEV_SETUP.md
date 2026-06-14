@@ -64,6 +64,27 @@ Useful options:
 
 Wine and Winetricks are installed by default for local client testing. If `wine` is already present on `PATH`, the helper reuses that detected Wine and does not request `wine`, `wine32`, or `winehq-stable` from apt. `--no-client-runtime` installs Wine packages but skips prefix preparation. `--no-wine` skips Wine/Winetricks package installation and prefix setup for server-only build machines. This does not replace Echo Gate runtime validation, and it does not install a project-owned Wine runtime archive.
 
+The 1.x client also needs 32-bit Linux graphics runtime packages. The bootstrap helper installs these for Ubuntu/Debian when Wine support is enabled:
+
+```text
+libgl1:i386
+libglx-mesa0:i386
+libgl1-mesa-dri:i386
+libglu1-mesa:i386
+libvulkan1:i386
+mesa-vulkan-drivers:i386
+```
+
+If an existing Wine install crashes with Wine logs like `libGL.so.1: cannot open shared object file`, `OpenGL support is disabled`, or `failed to load libvulkan.so.1`, run:
+
+```sh
+sudo dpkg --add-architecture i386
+sudo apt update
+sudo apt install -y libgl1:i386 libglx-mesa0:i386 libgl1-mesa-dri:i386 libglu1-mesa:i386 libvulkan1:i386 mesa-vulkan-drivers:i386
+```
+
+If Ubuntu is running inside a VM or cloud desktop, hardware or software 3D acceleration must also be available to Wine. Missing GL/Vulkan packages are the first thing to fix; a VM with no usable graphics stack can still crash after those are installed.
+
 Some newer Ubuntu releases list `nuget` in package metadata but do not provide an install candidate. When that happens, the bootstrap helper downloads the official NuGet command-line executable into the ignored local `.tools/` folder and creates a `nuget` wrapper that runs through Mono.
 
 By default the helper also prepares the Echo Gate Wine prefix:

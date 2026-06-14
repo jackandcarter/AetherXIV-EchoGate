@@ -398,6 +398,12 @@ collect_dependencies() {
       add_available_package wine32
     fi
     need_command winetricks winetricks
+    need_package libgl1:i386
+    need_package libglx-mesa0:i386
+    need_package libgl1-mesa-dri:i386
+    need_package libglu1-mesa:i386
+    need_package libvulkan1:i386
+    need_package mesa-vulkan-drivers:i386
   fi
 }
 
