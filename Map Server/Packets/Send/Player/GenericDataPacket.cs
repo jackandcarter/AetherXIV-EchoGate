@@ -19,13 +19,13 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 ===========================================================================
 */
 
-using Meteor.Map.lua;
+using MeteorXIV.Core.Map.lua;
 using System.Collections.Generic;
 using System.IO;
 
-using Meteor.Common;
+using MeteorXIV.Core.Common;
 
-namespace Meteor.Map.packets.send.player
+namespace MeteorXIV.Core.Map.packets.send.player
 {
     class GenericDataPacket
     {

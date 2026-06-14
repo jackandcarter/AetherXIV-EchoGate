@@ -19,7 +19,7 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 ===========================================================================
 */
 
-namespace Meteor.World.Packets.Send.Subpackets.Groups
+namespace MeteorXIV.Core.World.Packets.Send.Subpackets.Groups
 {
     class GroupMember
     {

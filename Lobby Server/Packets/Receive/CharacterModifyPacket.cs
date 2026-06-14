@@ -23,7 +23,7 @@ using System;
 using System.IO;
 using System.Text;
 
-namespace Meteor.Lobby.Packets.Receive
+namespace MeteorXIV.Core.Lobby.Packets.Receive
 {
     class CharacterModifyPacket
     {

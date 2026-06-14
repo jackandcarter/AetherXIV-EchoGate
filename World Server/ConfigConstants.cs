@@ -24,9 +24,9 @@ using System.IO;
 using System.Linq;
 using System.Net;
 
-using Meteor.Common;
+using MeteorXIV.Core.Common;
 
-namespace Meteor.World
+namespace MeteorXIV.Core.World
 {
     class ConfigConstants
     {

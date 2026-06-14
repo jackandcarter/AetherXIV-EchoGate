@@ -19,14 +19,14 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 ===========================================================================
 */
 
-using Meteor.Map.actors.chara.player;
-using Meteor.Map.Actors;
-using Meteor.Map.dataobjects;
-using Meteor.Map.packets.send.actor.inventory;
+using MeteorXIV.Core.Map.actors.chara.player;
+using MeteorXIV.Core.Map.Actors;
+using MeteorXIV.Core.Map.dataobjects;
+using MeteorXIV.Core.Map.packets.send.actor.inventory;
 using System.Collections.Generic;
 using System.Diagnostics;
 
-namespace Meteor.Map.actors.chara
+namespace MeteorXIV.Core.Map.actors.chara
 {
 
     class ReferencedItemPackage

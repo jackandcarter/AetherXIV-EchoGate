@@ -2,6 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+source "$ROOT_DIR/tools/load-local-env.sh"
 
 status() {
   printf '%-18s %s\n' "$1" "$2"
@@ -13,6 +14,19 @@ check_command() {
     status "$name" "ok: $(command -v "$name")"
   else
     status "$name" "missing"
+  fi
+}
+
+check_package() {
+  local name="$1"
+  if command -v dpkg-query >/dev/null 2>&1; then
+    if dpkg-query -W -f='${Status}' "$name" 2>/dev/null | grep -q "install ok installed"; then
+      status "$name" "ok"
+    else
+      status "$name" "missing"
+    fi
+  else
+    status "$name" "not checked"
   fi
 }
 
@@ -45,9 +59,22 @@ fi
 if [[ -d "$ROOT_DIR/packages" ]]; then
   status "packages" "present"
 else
-  status "packages" "missing: run nuget restore Meteor.sln"
+  status "packages" "missing: run nuget restore MeteorXIV.Core.sln"
 fi
 echo
+
+if command -v wine >/dev/null 2>&1 || command -v dpkg-query >/dev/null 2>&1; then
+  echo "Wine graphics runtime"
+  check_command wine
+  check_command winetricks
+  check_package libgl1:i386
+  check_package libglx-mesa0:i386
+  check_package libgl1-mesa-dri:i386
+  check_package libglu1-mesa:i386
+  check_package libvulkan1:i386
+  check_package mesa-vulkan-drivers:i386
+  echo
+fi
 
 echo "Git"
 if git -C "$ROOT_DIR" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
@@ -68,7 +95,7 @@ if command -v mysql >/dev/null 2>&1; then
   DB_APP_HOST="${DB_APP_HOST:-127.0.0.1}"
   DB_APP_PORT="${DB_APP_PORT:-3306}"
   DB_APP_USER="${DB_APP_USER:-meteor}"
-  DB_APP_PASS="${DB_APP_PASS:-meteor_dev}"
+  DB_APP_PASS="${DB_APP_PASS:-${METEOR_DB_PASS:-}}"
 
   mysql_args=(-h "$DB_HOST" -u "$DB_USER")
   if [[ "$DB_HOST" != "localhost" ]]; then

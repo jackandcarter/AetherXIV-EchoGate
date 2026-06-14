@@ -19,9 +19,9 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 ===========================================================================
 */
 
-using Meteor.Map.actors.director;
+using MeteorXIV.Core.Map.actors.director;
 
-namespace Meteor.Map.actors.group
+namespace MeteorXIV.Core.Map.actors.group
 {
     class GLContentGroup : ContentGroup
     {

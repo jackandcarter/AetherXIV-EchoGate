@@ -25,7 +25,7 @@ using System.Runtime.InteropServices;
 using NLog;
 using NLog.Targets;
 
-namespace Meteor.Common
+namespace MeteorXIV.Core.Common
 {
     [StructLayout(LayoutKind.Sequential)]
     public struct SubPacketHeader

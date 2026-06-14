@@ -25,9 +25,9 @@ using System.Net;
 using System.Net.Sockets;
 using System.Threading;
 
-using Meteor.Common;
+using MeteorXIV.Core.Common;
 
-namespace Meteor.Lobby
+namespace MeteorXIV.Core.Lobby
 {
     class Server
     {
@@ -161,11 +161,26 @@ namespace Meteor.Lobby
             try
             {
                 int bytesRead = conn.socket.EndReceive(result);
+                int socketBytesRead = bytesRead;
+                int bufferedBytes = conn.lastPartialSize;
 
                 bytesRead += conn.lastPartialSize;
 
                 if (bytesRead > 0)
                 {
+                    Program.Log.Info(
+                        "{0} receive socketBytes={1} bufferedBytes={2} totalBuffered={3}",
+                        GetConnectionName(conn),
+                        socketBytesRead,
+                        bufferedBytes,
+                        bytesRead);
+                    PacketDiagnostics.LogBufferPreview(
+                        "Lobby",
+                        "receive " + GetConnectionName(conn),
+                        conn.buffer,
+                        0,
+                        bytesRead);
+
                     int offset = 0;
 
                     //Build packets until can no longer or out of data
@@ -177,7 +192,24 @@ namespace Meteor.Lobby
                         if (basePacket == null)
                             break;
                         else
+                        {
+                            PacketDiagnostics.LogBasePacket("Lobby", "recv " + GetConnectionName(conn), basePacket);
                             mProcessor.ProcessPacket(conn, basePacket);
+                        }
+                    }
+
+                    if (offset < bytesRead)
+                    {
+                        Program.Log.Info(
+                            "{0} has {1} unconsumed bytes after packet build.",
+                            GetConnectionName(conn),
+                            bytesRead - offset);
+                        PacketDiagnostics.LogBufferPreview(
+                            "Lobby",
+                            "partial " + GetConnectionName(conn),
+                            conn.buffer,
+                            offset,
+                            bytesRead - offset);
                     }
 
                     //Not all bytes consumed, transfer leftover to beginning
@@ -200,7 +232,17 @@ namespace Meteor.Lobby
                 }
                 else
                 {
-                    Program.Log.Info("{0} has disconnected.", conn.currentUserId == 0 ? conn.GetAddress() : "User " + conn.currentUserId);
+                    Program.Log.Info(
+                        "{0} has disconnected. lastPartialSize={1}",
+                        GetConnectionName(conn),
+                        conn.lastPartialSize);
+                    if (conn.lastPartialSize > 0)
+                        PacketDiagnostics.LogBufferPreview(
+                            "Lobby",
+                            "disconnect-partial " + GetConnectionName(conn),
+                            conn.buffer,
+                            0,
+                            conn.lastPartialSize);
 
                     lock (mConnectionList)
                     {
@@ -213,7 +255,17 @@ namespace Meteor.Lobby
             {
                 if (conn.socket != null)
                 {
-                    Program.Log.Info("{0} has disconnected.", conn.currentUserId == 0 ? conn.GetAddress() : "User " + conn.currentUserId);
+                    Program.Log.Info(
+                        "{0} has disconnected after socket exception. lastPartialSize={1}",
+                        GetConnectionName(conn),
+                        conn.lastPartialSize);
+                    if (conn.lastPartialSize > 0)
+                        PacketDiagnostics.LogBufferPreview(
+                            "Lobby",
+                            "socket-exception-partial " + GetConnectionName(conn),
+                            conn.buffer,
+                            0,
+                            conn.lastPartialSize);
 
                     lock (mConnectionList)
                     {
@@ -222,6 +274,24 @@ namespace Meteor.Lobby
                 }
             }
         }      
+
+        private string GetConnectionName(ClientConnection conn)
+        {
+            if (conn == null)
+                return "Unknown";
+
+            if (conn.currentUserId != 0)
+                return "User " + conn.currentUserId;
+
+            try
+            {
+                return conn.GetAddress();
+            }
+            catch
+            {
+                return "Unknown";
+            }
+        }
 
         /// <summary>
         /// Builds a packet from the incoming buffer + offset. If a packet can be built, it is returned else null.

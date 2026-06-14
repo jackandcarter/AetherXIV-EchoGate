@@ -1,0 +1,46 @@
+{
+  "name": "opening-uldah-battle",
+  "title": "Ul'dah Opening Battle Tutorial",
+  "description": "Reproduce the Man0u0 opening tutorial through the escaped goobbue battle and return-to-town transition.",
+  "services": ["web", "lobby", "map", "world"],
+  "watch_focus": "battle",
+  "reset": {
+    "town": "uldah",
+    "tool": "reset-opening-tutorial"
+  },
+  "assertions": [
+    "active-mode-state-seen",
+    "no-autoattack-start-without-target",
+    "goobbue-damage-seen",
+    "goobbue-hp-zero-seen",
+    "mobkill-emitted",
+    "quest-phase-10",
+    "content-finished",
+    "stale-owner-missing"
+  ],
+  "steps": [
+    "Reset the test character to the Ul'dah opening tutorial when a clean run is needed.",
+    "Start the bridge with diagnostics enabled and a fresh session.",
+    "Log in, select the test character, and proceed through the opening town tutorial.",
+    "Enter active mode when the client asks for the battle tutorial.",
+    "Target the escaped goobbue and allow autoattack to run.",
+    "Record visible client messages such as out-of-range, damage, defeat, item reward, and zone-out.",
+    "Capture a bridge snapshot before making code changes."
+  ],
+  "success_criteria": [
+    "Active mode is traced as a state change instead of a targetless attack.",
+    "No autoattack starts with target 0x0.",
+    "The escaped goobbue receives damage and reaches 0 HP.",
+    "The server emits battle.mobkill.emit.",
+    "Quest phase advances to 10 after the battle.",
+    "The battle content area finishes and destroys cleanly.",
+    "Any owner-missing events after zone-out are classified for follow-up."
+  ],
+  "useful_commands": [
+    "./playtest-bridge/bridge.py recipe show opening-uldah-battle",
+    "./playtest-bridge/bridge.py recipe run opening-uldah-battle --character-name \"Ian Seven\" --apply-reset",
+    "./playtest-bridge/bridge.py assert --recipe opening-uldah-battle",
+    "./playtest-bridge/bridge.py snapshot --note \"opening battle test\"",
+    "./playtest-bridge/bridge.py compare <old-snapshot-or-session> <new-snapshot-or-session> --recipe opening-uldah-battle"
+  ]
+}

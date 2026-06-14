@@ -21,10 +21,10 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 
 using System;
 using System.Collections.Generic;
-using Meteor.Map.Actors;
-using Meteor.Map.actors.chara.npc;
+using MeteorXIV.Core.Map.Actors;
+using MeteorXIV.Core.Map.actors.chara.npc;
 
-namespace Meteor.Map.actors.chara.ai.controllers
+namespace MeteorXIV.Core.Map.actors.chara.ai.controllers
 {
     // todo: this is probably not needed, can do everything in their script
     class AllyController : BattleNpcController

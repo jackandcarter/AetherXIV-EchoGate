@@ -22,10 +22,10 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 using System;
 using System.IO;
 
-using Meteor.Common;
-using Meteor.World.DataObjects.Group;
+using MeteorXIV.Core.Common;
+using MeteorXIV.Core.World.DataObjects.Group;
 
-namespace Meteor.World.Packets.Send.Subpackets.Groups
+namespace MeteorXIV.Core.World.Packets.Send.Subpackets.Groups
 {
     class SetActiveLinkshellPacket
     {

@@ -22,7 +22,7 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 using MySql.Data.MySqlClient;
 using System;
 
-namespace Meteor.Map.dataobjects
+namespace MeteorXIV.Core.Map.dataobjects
 {
     class ItemData
     {

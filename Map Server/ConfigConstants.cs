@@ -19,13 +19,13 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 ===========================================================================
 */
 
-using Meteor.Common;
+using MeteorXIV.Core.Common;
 using System;
 using System.IO;
 using System.Linq;
 using System.Net;
 
-namespace Meteor.Map
+namespace MeteorXIV.Core.Map
 {
     class ConfigConstants
     {

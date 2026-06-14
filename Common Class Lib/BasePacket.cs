@@ -29,7 +29,7 @@ using Ionic.Zlib;
 using NLog;
 using NLog.Targets;
 
-namespace Meteor.Common
+namespace MeteorXIV.Core.Common
 {
     [StructLayout(LayoutKind.Sequential)]
     public struct BasePacketHeader

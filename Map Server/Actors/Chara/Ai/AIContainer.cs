@@ -21,13 +21,14 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 
 using System;
 using System.Collections.Generic;
-using Meteor.Map.Actors;
-using Meteor.Map.actors.chara.ai.state;
-using Meteor.Map.actors.chara.ai.controllers;
-using Meteor.Map.packets.send.actor;
+using MeteorXIV.Core.Common;
+using MeteorXIV.Core.Map.Actors;
+using MeteorXIV.Core.Map.actors.chara.ai.state;
+using MeteorXIV.Core.Map.actors.chara.ai.controllers;
+using MeteorXIV.Core.Map.packets.send.actor;
 
 // port of ai code in dsp by kjLotus (https://github.com/DarkstarProject/darkstar/blob/master/src/map/ai)
-namespace Meteor.Map.actors.chara.ai
+namespace MeteorXIV.Core.Map.actors.chara.ai
 {
     class AIContainer
     {
@@ -313,11 +314,27 @@ namespace Meteor.Map.actors.chara.ai
 
         public bool InternalEngage(Character target)
         {
-            if (IsEngaged())
+            if (target == null)
+            {
+                DevDiagnostics.Trace(
+                    "battle.engage.blocked",
+                    "reason", "target missing",
+                    "actor", String.Format("0x{0:X}", owner.actorId),
+                    "actorName", owner.customDisplayName != null ? owner.customDisplayName : owner.actorName,
+                    "currentTarget", String.Format("0x{0:X}", owner.currentTarget),
+                    "currentLockedTarget", String.Format("0x{0:X}", owner.currentLockedTarget),
+                    "currentState", GetCurrentState() == null ? "" : GetCurrentState().GetType().Name,
+                    "mainState", String.Format("0x{0:X}", owner.currentMainState));
+                return false;
+            }
+
+            var currentAttackState = GetCurrentState() as AttackState;
+            if (currentAttackState != null)
             {
                 if (this.owner.target != target)
                 {
                     ChangeTarget(target);
+                    currentAttackState.ChangeTarget(target);
                     return true;
                 }
                 return false;

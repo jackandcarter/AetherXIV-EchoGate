@@ -23,10 +23,10 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
-using Meteor.Common;
-using Meteor.Lobby.DataObjects;
+using MeteorXIV.Core.Common;
+using MeteorXIV.Core.Lobby.DataObjects;
 
-namespace Meteor.Lobby.Packets
+namespace MeteorXIV.Core.Lobby.Packets
 {
     class CharacterListPacket
     {

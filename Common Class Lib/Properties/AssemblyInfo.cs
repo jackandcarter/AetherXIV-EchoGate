@@ -4,11 +4,11 @@ using System.Runtime.InteropServices;
 // General Information about an assembly is controlled through the following 
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
-[assembly: AssemblyTitle("FFXIVClassic.Common")]
-[assembly: AssemblyDescription("Common class library for FFXIVClassic project")]
+[assembly: AssemblyTitle("MeteorXIV Core Common")]
+[assembly: AssemblyDescription("Shared library for MeteorXIV Core")]
 [assembly: AssemblyConfiguration("")]
-[assembly: AssemblyCompany("ffxivclassic.fragmenterworks.com")]
-[assembly: AssemblyProduct("FFXIVClassic.Common")]
+[assembly: AssemblyCompany("Demi Dev Unit")]
+[assembly: AssemblyProduct("MeteorXIV Core Common")]
 [assembly: AssemblyCopyright("Copyright ©  2016")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]

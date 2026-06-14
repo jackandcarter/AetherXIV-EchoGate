@@ -19,20 +19,20 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 ===========================================================================
 */
 
-using Meteor.Common;
-using Meteor.Map.actors;
-using Meteor.Map.actors.chara.npc;
-using Meteor.Map.Actors.Chara;
-using Meteor.Map.lua;
-using Meteor.Map.packets.send.actor;
-using Meteor.Map.utils;
+using MeteorXIV.Core.Common;
+using MeteorXIV.Core.Map.actors;
+using MeteorXIV.Core.Map.actors.chara.npc;
+using MeteorXIV.Core.Map.Actors.Chara;
+using MeteorXIV.Core.Map.lua;
+using MeteorXIV.Core.Map.packets.send.actor;
+using MeteorXIV.Core.Map.utils;
 using MySql.Data.MySqlClient;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
-using Meteor.Map.actors.chara.ai;
+using MeteorXIV.Core.Map.actors.chara.ai;
 
-namespace Meteor.Map.Actors
+namespace MeteorXIV.Core.Map.Actors
 {
     [Flags]
     enum NpcSpawnType : ushort

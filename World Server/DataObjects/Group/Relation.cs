@@ -21,11 +21,11 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 
 using System.Collections.Generic;
 
-using Meteor.Common;
-using Meteor.World.Actor.Group.Work;
-using Meteor.World.Packets.Send.Subpackets.Groups;
+using MeteorXIV.Core.Common;
+using MeteorXIV.Core.World.Actor.Group.Work;
+using MeteorXIV.Core.World.Packets.Send.Subpackets.Groups;
 
-namespace Meteor.World.DataObjects.Group
+namespace MeteorXIV.Core.World.DataObjects.Group
 {
     class Relation : Group
     {

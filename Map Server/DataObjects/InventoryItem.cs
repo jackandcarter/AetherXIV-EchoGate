@@ -19,13 +19,13 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 ===========================================================================
 */
 
-using Meteor.Map.actors.chara.player;
-using Meteor.Map.Actors;
+using MeteorXIV.Core.Map.actors.chara.player;
+using MeteorXIV.Core.Map.Actors;
 using MySql.Data.MySqlClient;
 using System;
 using System.IO;
 
-namespace Meteor.Map.dataobjects
+namespace MeteorXIV.Core.Map.dataobjects
 {
     class InventoryItem
     {

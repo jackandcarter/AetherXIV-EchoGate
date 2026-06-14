@@ -23,7 +23,7 @@ using System;
 using System.IO;
 using System.Text;
 
-namespace Meteor.Common
+namespace MeteorXIV.Core.Common
 {
     public static class Utils
     {
@@ -267,7 +267,12 @@ namespace Meteor.Common
 
         public static string ReadNullTermString(BinaryReader reader, int maxSize = 0x20)
         {
-            return Encoding.ASCII.GetString(reader.ReadBytes(maxSize)).Trim(new[] { '\0' });
+            byte[] bytes = reader.ReadBytes(maxSize);
+            int length = Array.IndexOf(bytes, (byte)0);
+            if (length < 0)
+                length = bytes.Length;
+
+            return Encoding.ASCII.GetString(bytes, 0, length);
         }
 
         public static void WriteNullTermString(BinaryWriter writer, string value, int maxSize = 0x20)

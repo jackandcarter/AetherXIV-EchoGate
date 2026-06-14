@@ -2,6 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+source "$ROOT_DIR/tools/load-local-env.sh"
 ALLOW_MISSING_STATICACTORS=0
 
 for arg in "$@"; do
@@ -24,7 +25,7 @@ MAP_PORT="${MAP_PORT:-1989}"
 DB_NAME="${DB_NAME:-ffxiv_server}"
 DB_APP_HOST="${DB_APP_HOST:-127.0.0.1}"
 DB_APP_USER="${DB_APP_USER:-meteor}"
-DB_APP_PASS="${DB_APP_PASS:-meteor_dev}"
+DB_APP_PASS="${DB_APP_PASS:-${METEOR_DB_PASS:-meteor_dev}}"
 
 run_server_smoke() {
   local server_name="$1"
@@ -58,15 +59,15 @@ while IFS= read -r php_file; do
   echo "ok: $php_file"
 done < <(find "$ROOT_DIR/Data/www" -name '*.php' -print | sort)
 
-run_server_smoke "Lobby" "Lobby Server" "Lobby Server.exe" "$LOBBY_PORT"
-run_server_smoke "World" "World Server" "World Server.exe" "$WORLD_PORT"
+run_server_smoke "Lobby" "Lobby Server" "MeteorXIV.Core.Lobby.exe" "$LOBBY_PORT"
+run_server_smoke "World" "World Server" "MeteorXIV.Core.World.exe" "$WORLD_PORT"
 
 if [[ -f "$ROOT_DIR/Data/staticactors.bin" ]]; then
-  run_server_smoke "Map" "Map Server" "Map Server.exe" "$MAP_PORT"
+  run_server_smoke "Map" "Map Server" "MeteorXIV.Core.Map.exe" "$MAP_PORT"
 elif [[ "$ALLOW_MISSING_STATICACTORS" -eq 1 ]]; then
   echo
   echo "SMOKE_SKIP Map runtime prerequisite: Data/staticactors.bin is missing"
 else
   echo
-  run_server_smoke "Map" "Map Server" "Map Server.exe" "$MAP_PORT"
+  run_server_smoke "Map" "Map Server" "MeteorXIV.Core.Map.exe" "$MAP_PORT"
 fi

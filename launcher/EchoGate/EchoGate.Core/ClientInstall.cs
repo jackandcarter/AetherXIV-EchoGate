@@ -8,7 +8,8 @@ public sealed record ClientInstall(string RootPath)
 
     public string GameVersionPath => Path.Combine(RootPath, "game.ver");
 
-    public string StaticActorsSourcePath => Path.Combine(RootPath, "client", "script", StaticActorsLocator.StaticActorsFileName);
+    public string StaticActorsSourcePath => StaticActorsLocator.FindSource(RootPath)
+        ?? Path.Combine(RootPath, "client", "script", StaticActorsLocator.StaticActorsFileName);
 
     public string GameExecutablePath => ResolveGameExecutable(RootPath);
 
@@ -20,7 +21,7 @@ public sealed record ClientInstall(string RootPath)
 
     public string DirectGameExecutablePath => Path.Combine(RootPath, "ffxivgame.exe");
 
-    public bool HasStaticActors => File.Exists(StaticActorsSourcePath);
+    public bool HasStaticActors => StaticActorsLocator.TryFindSource(RootPath, out _);
 
     public bool HasGameExecutable => File.Exists(GameExecutablePath);
 

@@ -19,14 +19,14 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 ===========================================================================
 */
 
-using Meteor.Map.actors;
+using MeteorXIV.Core.Map.actors;
 using System;
 using System.IO;
 using System.Text;
 
-using Meteor.Common;
+using MeteorXIV.Core.Common;
 
-namespace  Meteor.Map.packets.send.actor.events
+namespace MeteorXIV.Core.Map.packets.send.actor.events
 {
     class SetPushEventConditionWithFan
     {
@@ -41,6 +41,7 @@ namespace  Meteor.Map.packets.send.actor.events
             {
                 using (BinaryWriter binWriter = new BinaryWriter(mem))
                 {
+                    EventConditionDiagnostics.TracePushFan(sourceActorId, condition);
                     binWriter.Write((Single)condition.radius);
                     binWriter.Write((UInt32)0xbfc90fdb);
                     binWriter.Write((UInt32)0x3f860a92);

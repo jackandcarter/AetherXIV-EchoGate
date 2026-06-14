@@ -21,9 +21,9 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 
 using System.IO;
 
-using Meteor.Common;
+using MeteorXIV.Core.Common;
 
-namespace Meteor.Map.packets.send.login
+namespace MeteorXIV.Core.Map.packets.send.login
 {
     class _0x2Packet
     {

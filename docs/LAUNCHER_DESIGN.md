@@ -9,9 +9,11 @@ Primary responsibilities:
 - validate a local 1.23b client installation
 - classify base, patched, and unknown client version states
 - validate a user-provided 1.x patch library
+- download patch files from service-configured static hosting when available
 - manage local and private server profiles
 - configure the legacy launcher/client connection path
 - prepare local server runtime data derived from the client installation
+- install and validate service-catalog managed runtimes on macOS and Linux
 - start the client through a platform-specific runtime
 - collect launch diagnostics for server validation
 
@@ -56,20 +58,25 @@ Echo Gate may:
 - identify the known 1.x patch chain by filename
 - validate local patch files by expected size and CRC32
 - validate local torrent/metainfo files by expected path
-- apply patches to a backup or controlled copy after a patcher implementation is available
+- apply patches to a controlled local client path
 
-Remote acquisition, torrent downloading, and mirror configuration are future patcher features. Those features require source selection, progress reporting, integrity validation, and failure rollback.
+Remote patch-file retrieval is supported through launcher service patch manifests. The launcher downloads individual files from a configured static `patch_base_url`, validates size and CRC32, and then uses the same local patch application path as manual patch libraries.
+
+Torrent downloading remains out of scope for the initial public launcher path.
 
 ## Design Laws
 
 - Client installation state is explicit and user-controlled.
 - Server profile state is explicit and inspectable.
 - Runtime selection is pluggable across Windows, macOS, and Linux.
+- macOS and Linux default to service-catalog managed runtime setup.
 - Launch steps are logged as discrete events.
 - macOS and Linux are first-class development targets.
 - Windows launch support remains direct process execution.
 - Client-derived server data is generated locally and excluded from version control.
 - Runtime behavior is recorded through reproducible profiles rather than hidden application state.
+- Launcher profile paths, service URL, patch base URL, server profile, and runtime profile persist in the user application data folder.
+- News, patch metadata, and runtime catalog metadata come from database-backed launcher services, not bundled JSON.
 
 ## MVP Functional Requirements
 
@@ -101,8 +108,16 @@ client/script/rq9q1797qvs.san
 
 - Launch modes:
   - Windows: direct executable launch
-  - macOS: Wine/CrossOver runtime launch
-  - Linux: Wine/Proton runtime launch
+  - macOS: automatic managed Wine, detected runtime, or custom runtime
+  - Linux: automatic managed Wine, detected runtime, or custom runtime
+- Runtime manager:
+  - refresh service runtime catalog
+  - install managed zip runtime archives
+  - validate archive size and SHA256
+  - reject archive path traversal
+  - create managed prefix automatically
+  - validate runtime with `wine --version`, `wineboot -u`, and `wineserver -w`
+  - reset managed prefix
 - Launch log viewer.
 - Runtime checks:
   - server ports reachable
@@ -113,15 +128,13 @@ client/script/rq9q1797qvs.san
 
 ## MVP Out Of Scope
 
-- Client download.
-- Patch download.
+- Client acquisition or installer workflows.
 - Torrent download.
-- Patch application.
 - Client redistribution.
 - Plugin or mod support.
-- Client code injection.
+- General-purpose client injection beyond the verified 1.23b launch-time connection and CPU-thread patches.
 - Credential storage.
-- Account management beyond linking to the local PHP `create_user.php` flow.
+- Account management beyond launcher-service account creation, login, and session issuance.
 - Public launcher polish before the launch path is reproducible.
 
 ## App Stack
@@ -181,11 +194,34 @@ ServerProfile
 
 RuntimeProfile
   platform
+  runtimeMode
   runtimeKind
   runtimePath
   winePrefix
   dxLayer
   environment
+
+RuntimeCatalog
+  platformRid
+  artifacts
+  defaultArtifact
+
+RuntimeArtifact
+  name
+  version
+  archiveUrl
+  archiveFormat
+  sizeBytes
+  sha256
+  executableRelativePath
+  prefixArch
+  environment
+
+ManagedRuntimeInstall
+  installPath
+  executablePath
+  manifestPath
+  prefixPath
 ```
 
 The same server profile must be testable through multiple runtime profiles.
@@ -194,15 +230,14 @@ The same server profile must be testable through multiple runtime profiles.
 
 1. Validate local client path.
 2. Classify client version state.
-3. Validate user-provided patch library when selected.
+3. Validate or apply patch chain when selected.
 4. Validate selected server profile.
-5. Check login URL.
-6. Check configured server ports.
-7. Prepare or validate `Data/staticactors.bin`.
-8. Write or update launcher server configuration.
-9. Start the selected Windows/Wine/CrossOver/Proton runtime.
-10. Stream launch logs into a local log folder.
-11. Record launch outcome:
+5. Write server profile XML into Echo Gate app data.
+6. Resolve runtime mode.
+7. On macOS/Linux, validate runtime and managed prefix.
+8. Start the selected Windows/Wine/CrossOver/Whisky runtime.
+9. Stream launch logs into a local log folder.
+10. Record launch outcome:
    - launched
    - login reached
    - world selected
@@ -224,14 +259,15 @@ The same server profile must be testable through multiple runtime profiles.
 - Add version/readiness status rows.
 - Add patch library validation.
 - Add server profile editor.
-- Add runtime selector.
+- Add mode-based runtime selector.
 - Add launch log viewer.
 
 ### Milestone 2: Runtime Manager
 
-- Support CrossOver bottle selection on macOS.
-- Support Wine prefix selection on Linux.
-- Add runtime probes and diagnostics.
+- Support service-catalog managed runtime installation.
+- Support detected runtime fallback.
+- Support custom runtime fallback.
+- Add runtime probes, prefix setup, and diagnostics.
 
 ### Milestone 3: Integrated Development Loop
 
@@ -240,23 +276,13 @@ The same server profile must be testable through multiple runtime profiles.
 - Show server logs and client launch logs side by side.
 - Save packet-test session notes for `CLIENT_REQUIREMENTS.md`.
 
-## Research Items
-
-- Exact 1.23b executable after Seventh Umbral setup.
-- Required launcher-generated arguments or tokens for `ffxivgame.exe`.
-- Seventh Umbral Launcher behavior under modern Wine/CrossOver.
-- Best renderer path for 1.x DirectX 9 on Apple Silicon.
-- Required registry keys.
-- Client configuration and log paths under Wine.
 
 ## References
 
-- Project Meteor client guide: https://wiki.ffxivrp.org/pages/ClientAndLauncher
-- Project Novum client patching: https://project-novum.github.io/game-patching/patching/
 - Project Novum ZiPatch format: https://project-novum.github.io/game-patching/zipatch/
 - XIV Dev Wiki ZiPatch: https://xiv.dev/data-files/zipatch
 - Seventh Umbral patch manifest reference: https://github.com/jpd002/SeventhUmbral/blob/eead5fef6a2e5db9ffd82e9377bea72b23bf58af/launcher/PatcherWindow.cpp
-- Meteor launcher patch manifest reference: https://github.com/ThiconZ/FFXIV-Meteor-Launcher/blob/d770d4132e7d550aa89d6617484933ac5b6a0244/FFXIV%20Meteor%20Launcher/PatchData.cs
+- Legacy 1.x launcher patch manifest reference: https://github.com/ThiconZ/FFXIV-Meteor-Launcher/blob/d770d4132e7d550aa89d6617484933ac5b6a0244/FFXIV%20Meteor%20Launcher/PatchData.cs
 - XIV on Mac: https://www.xivmac.com/about-uscredits
 - XIV on Mac source: https://github.com/marzent/XIV-on-Mac
 - FFXIVQuickLauncher source: https://github.com/goatcorp/FFXIVQuickLauncher

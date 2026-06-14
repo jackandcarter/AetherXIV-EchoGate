@@ -19,12 +19,13 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 ===========================================================================
 */
 
-using Meteor.Map.actors.director;
-using Meteor.Map.Actors;
-using Meteor.Map.lua;
+using MeteorXIV.Core.Map.actors.director;
+using MeteorXIV.Core.Map.Actors;
+using MeteorXIV.Core.Map.lua;
+using MeteorXIV.Core.Common;
 using System;
 
-namespace Meteor.Map.actors.area
+namespace MeteorXIV.Core.Map.actors.area
 {
 
     class PrivateAreaContent : PrivateArea
@@ -41,6 +42,14 @@ namespace Meteor.Map.actors.area
             : base(parent, parent.actorId, classPath, privateAreaName, privateAreaType, 0, 0, 0)
         {
             currentDirector = director;
+            DevDiagnostics.Trace(
+                "content.area.create",
+                "player", contentStarter == null ? "(none)" : contentStarter.customDisplayName,
+                "actor", contentStarter == null ? "0x0" : String.Format("0x{0:X}", contentStarter.actorId),
+                "zone", zoneName,
+                "privateArea", privateAreaName,
+                "privateAreaType", privateAreaType,
+                "director", director == null ? "" : director.GetName());
             LuaEngine.GetInstance().CallLuaFunction(contentStarter, this, "onCreate", false, currentDirector);
         }
         
@@ -52,6 +61,11 @@ namespace Meteor.Map.actors.area
         public void ContentFinished()
         {
             isContentFinished = true;
+            DevDiagnostics.Trace(
+                "content.area.finished",
+                "zone", zoneName,
+                "privateArea", GetPrivateAreaName(),
+                "privateAreaType", GetPrivateAreaType());
         }
 
         public void CheckDestroy()
@@ -67,7 +81,14 @@ namespace Meteor.Map.actors.area
                             noPlayersLeft = false;
                     }
                     if (noPlayersLeft)
+                    {
+                        DevDiagnostics.Trace(
+                            "content.area.destroy",
+                            "zone", zoneName,
+                            "privateArea", GetPrivateAreaName(),
+                            "privateAreaType", GetPrivateAreaType());
                         GetParentZone().DeleteContentArea(this);
+                    }
                 }
             }
         }

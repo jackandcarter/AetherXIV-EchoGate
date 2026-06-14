@@ -20,11 +20,11 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 */
 
 using System;
-using Meteor.Common;
-using Meteor.Map.Actors;
-using Meteor.Map.packets.send.actor.battle;
+using MeteorXIV.Core.Common;
+using MeteorXIV.Core.Map.Actors;
+using MeteorXIV.Core.Map.packets.send.actor.battle;
 
-namespace Meteor.Map.actors.chara.ai.state
+namespace MeteorXIV.Core.Map.actors.chara.ai.state
 {
     class WeaponSkillState : State
     {
@@ -38,6 +38,7 @@ namespace Meteor.Map.actors.chara.ai.state
             this.skill = Server.GetWorldManager().GetBattleCommand(skillId);
 
             var returnCode = skill.CallLuaFunction(owner, "onSkillPrepare", owner, target, skill);
+            TraceWeaponSkill("prepare", String.Format("returnCode={0}", returnCode));
 
             this.target = (skill.mainTarget & ValidTarget.SelfOnly) != 0 ? owner : target;
 
@@ -50,17 +51,20 @@ namespace Meteor.Map.actors.chara.ai.state
             {
                 errorResult = null;
                 interrupt = true;
+                TraceWeaponSkill("prepare.blocked", returnCode == 0 ? "owner.CanUse returned false" : String.Format("returnCode={0}", returnCode));
             }
         }
 
         public override void OnStart()
         {
             var returnCode = skill.CallLuaFunction(owner, "onSkillStart", owner, target, skill);
+            TraceWeaponSkill("start", String.Format("returnCode={0}", returnCode));
 
             if (returnCode != 0)
             {
                 interrupt = true;
                 errorResult = new CommandResult(owner.actorId, (ushort)(returnCode == -1 ? 32558 : returnCode), 0);
+                TraceWeaponSkill("start.blocked", String.Format("returnCode={0}", returnCode));
             }
             else
             {
@@ -140,6 +144,7 @@ namespace Meteor.Map.actors.chara.ai.state
         public override void OnInterrupt()
         {
             // todo: send paralyzed/sleep message etc.
+            TraceWeaponSkill("interrupt", errorResult == null ? "" : String.Format("errorText={0}", errorResult.worldMasterTextId));
             if (errorResult != null)
             {
                 owner.DoBattleAction(skill.id, errorResult.animation, errorResult);
@@ -151,6 +156,7 @@ namespace Meteor.Map.actors.chara.ai.state
         {
             owner.LookAt(target);
             skill.targetFind.FindWithinArea(target, skill.validTarget, skill.aoeTarget);
+            TraceWeaponSkill("complete", String.Format("targets={0}", skill.targetFind.GetTargets().Count));
             isCompleted = true;
 
             owner.DoBattleCommand(skill, "weaponskill");
@@ -175,10 +181,13 @@ namespace Meteor.Map.actors.chara.ai.state
                     effectId = list[0].GetStatusEffectId();
                 }
                 interrupt = true;
+                TraceWeaponSkill("tryInterrupt", String.Format("preventStatus={0}", effectId));
                 return;
             }
 
             interrupt = !CanUse();
+            if (interrupt)
+                TraceWeaponSkill("tryInterrupt", "CanUse returned false");
         }
 
         private bool CanUse()
@@ -194,6 +203,22 @@ namespace Meteor.Map.actors.chara.ai.state
         public override void Cleanup()
         {
             owner.aiContainer.UpdateLastActionTime(skill.animationDurationSeconds);
+        }
+
+        private void TraceWeaponSkill(string state, string reason)
+        {
+            DevDiagnostics.Trace(
+                "battle.weaponskill.state",
+                "state", state,
+                "reason", reason,
+                "owner", String.Format("0x{0:X}", owner.actorId),
+                "ownerName", owner.customDisplayName != null ? owner.customDisplayName : owner.actorName,
+                "target", target == null ? "0x0" : String.Format("0x{0:X}", target.actorId),
+                "targetName", target == null ? "" : (target.customDisplayName != null ? target.customDisplayName : target.actorName),
+                "skillId", skill == null ? 0 : skill.id,
+                "skillName", skill == null ? "" : skill.name,
+                "tpCost", skill == null ? 0 : skill.tpCost,
+                "castTimeMs", skill == null ? 0 : skill.castTimeMs);
         }
     }
 }

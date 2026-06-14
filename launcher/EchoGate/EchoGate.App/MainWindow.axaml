@@ -2,102 +2,299 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="EchoGate.App.MainWindow"
         Title="Echo Gate"
-        Width="980"
-        Height="640"
-        MinWidth="820"
-        MinHeight="560"
-        Background="#F7F8FA">
-  <Grid RowDefinitions="Auto,*">
-    <Border Background="#202A33" Padding="20,14">
+        Width="1040"
+        Height="680"
+        MinWidth="900"
+        MinHeight="620"
+        Background="#0D1117"
+        Foreground="#E7EAEE">
+  <Window.Resources>
+    <SolidColorBrush x:Key="SurfaceBrush" Color="#0D1117" />
+    <SolidColorBrush x:Key="HeaderBrush" Color="#161D24" />
+    <SolidColorBrush x:Key="PanelBrush" Color="#CC141A22" />
+    <SolidColorBrush x:Key="ControlBrush" Color="#20262E" />
+    <SolidColorBrush x:Key="ControlBorderBrush" Color="#3B4652" />
+    <SolidColorBrush x:Key="PrimaryBrush" Color="#5DA8FF" />
+    <SolidColorBrush x:Key="TextBrush" Color="#E7EAEE" />
+    <SolidColorBrush x:Key="MutedTextBrush" Color="#AEB7C2" />
+  </Window.Resources>
+
+  <Window.Styles>
+    <Style Selector="TextBlock">
+      <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
+      <Setter Property="FontSize" Value="13" />
+    </Style>
+    <Style Selector="TextBox">
+      <Setter Property="Background" Value="{StaticResource ControlBrush}" />
+      <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
+      <Setter Property="BorderBrush" Value="{StaticResource ControlBorderBrush}" />
+      <Setter Property="CaretBrush" Value="{StaticResource TextBrush}" />
+      <Setter Property="SelectionBrush" Value="#365F8D" />
+      <Setter Property="CornerRadius" Value="4" />
+      <Setter Property="MinHeight" Value="32" />
+      <Setter Property="Padding" Value="10,6" />
+    </Style>
+    <Style Selector="NumericUpDown">
+      <Setter Property="Background" Value="{StaticResource ControlBrush}" />
+      <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
+      <Setter Property="BorderBrush" Value="{StaticResource ControlBorderBrush}" />
+      <Setter Property="CornerRadius" Value="4" />
+      <Setter Property="MinHeight" Value="32" />
+    </Style>
+    <Style Selector="ComboBox">
+      <Setter Property="Background" Value="{StaticResource ControlBrush}" />
+      <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
+      <Setter Property="BorderBrush" Value="{StaticResource ControlBorderBrush}" />
+      <Setter Property="CornerRadius" Value="4" />
+      <Setter Property="MinHeight" Value="32" />
+    </Style>
+    <Style Selector="Button">
+      <Setter Property="Background" Value="#303842" />
+      <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
+      <Setter Property="BorderBrush" Value="#4A5663" />
+      <Setter Property="CornerRadius" Value="4" />
+      <Setter Property="MinHeight" Value="30" />
+      <Setter Property="Padding" Value="12,6" />
+    </Style>
+    <Style Selector="Button:pointerover">
+      <Setter Property="Background" Value="#3B4652" />
+    </Style>
+    <Style Selector="Button.primary">
+      <Setter Property="Background" Value="#2C6FB3" />
+      <Setter Property="BorderBrush" Value="#5DA8FF" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+    <Style Selector="ProgressBar">
+      <Setter Property="Background" Value="{StaticResource ControlBrush}" />
+      <Setter Property="Foreground" Value="{StaticResource PrimaryBrush}" />
+      <Setter Property="MinHeight" Value="12" />
+    </Style>
+    <Style Selector="TabControl">
+      <Setter Property="Background" Value="{StaticResource SurfaceBrush}" />
+    </Style>
+    <Style Selector="TabItem">
+      <Setter Property="Foreground" Value="{StaticResource MutedTextBrush}" />
+      <Setter Property="FontSize" Value="15" />
+    </Style>
+    <Style Selector="TabItem:selected">
+      <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
+    </Style>
+  </Window.Styles>
+
+  <Grid RowDefinitions="Auto,*,Auto">
+    <Border Background="{StaticResource HeaderBrush}" Padding="20,14">
       <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto">
-        <TextBlock Text="Echo Gate" Foreground="#FFFFFF" FontSize="24" FontWeight="SemiBold" />
-        <TextBlock Grid.Row="1" Text="FFXIV 1.x local server launcher" Foreground="#C9D3DD" FontSize="13" />
-        <StackPanel Grid.Column="1" Grid.RowSpan="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-          <Button Content="Check" Click="ValidateBackend_Click" />
-          <Button Content="Plan" Click="BuildLaunchPlan_Click" />
-        </StackPanel>
+        <TextBlock Text="FFXIV Classic Launcher" FontSize="24" FontWeight="SemiBold" />
+        <TextBlock Grid.Row="1" Text="Echo Gate" Foreground="{StaticResource MutedTextBrush}" FontSize="13" />
+        <TextBlock x:Name="HeaderServiceStatus"
+                   Grid.Column="1"
+                   Grid.RowSpan="2"
+                   Text="Launcher services not checked"
+                   Foreground="{StaticResource MutedTextBrush}"
+                   VerticalAlignment="Center" />
       </Grid>
     </Border>
 
-    <TabControl Grid.Row="1" Margin="16">
-      <TabItem Header="Backend">
-        <Grid Margin="4,16,4,4" ColumnDefinitions="180,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto" RowSpacing="12" ColumnSpacing="12">
-          <TextBlock Text="Profile name" VerticalAlignment="Center" />
-          <TextBox x:Name="ServerNameBox" Grid.Column="1" Text="Local Meteor" />
+    <TabControl x:Name="MainTabs" Grid.Row="1" Margin="16">
+      <TabItem Header="Home">
+        <Grid ClipToBounds="True">
+          <Image Source="avares://EchoGate.App/Image/back.jpg" Stretch="UniformToFill" />
+          <Border Background="#99000000" />
 
-          <TextBlock Grid.Row="1" Text="Server host" VerticalAlignment="Center" />
-          <TextBox x:Name="ServerHostBox" Grid.Row="1" Grid.Column="1" Text="127.0.0.1" />
+          <Grid Margin="28" RowDefinitions="Auto,*,Auto" ColumnDefinitions="*,340">
+            <StackPanel Spacing="6">
+              <TextBlock Text="FFXIV Classic Launcher" FontSize="32" FontWeight="SemiBold" />
+              <TextBlock Text="Demi Dev Unit" Foreground="{StaticResource MutedTextBrush}" FontSize="15" />
+            </StackPanel>
 
-          <TextBlock Grid.Row="2" Text="Lobby port" VerticalAlignment="Center" />
-          <NumericUpDown x:Name="LobbyPortBox" Grid.Row="2" Grid.Column="1" Minimum="1" Maximum="65535" Value="54994" />
+            <Border Grid.Column="1" Background="{StaticResource PanelBrush}" BorderBrush="#34404D" BorderThickness="1" CornerRadius="4" Padding="16">
+              <StackPanel Spacing="10">
+                <TextBlock Text="Account" FontSize="16" FontWeight="SemiBold" />
+                <TextBox x:Name="LoginUserBox" PlaceholderText="Username" />
+                <TextBox x:Name="LoginPasswordBox" PlaceholderText="Password" PasswordChar="*" />
+                <CheckBox x:Name="RememberUsernameBox" Content="Remember username" />
+                <Button Content="Create Account" Click="CreateAccount_Click" HorizontalAlignment="Stretch" />
+                <TextBlock x:Name="HomeLoginStatus" Text="Enter account credentials before launching." Foreground="{StaticResource MutedTextBrush}" TextWrapping="Wrap" />
+              </StackPanel>
+            </Border>
 
-          <TextBlock Grid.Row="3" Text="World port" VerticalAlignment="Center" />
-          <NumericUpDown x:Name="WorldPortBox" Grid.Row="3" Grid.Column="1" Minimum="1" Maximum="65535" Value="54992" />
+            <Grid Grid.Row="2" Grid.ColumnSpan="2" ColumnDefinitions="2*,*,Auto" ColumnSpacing="14">
+              <Border Background="{StaticResource PanelBrush}" BorderBrush="#34404D" BorderThickness="1" CornerRadius="4" Padding="16">
+                <Grid ColumnDefinitions="180,*" ColumnSpacing="14">
+                  <Image x:Name="NewsBannerImage" Stretch="UniformToFill" Height="106" />
+                  <StackPanel Grid.Column="1" Spacing="6">
+                    <TextBlock Text="Latest News" Foreground="{StaticResource MutedTextBrush}" FontSize="12" />
+                    <TextBlock x:Name="NewsTitleText" Text="Awaiting launcher news service" FontSize="18" FontWeight="SemiBold" TextWrapping="Wrap" />
+                    <TextBlock x:Name="NewsSummaryText" Text="News from Demi Dev Unit will appear here when the launcher service is available." Foreground="{StaticResource MutedTextBrush}" TextWrapping="Wrap" />
+                    <TextBlock x:Name="NewsDateText" Text="" Foreground="{StaticResource MutedTextBrush}" FontStyle="Italic" />
+                  </StackPanel>
+                </Grid>
+              </Border>
 
-          <TextBlock Grid.Row="4" Text="Map port" VerticalAlignment="Center" />
-          <NumericUpDown x:Name="MapPortBox" Grid.Row="4" Grid.Column="1" Minimum="1" Maximum="65535" Value="1989" />
+              <Border Grid.Column="1" Background="{StaticResource PanelBrush}" BorderBrush="#34404D" BorderThickness="1" CornerRadius="4" Padding="16">
+                <StackPanel Spacing="8">
+                  <TextBlock Text="Status" FontSize="16" FontWeight="SemiBold" />
+                  <TextBlock x:Name="HomeServerStatus" Text="Server: not checked" TextWrapping="Wrap" />
+                  <TextBlock x:Name="HomeClientStatus" Text="Client: not selected" TextWrapping="Wrap" />
+                  <TextBlock x:Name="HomeClientVersionStatus" Text="Version: not checked" Foreground="{StaticResource MutedTextBrush}" TextWrapping="Wrap" />
+                  <ProgressBar x:Name="HomeProgressBar" Minimum="0" Maximum="100" Value="0" />
+                </StackPanel>
+              </Border>
+
+              <StackPanel Grid.Column="2" Width="160" Spacing="10" VerticalAlignment="Bottom">
+                <Button x:Name="PlayGameButton" Classes="primary" Content="Log In &amp; Play" Click="LaunchGame_Click" IsEnabled="False" />
+                <Button x:Name="HomeLocateClientButton" Content="Locate Client" Click="LocateClientFromHome_Click" />
+                <Button Content="Settings" Click="OpenSettings_Click" />
+              </StackPanel>
+            </Grid>
+          </Grid>
+        </Grid>
+      </TabItem>
+
+      <TabItem Header="Server">
+        <Grid Margin="4,18,4,4" ColumnDefinitions="180,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="12" ColumnSpacing="12">
+          <TextBlock Text="Launcher service" VerticalAlignment="Center" />
+          <TextBox x:Name="LauncherServiceUrlBox" Grid.Column="1" Text="http://127.0.0.1:8080/launcher" />
+
+          <TextBlock Grid.Row="1" Text="Patch base URL" VerticalAlignment="Center" />
+          <TextBox x:Name="PatchBaseUrlBox" Grid.Row="1" Grid.Column="1" PlaceholderText="https://example.com/ffxiv_patches" />
+
+          <TextBlock Grid.Row="2" Text="Profile name" VerticalAlignment="Center" />
+          <TextBox x:Name="ServerNameBox" Grid.Row="2" Grid.Column="1" Text="Local MeteorXIV Core" />
+
+          <TextBlock Grid.Row="3" Text="Server host" VerticalAlignment="Center" />
+          <TextBox x:Name="ServerHostBox" Grid.Row="3" Grid.Column="1" Text="127.0.0.1" />
+
+          <TextBlock Grid.Row="4" Text="Lobby port" VerticalAlignment="Center" />
+          <NumericUpDown x:Name="LobbyPortBox" Grid.Row="4" Grid.Column="1" Minimum="1" Maximum="65535" Value="54994" />
+
+          <TextBlock Grid.Row="5" Text="World port" VerticalAlignment="Center" />
+          <NumericUpDown x:Name="WorldPortBox" Grid.Row="5" Grid.Column="1" Minimum="1" Maximum="65535" Value="54992" />
+
+          <StackPanel Grid.Row="6" Grid.Column="1" Orientation="Horizontal" Spacing="8">
+            <Button Content="Refresh Services" Click="RefreshServices_Click" />
+            <Button Content="Save Settings" Click="SaveSettings_Click" />
+          </StackPanel>
         </Grid>
       </TabItem>
 
       <TabItem Header="Client">
-        <Grid Margin="4,16,4,4" ColumnDefinitions="180,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="12" ColumnSpacing="12">
+        <Grid Margin="4,18,4,4" ColumnDefinitions="180,*,Auto" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="10" ColumnSpacing="12">
           <TextBlock Text="Client root" VerticalAlignment="Center" />
           <TextBox x:Name="ClientPathBox" Grid.Column="1" PlaceholderText="/path/to/FINAL FANTASY XIV 1.x" />
+          <Button Grid.Column="2" Content="Browse" Click="BrowseClient_Click" MinWidth="86" />
 
-          <TextBlock Grid.Row="1" Text="Version" VerticalAlignment="Center" />
-          <TextBlock x:Name="ClientVersionStatus" Grid.Row="1" Grid.Column="1" Text="Not checked" TextWrapping="Wrap" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="1"
+                     Grid.Column="1"
+                     Grid.ColumnSpan="2"
+                     Text="Select ffxivboot.exe for an unpatched install, or ffxivgame.exe after patching. Echo Gate stores the containing client folder."
+                     Foreground="{StaticResource MutedTextBrush}"
+                     FontSize="12"
+                     TextWrapping="Wrap" />
 
-          <TextBlock Grid.Row="2" Text="Executables" VerticalAlignment="Center" />
-          <TextBlock x:Name="ExecutableStatus" Grid.Row="2" Grid.Column="1" Text="Not checked" TextWrapping="Wrap" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="2" Text="Version" VerticalAlignment="Center" />
+          <TextBlock x:Name="ClientVersionStatus" Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="2" Text="Not checked" TextWrapping="Wrap" VerticalAlignment="Center" />
 
-          <TextBlock Grid.Row="3" Text="Static actors source" VerticalAlignment="Center" />
-          <TextBlock x:Name="StaticActorsStatus" Grid.Row="3" Grid.Column="1" Text="Not checked" TextWrapping="Wrap" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="3" Text="Executables" VerticalAlignment="Center" />
+          <TextBlock x:Name="ExecutableStatus" Grid.Row="3" Grid.Column="1" Grid.ColumnSpan="2" Text="Not checked" TextWrapping="Wrap" VerticalAlignment="Center" />
 
-          <TextBlock Grid.Row="4" Text="Patch library root" VerticalAlignment="Center" />
-          <TextBox x:Name="PatchLibraryPathBox" Grid.Row="4" Grid.Column="1" PlaceholderText="/path/to/user-provided patch library" />
+          <TextBlock Grid.Row="4" Text="Static actors source" VerticalAlignment="Center" />
+          <TextBlock x:Name="StaticActorsStatus" Grid.Row="4" Grid.Column="1" Grid.ColumnSpan="2" Text="Not checked" TextWrapping="Wrap" VerticalAlignment="Center" />
 
-          <TextBlock Grid.Row="5" Text="Patch library" VerticalAlignment="Center" />
-          <TextBlock x:Name="PatchLibraryStatus" Grid.Row="5" Grid.Column="1" Text="Not checked" TextWrapping="Wrap" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="5" Text="Patch library root" VerticalAlignment="Center" />
+          <TextBox x:Name="PatchLibraryPathBox" Grid.Row="5" Grid.Column="1" PlaceholderText="/path/to/user-provided patch library" />
+          <Button Grid.Row="5" Grid.Column="2" Content="Browse" Click="BrowsePatchLibrary_Click" MinWidth="86" />
 
-          <Button Grid.Row="6" Grid.Column="1" Content="Validate Client" HorizontalAlignment="Left" Click="ValidateClient_Click" />
+          <TextBlock Grid.Row="6"
+                     Grid.Column="1"
+                     Grid.ColumnSpan="2"
+                     Text="Select the folder containing ffxiv_patches, or select the ffxiv_patches folder itself."
+                     Foreground="{StaticResource MutedTextBrush}"
+                     FontSize="12"
+                     TextWrapping="Wrap" />
+
+          <TextBlock Grid.Row="7" Text="Patch library" VerticalAlignment="Center" />
+          <TextBlock x:Name="PatchLibraryStatus" Grid.Row="7" Grid.Column="1" Grid.ColumnSpan="2" Text="Not checked" TextWrapping="Wrap" VerticalAlignment="Center" />
+
+          <TextBlock Grid.Row="8" Text="Patch progress" VerticalAlignment="Center" />
+          <TextBlock x:Name="PatchApplyStatus" Grid.Row="8" Grid.Column="1" Grid.ColumnSpan="2" Text="Idle" TextWrapping="Wrap" VerticalAlignment="Center" />
+
+          <ProgressBar x:Name="PatchApplyProgressBar" Grid.Row="9" Grid.Column="1" Grid.ColumnSpan="2" Minimum="0" Maximum="100" Value="0" />
+
+          <StackPanel Grid.Row="10" Grid.Column="1" Grid.ColumnSpan="2" Orientation="Horizontal" Spacing="8">
+            <Button Content="Validate Client" Click="ValidateClient_Click" />
+            <Button x:Name="DownloadPatchesButton" Content="Download Patches" Click="DownloadPatches_Click" />
+            <Button x:Name="ApplyPatchesButton" Content="Apply Patches" Click="ApplyPatches_Click" />
+            <Button x:Name="CancelPatchButton" Content="Cancel" Click="CancelPatch_Click" IsEnabled="False" />
+          </StackPanel>
         </Grid>
       </TabItem>
 
-      <TabItem Header="Runtime">
-        <Grid Margin="4,16,4,4" ColumnDefinitions="180,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="12" ColumnSpacing="12">
-          <TextBlock Text="Runtime type" VerticalAlignment="Center" />
-          <ComboBox x:Name="RuntimeKindBox" Grid.Column="1" SelectedIndex="0">
-            <ComboBoxItem>CrossOver bottle</ComboBoxItem>
-            <ComboBoxItem>Wine prefix</ComboBoxItem>
-            <ComboBoxItem>Whisky bottle</ComboBoxItem>
-            <ComboBoxItem>Custom command</ComboBoxItem>
+      <TabItem x:Name="RuntimeTab" Header="Runtime">
+        <Grid Margin="4,18,4,4" ColumnDefinitions="180,*,Auto" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="10" ColumnSpacing="12">
+          <TextBlock Text="Platform" VerticalAlignment="Center" />
+          <TextBlock x:Name="RuntimePlatformStatus" Grid.Column="1" Grid.ColumnSpan="2" Text="Detecting platform" VerticalAlignment="Center" />
+
+          <TextBlock Grid.Row="1" Text="Runtime mode" VerticalAlignment="Center" />
+          <ComboBox x:Name="RuntimeModeBox" Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" SelectedIndex="0" SelectionChanged="RuntimeMode_SelectionChanged">
+            <ComboBoxItem>Automatic Managed</ComboBoxItem>
+            <ComboBoxItem>Detected Runtime</ComboBoxItem>
+            <ComboBoxItem>Custom Runtime</ComboBoxItem>
           </ComboBox>
 
-          <TextBlock Grid.Row="1" Text="Runtime name" VerticalAlignment="Center" />
-          <TextBox x:Name="RuntimeNameBox" Grid.Row="1" Grid.Column="1" Text="Local Wine Runtime" />
+          <TextBlock Grid.Row="2" Text="Runtime catalog" VerticalAlignment="Center" />
+          <TextBlock x:Name="RuntimeCatalogStatus" Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="2" Text="Not checked" TextWrapping="Wrap" VerticalAlignment="Center" />
 
-          <TextBlock Grid.Row="2" Text="Command" VerticalAlignment="Center" />
-          <TextBox x:Name="RuntimeCommandBox" Grid.Row="2" Grid.Column="1" Text="wine" />
+          <TextBlock Grid.Row="3" Text="Managed install" VerticalAlignment="Center" />
+          <TextBlock x:Name="ManagedRuntimeStatus" Grid.Row="3" Grid.Column="1" Grid.ColumnSpan="2" Text="Not installed" TextWrapping="Wrap" VerticalAlignment="Center" />
 
-          <TextBlock Grid.Row="3" Text="Bottle or prefix" VerticalAlignment="Center" />
-          <TextBox x:Name="RuntimeValueBox" Grid.Row="3" Grid.Column="1" PlaceholderText="CrossOver bottle name or WINEPREFIX path" />
+          <TextBlock Grid.Row="4" Text="Runtime progress" VerticalAlignment="Center" />
+          <ProgressBar x:Name="RuntimeProgressBar" Grid.Row="4" Grid.Column="1" Grid.ColumnSpan="2" Minimum="0" Maximum="100" Value="0" />
 
-          <TextBlock Grid.Row="4" Text="Detected runtimes" VerticalAlignment="Top" />
+          <StackPanel Grid.Row="5" Grid.Column="1" Grid.ColumnSpan="2" Orientation="Horizontal" Spacing="8">
+            <Button Content="Refresh Catalog" Click="RefreshRuntimeCatalog_Click" />
+            <Button x:Name="InstallRuntimeButton" Content="Install Runtime" Click="InstallRuntime_Click" />
+            <Button x:Name="ValidateRuntimeButton" Content="Validate Runtime" Click="ValidateRuntime_Click" />
+            <Button x:Name="ResetPrefixButton" Content="Reset Prefix" Click="ResetPrefix_Click" />
+          </StackPanel>
+
+          <TextBlock Grid.Row="6" Text="Detected runtime" VerticalAlignment="Center" />
+          <ComboBox x:Name="DetectedRuntimeBox" Grid.Row="6" Grid.Column="1" Grid.ColumnSpan="2" />
+
+          <TextBlock Grid.Row="7" Text="Detected runtimes" VerticalAlignment="Top" />
           <TextBox x:Name="RuntimeCandidatesBox"
-                   Grid.Row="4"
+                   Grid.Row="7"
                    Grid.Column="1"
+                   Grid.ColumnSpan="2"
                    Height="130"
                    IsReadOnly="True"
                    AcceptsReturn="True"
                    TextWrapping="Wrap"
                    FontFamily="Menlo,Consolas,monospace" />
 
-          <Button Grid.Row="5" Grid.Column="1" Content="Scan Runtimes" HorizontalAlignment="Left" Click="ScanRuntime_Click" />
+          <Button Grid.Row="8" Grid.Column="1" Content="Scan Runtimes" HorizontalAlignment="Left" Click="ScanRuntime_Click" />
+
+          <TextBlock Grid.Row="9" Text="Custom runtime type" VerticalAlignment="Center" />
+          <ComboBox x:Name="CustomRuntimeKindBox" Grid.Row="9" Grid.Column="1" Grid.ColumnSpan="2" SelectedIndex="1">
+            <ComboBoxItem>CrossOver bottle</ComboBoxItem>
+            <ComboBoxItem>Wine prefix</ComboBoxItem>
+            <ComboBoxItem>Whisky bottle</ComboBoxItem>
+            <ComboBoxItem>Custom command</ComboBoxItem>
+          </ComboBox>
+
+          <TextBlock Grid.Row="10" Text="Custom name" VerticalAlignment="Center" />
+          <TextBox x:Name="RuntimeNameBox" Grid.Row="10" Grid.Column="1" Grid.ColumnSpan="2" Text="Local Wine Runtime" />
+
+          <TextBlock Grid.Row="11" Text="Command and value" VerticalAlignment="Center" />
+          <Grid Grid.Row="11" Grid.Column="1" Grid.ColumnSpan="2" ColumnDefinitions="*,*" ColumnSpacing="10">
+            <TextBox x:Name="RuntimeCommandBox" Text="wine" PlaceholderText="wine command" />
+            <TextBox x:Name="RuntimeValueBox" Grid.Column="1" PlaceholderText="CrossOver bottle or WINEPREFIX path" />
+          </Grid>
         </Grid>
       </TabItem>
 
       <TabItem Header="Launch Log">
-        <Grid Margin="4,16,4,4" RowDefinitions="*,Auto">
+        <Grid Margin="4,18,4,4" RowDefinitions="*,Auto">
           <TextBox x:Name="LaunchLogBox"
                    IsReadOnly="True"
                    AcceptsReturn="True"
@@ -107,5 +304,12 @@
         </Grid>
       </TabItem>
     </TabControl>
+
+    <TextBlock Grid.Row="2"
+               Text="Demi Dev Unit - Echo Gate v1.1"
+               Foreground="#8E98A4"
+               FontStyle="Italic"
+               Margin="18,0,0,10"
+               HorizontalAlignment="Left" />
   </Grid>
 </Window>

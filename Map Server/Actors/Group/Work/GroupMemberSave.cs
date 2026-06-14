@@ -19,7 +19,7 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 ===========================================================================
 */
 
-namespace Meteor.Map.actors.group.Work
+namespace MeteorXIV.Core.Map.actors.group.Work
 {
     class GroupMemberSave
     {

@@ -21,19 +21,19 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 
 using System;
 using System.Collections.Generic;
-using Meteor.Common;
-using Meteor.Map.actors.chara.npc;
-using Meteor.Map.actors.chara;
-using Meteor.Map.actors.chara.ai;
-using Meteor.Map.actors.chara.ai.controllers;
-using Meteor.Map.actors.chara.ai.state;
-using Meteor.Map.utils;
-using Meteor.Map.packets.send.actor.battle;
-using Meteor.Map.actors.chara.ai.utils;
-using Meteor.Map.actors.group;
-using Meteor.Map.Actors.Chara;
+using MeteorXIV.Core.Common;
+using MeteorXIV.Core.Map.actors.chara.npc;
+using MeteorXIV.Core.Map.actors.chara;
+using MeteorXIV.Core.Map.actors.chara.ai;
+using MeteorXIV.Core.Map.actors.chara.ai.controllers;
+using MeteorXIV.Core.Map.actors.chara.ai.state;
+using MeteorXIV.Core.Map.utils;
+using MeteorXIV.Core.Map.packets.send.actor.battle;
+using MeteorXIV.Core.Map.actors.chara.ai.utils;
+using MeteorXIV.Core.Map.actors.group;
+using MeteorXIV.Core.Map.Actors.Chara;
 
-namespace Meteor.Map.Actors
+namespace MeteorXIV.Core.Map.Actors
 {
     [Flags]
     enum DetectionType
@@ -273,6 +273,18 @@ namespace Meteor.Map.Actors
 
         public override void Die(DateTime tick, CommandResultContainer actionContainer = null)
         {
+            DevDiagnostics.Trace(
+                "battle.death.request",
+                "actor", String.Format("0x{0:X}", actorId),
+                "actorName", customDisplayName != null ? customDisplayName : actorName,
+                "actorType", GetType().Name,
+                "hp", GetHP(),
+                "maxHp", GetMaxHP(),
+                "isAlive", IsAlive(),
+                "lastAttacker", lastAttacker == null ? "0x0" : String.Format("0x{0:X}", lastAttacker.actorId),
+                "lastAttackerName", lastAttacker == null ? "" : (lastAttacker.customDisplayName != null ? lastAttacker.customDisplayName : lastAttacker.actorName),
+                "hasActionContainer", actionContainer != null);
+
             if (IsAlive())
             {
                 // todo: does retail 
@@ -316,12 +328,38 @@ namespace Meteor.Map.Actors
                 //this.ResetMoveSpeeds();
                 // todo: reset cooldowns
 
+                DevDiagnostics.Trace(
+                    "battle.death",
+                    "actor", String.Format("0x{0:X}", actorId),
+                    "actorName", customDisplayName != null ? customDisplayName : actorName,
+                    "actorType", GetType().Name,
+                    "uniqueId", GetUniqueId(),
+                    "lastAttacker", lastAttacker == null ? "0x0" : String.Format("0x{0:X}", lastAttacker.actorId),
+                    "lastAttackerName", lastAttacker == null ? "" : (lastAttacker.customDisplayName != null ? lastAttacker.customDisplayName : lastAttacker.actorName),
+                    "despawnTime", despawnTime);
+                DevDiagnostics.Trace(
+                    "battle.mobkill.emit",
+                    "actor", String.Format("0x{0:X}", actorId),
+                    "actorName", customDisplayName != null ? customDisplayName : actorName,
+                    "uniqueId", GetUniqueId(),
+                    "lastAttacker", lastAttacker == null ? "0x0" : String.Format("0x{0:X}", lastAttacker.actorId),
+                    "lastAttackerName", lastAttacker == null ? "" : (lastAttacker.customDisplayName != null ? lastAttacker.customDisplayName : lastAttacker.actorName));
                 lua.LuaEngine.GetInstance().OnSignal("mobkill");
             }
             else
             {
                 var err = String.Format("[{0}][{1}] {2} {3} {4} {5} tried to die ded", actorId, GetUniqueId(), positionX, positionY, positionZ, GetZone().GetName());
                 Program.Log.Error(err);
+                DevDiagnostics.Trace(
+                    "battle.death.skipped",
+                    "reason", "not alive",
+                    "actor", String.Format("0x{0:X}", actorId),
+                    "actorName", customDisplayName != null ? customDisplayName : actorName,
+                    "actorType", GetType().Name,
+                    "hp", GetHP(),
+                    "maxHp", GetMaxHP(),
+                    "lastAttacker", lastAttacker == null ? "0x0" : String.Format("0x{0:X}", lastAttacker.actorId),
+                    "lastAttackerName", lastAttacker == null ? "" : (lastAttacker.customDisplayName != null ? lastAttacker.customDisplayName : lastAttacker.actorName));
                 //throw new Exception(err);
             }
         }

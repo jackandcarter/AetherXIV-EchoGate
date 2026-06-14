@@ -23,9 +23,9 @@ using System;
 using System.IO;
 using System.Text;
 
-using Meteor.Common;
+using MeteorXIV.Core.Common;
 
-namespace  Meteor.Map.packets.send.actor.events
+namespace MeteorXIV.Core.Map.packets.send.actor.events
 {
     class SetEventStatusPacket
     {
@@ -40,6 +40,7 @@ namespace  Meteor.Map.packets.send.actor.events
             {
                 using (BinaryWriter binWriter = new BinaryWriter(mem))
                 {
+                    EventConditionDiagnostics.TraceStatus(sourceActorId, enabled, type, conditionName);
                     binWriter.Write((UInt32)(enabled ? 1 : 0));
                     binWriter.Write((Byte)type);
                     binWriter.Write(Encoding.ASCII.GetBytes(conditionName), 0, Encoding.ASCII.GetByteCount(conditionName) >= 0x24 ? 0x24 : Encoding.ASCII.GetByteCount(conditionName));

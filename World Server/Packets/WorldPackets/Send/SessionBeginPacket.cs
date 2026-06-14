@@ -22,10 +22,10 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 using System;
 using System.IO;
 
-using Meteor.Common;
-using Meteor.World.DataObjects;
+using MeteorXIV.Core.Common;
+using MeteorXIV.Core.World.DataObjects;
 
-namespace Meteor.World.Packets.WorldPackets.Send
+namespace MeteorXIV.Core.World.Packets.WorldPackets.Send
 {
     class SessionBeginPacket
     {

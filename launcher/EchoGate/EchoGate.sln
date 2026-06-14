@@ -9,6 +9,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EchoGate.App", "EchoGate.Ap
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EchoGate.Tests", "EchoGate.Tests\EchoGate.Tests.csproj", "{7E86B7AA-0764-46AA-A476-EB20A58375DB}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EchoGate.ClientLauncher", "EchoGate.ClientLauncher\EchoGate.ClientLauncher.csproj", "{EA474826-0882-41DC-9247-9B8C65100ED4}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -55,6 +57,18 @@ Global
 		{7E86B7AA-0764-46AA-A476-EB20A58375DB}.Release|x64.Build.0 = Release|Any CPU
 		{7E86B7AA-0764-46AA-A476-EB20A58375DB}.Release|x86.ActiveCfg = Release|Any CPU
 		{7E86B7AA-0764-46AA-A476-EB20A58375DB}.Release|x86.Build.0 = Release|Any CPU
+		{EA474826-0882-41DC-9247-9B8C65100ED4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{EA474826-0882-41DC-9247-9B8C65100ED4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{EA474826-0882-41DC-9247-9B8C65100ED4}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{EA474826-0882-41DC-9247-9B8C65100ED4}.Debug|x64.Build.0 = Debug|Any CPU
+		{EA474826-0882-41DC-9247-9B8C65100ED4}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{EA474826-0882-41DC-9247-9B8C65100ED4}.Debug|x86.Build.0 = Debug|Any CPU
+		{EA474826-0882-41DC-9247-9B8C65100ED4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{EA474826-0882-41DC-9247-9B8C65100ED4}.Release|Any CPU.Build.0 = Release|Any CPU
+		{EA474826-0882-41DC-9247-9B8C65100ED4}.Release|x64.ActiveCfg = Release|Any CPU
+		{EA474826-0882-41DC-9247-9B8C65100ED4}.Release|x64.Build.0 = Release|Any CPU
+		{EA474826-0882-41DC-9247-9B8C65100ED4}.Release|x86.ActiveCfg = Release|Any CPU
+		{EA474826-0882-41DC-9247-9B8C65100ED4}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

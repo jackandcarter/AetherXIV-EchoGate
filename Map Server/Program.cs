@@ -23,10 +23,12 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Threading;
+using MeteorXIV.Core.Common;
 using MySql.Data.MySqlClient;
 using NLog;
 
-namespace Meteor.Map
+namespace MeteorXIV.Core.Map
 {
     class Program
     {
@@ -52,16 +54,18 @@ namespace Meteor.Map
             Debug.Listeners.Add(myWriter);
 #endif
             bool smoke = HasFlag(args, "smoke");
+            bool noConsole = HasFlag(args, "no-console");
+            DevDiagnostics.Configure("Map", args);
 
             Log.Info("==================================");
-            Log.Info("Project Meteor: Map Server");
+            Log.Info("MeteorXIV Core: Map Server");
             Log.Info("Version: 0.1");
             Log.Info("==================================");
 
             try
             {
                 ConfigConstants.Load();
-                ConfigConstants.ApplyLaunchArgs(FilterSmokeArgs(args));
+                ConfigConstants.ApplyLaunchArgs(FilterLaunchArgs(args));
             }
             catch (Exception e)
             {
@@ -83,8 +87,8 @@ namespace Meteor.Map
                 return ExitOrPrompt(smoke, SmokeFail("Map", "unhandled", e.Message, EXIT_UNHANDLED));
             }
 
-            if (!File.Exists(Meteor.Map.Server.STATIC_ACTORS_PATH))
-                return ExitOrPrompt(smoke, SmokeFail("Map", "runtime prerequisite", Meteor.Map.Server.STATIC_ACTORS_PATH + " is missing", EXIT_RUNTIME));
+            if (!File.Exists(MeteorXIV.Core.Map.Server.STATIC_ACTORS_PATH))
+                return ExitOrPrompt(smoke, SmokeFail("Map", "runtime prerequisite", MeteorXIV.Core.Map.Server.STATIC_ACTORS_PATH + " is missing", EXIT_RUNTIME));
 
             try
             {
@@ -96,9 +100,21 @@ namespace Meteor.Map
                 if (smoke)
                     return SmokeOk("Map", GetEndpoint());
 
+                if (noConsole)
+                {
+                    Log.Info("Console input disabled; server running until process exit.");
+                    while (true) Thread.Sleep(10000);
+                }
+
                 while (true)
                 {
                     String input = Console.ReadLine();
+                    if (input == null)
+                    {
+                        Thread.Sleep(1000);
+                        continue;
+                    }
+
                     Log.Info("[Console Input] " + input);
                     Server.GetCommandProcessor().DoCommand(input, null);
                 }
@@ -132,16 +148,23 @@ namespace Meteor.Map
             return false;
         }
 
-        private static string[] FilterSmokeArgs(string[] args)
+        private static string[] FilterLaunchArgs(string[] args)
         {
             List<string> filtered = new List<string>();
             foreach (string arg in args)
             {
-                if (!arg.Trim().TrimStart('-').Equals("smoke", StringComparison.OrdinalIgnoreCase))
+                if (!IsRuntimeFlag(arg) && !DevDiagnostics.IsFlag(arg))
                     filtered.Add(arg);
             }
 
             return filtered.ToArray();
+        }
+
+        private static bool IsRuntimeFlag(string arg)
+        {
+            string name = arg.Trim().TrimStart('-');
+            return name.Equals("smoke", StringComparison.OrdinalIgnoreCase)
+                || name.Equals("no-console", StringComparison.OrdinalIgnoreCase);
         }
 
         private static string GetEndpoint()

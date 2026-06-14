@@ -20,12 +20,12 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 */
 
 
-using Meteor.Common;
-using Meteor.Map.lua;
-using Meteor.Map.packets.send.actor;
+using MeteorXIV.Core.Common;
+using MeteorXIV.Core.Map.lua;
+using MeteorXIV.Core.Map.packets.send.actor;
 using System.Collections.Generic;
 
-namespace Meteor.Map.Actors
+namespace MeteorXIV.Core.Map.Actors
 {
     class WorldMaster : Actor
     {

@@ -24,9 +24,9 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 
-using Meteor.Common;
+using MeteorXIV.Core.Common;
 
-namespace Meteor.World.DataObjects
+namespace MeteorXIV.Core.World.DataObjects
 {
     class LuaUtils
     {

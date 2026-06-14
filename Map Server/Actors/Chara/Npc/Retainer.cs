@@ -19,11 +19,11 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 ===========================================================================
 */
 
-using Meteor.Map.actors.chara.player;
-using Meteor.Map.Actors;
+using MeteorXIV.Core.Map.actors.chara.player;
+using MeteorXIV.Core.Map.Actors;
 using System;
 
-namespace Meteor.Map.actors.chara.npc
+namespace MeteorXIV.Core.Map.actors.chara.npc
 {
     class Retainer : Npc
     {

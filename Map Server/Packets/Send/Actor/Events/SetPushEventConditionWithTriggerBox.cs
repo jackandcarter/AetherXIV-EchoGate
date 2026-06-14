@@ -19,14 +19,14 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 ===========================================================================
 */
 
-using Meteor.Map.actors;
+using MeteorXIV.Core.Map.actors;
 using System;
 using System.IO;
 using System.Text;
 
-using Meteor.Common;
+using MeteorXIV.Core.Common;
 
-namespace Meteor.Map.packets.send.actor.events
+namespace MeteorXIV.Core.Map.packets.send.actor.events
 {
     class SetPushEventConditionWithTriggerBox
     {
@@ -41,6 +41,7 @@ namespace Meteor.Map.packets.send.actor.events
             {
                 using (BinaryWriter binWriter = new BinaryWriter(mem))
                 {
+                    EventConditionDiagnostics.TracePushBox(sourceActorId, condition);
                     binWriter.Write((UInt32)condition.bgObj);  // bgObj
                     binWriter.Write((UInt32)condition.layout);   // Layout
                     binWriter.Write((UInt32)4);       // Actor?  Always 4 in 1.23

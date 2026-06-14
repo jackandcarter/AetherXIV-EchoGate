@@ -19,9 +19,9 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 ===========================================================================
 */
 
-using Meteor.World.Packets.Send.Subpackets;
+using MeteorXIV.Core.World.Packets.Send.Subpackets;
 
-namespace Meteor.World.DataObjects
+namespace MeteorXIV.Core.World.DataObjects
 {
     class Session
     {

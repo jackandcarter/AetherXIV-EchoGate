@@ -5,9 +5,16 @@ public sealed record ServerProfile(
     string Host,
     int LobbyPort,
     int WorldPort,
-    int MapPort)
+    int MapPort,
+    string LoginUrl = "")
 {
-    public static ServerProfile LocalDefault() => new("Local Meteor", "127.0.0.1", 54994, 54992, 1989);
+    public static ServerProfile LocalDefault() => new(
+        "Local MeteorXIV Core",
+        "127.0.0.1",
+        54994,
+        54992,
+        1989,
+        "http://127.0.0.1:8080/login/index.php");
 
     public void Validate()
     {
@@ -20,6 +27,10 @@ public sealed record ServerProfile(
         ValidatePort(LobbyPort, nameof(LobbyPort));
         ValidatePort(WorldPort, nameof(WorldPort));
         ValidatePort(MapPort, nameof(MapPort));
+
+        if (!string.IsNullOrWhiteSpace(LoginUrl)
+            && !Uri.TryCreate(LoginUrl, UriKind.Absolute, out _))
+            throw new InvalidOperationException("Server login URL must be absolute.");
     }
 
     private static void ValidatePort(int port, string name)

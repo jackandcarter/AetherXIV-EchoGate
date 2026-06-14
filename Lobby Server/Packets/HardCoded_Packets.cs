@@ -19,7 +19,7 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 ===========================================================================
 */
 
-namespace Meteor.Lobby.Packets
+namespace MeteorXIV.Core.Lobby.Packets
 {
     class HardCoded_Packets
     {

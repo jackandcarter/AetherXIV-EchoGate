@@ -19,8 +19,8 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 ===========================================================================
 */
 
-using Meteor.Common;
-using Meteor.Map.packets.send.player;
+using MeteorXIV.Core.Common;
+using MeteorXIV.Core.Map.packets.send.player;
 using MySql.Data.MySqlClient;
 using System;
 using System.Collections.Generic;
@@ -28,7 +28,7 @@ using System.IO;
 using System.Text;
 using System.Text.RegularExpressions;
 
-namespace Meteor.Map.utils
+namespace MeteorXIV.Core.Map.utils
 {
     class SQLGeneration
     {
@@ -393,13 +393,17 @@ namespace Meteor.Map.utils
 
                             string nameCapital = name.Substring(0, 1).ToUpper() + name.Substring(1);
 
-                            string template = File.ReadAllText("D:\\Coding\\FFXIV Related\\ffxiv-classic-map-server\\FFXIVClassic Map Server\\bin\\Debug\\scripts\\unique\\wil0Town01\\PopulaceStandard\\bertram.lua");
+                            string scriptRoot = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "scripts", "unique");
+                            string templatePath = Path.Combine(scriptRoot, "wil0Town01", "PopulaceStandard", "bertram.lua");
+                            string outputPath = Path.Combine(scriptRoot, "fst0Town01a", "PopulaceStandard", name + ".lua");
+                            string template = File.ReadAllText(templatePath);
 
                             template = template.Replace("defaultWil", "defaultFst");
                             template = template.Replace("DftWil", "DftFst");
                             template = template.Replace("Bertram", nameCapital);
 
-                            File.WriteAllText(String.Format("D:\\Coding\\FFXIV Related\\ffxiv-classic-map-server\\FFXIVClassic Map Server\\bin\\Debug\\scripts\\unique\\fst0Town01a\\PopulaceStandard\\{0}.lua", name), template);
+                            Directory.CreateDirectory(Path.GetDirectoryName(outputPath));
+                            File.WriteAllText(outputPath, template);
                         }
                     }
 

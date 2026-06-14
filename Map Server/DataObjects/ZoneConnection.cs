@@ -22,12 +22,12 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 using System;
 using System.Net.Sockets;
 
-using Meteor.Common;
+using MeteorXIV.Core.Common;
 using System.Collections.Concurrent;
 using System.Net;
-using Meteor.Map.packets.WorldPackets.Send;
+using MeteorXIV.Core.Map.packets.WorldPackets.Send;
 
-namespace Meteor.Map.dataobjects
+namespace MeteorXIV.Core.Map.dataobjects
 {
     class ZoneConnection
     {

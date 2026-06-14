@@ -19,7 +19,7 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 ===========================================================================
 */
 
-namespace Meteor.Map.Actors
+namespace MeteorXIV.Core.Map.Actors
 {
     class Judge : Actor
     {

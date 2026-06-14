@@ -22,9 +22,9 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 using System;
 using System.Collections.Generic;
 
-using Meteor.World.DataObjects.Group;
+using MeteorXIV.Core.World.DataObjects.Group;
 
-namespace Meteor.World
+namespace MeteorXIV.Core.World
 {
     class PartyManager
     {

@@ -22,4 +22,4 @@ CREATE TABLE `supportdesk_faqs` (
 -- ----------------------------
 -- Records 
 -- ----------------------------
-INSERT INTO `supportdesk_faqs` VALUES ('0', '1', 'Welcome to FFXIV Classic', 'Welcome to the FFXIV 1.0 server emulator FFXIVClassic!\r\n\r\nThis is still currently a work in progress, and you may find bugs or issues as you play with this server. Keep in mind that this is not even remotely close to being finished, and that it is a work in progress.\r\n\r\nCheck out the blog at: \r\nhttp://ffxivclassic.fragmenterworks.com/ \r\nCheck out videos at: \r\nhttps://www.youtube.com/channel/UCr2703_er1Dj7Lx5pzpQpfg');
+INSERT INTO `supportdesk_faqs` VALUES ('0', '1', 'Welcome to FFXIV Classic', 'Welcome to MeteorXIV Core for FFXIV 1.x.\r\n\r\nThis server is under active restoration, and testers may encounter incomplete content or protocol issues while playing.\r\n\r\nUse launcher news and project documentation for current development notes.');

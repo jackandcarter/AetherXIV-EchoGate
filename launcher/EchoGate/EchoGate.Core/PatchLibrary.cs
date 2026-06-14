@@ -63,6 +63,8 @@ public sealed record PatchFileReport(
 
 public sealed record PatchLibraryReport(
     string RootPath,
+    string PatchBasePath,
+    string MetainfoBasePath,
     IReadOnlyList<PatchEntry> ExpectedEntries,
     IReadOnlyList<PatchFileReport> FileReports,
     IReadOnlyList<PatchEntry> MissingPatchFiles,
@@ -82,6 +84,8 @@ public sealed record PatchLibraryReport(
 
     public bool HasValidPatchFiles => InvalidPatchFiles.Count == 0;
 
+    public bool IsPatchChainReady => HasAllPatchFiles && HasValidPatchFiles;
+
     public bool IsComplete => HasAllPatchFiles && HasAllMetainfoFiles && HasValidPatchFiles;
 
     public string Summary => IsComplete
@@ -91,6 +95,13 @@ public sealed record PatchLibraryReport(
             PatchLibraryInspectionMode.Size => $"complete: {ExpectedPatchCount} patches with expected sizes and metainfo files",
             _ => $"complete: {ExpectedPatchCount} patches and metainfo files"
         }
+        : IsPatchChainReady
+            ? InspectionMode switch
+            {
+                PatchLibraryInspectionMode.Checksum => $"patch-ready: {ExpectedPatchCount} patches verified by CRC32, metainfo {PresentMetainfoCount}/{ExpectedPatchCount}",
+                PatchLibraryInspectionMode.Size => $"patch-ready: {ExpectedPatchCount} patches with expected sizes, metainfo {PresentMetainfoCount}/{ExpectedPatchCount}",
+                _ => $"patch-ready: {ExpectedPatchCount} patches, metainfo {PresentMetainfoCount}/{ExpectedPatchCount}"
+            }
         : $"patches {PresentPatchCount}/{ExpectedPatchCount}, metainfo {PresentMetainfoCount}/{ExpectedPatchCount}, invalid {InvalidPatchFiles.Count}";
 }
 
@@ -110,15 +121,17 @@ public static class LegacyPatchManifest
         List<PatchEntry> missingPatches = new();
         List<PatchEntry> missingMetainfo = new();
         List<PatchFileReport> invalidPatches = new();
+        string patchBasePath = ResolveBestBasePath(normalizedRoot, entry => Path.Combine(entry.RepositoryId, "patch", entry.PatchFileName));
+        string metainfoBasePath = ResolveBestBasePath(normalizedRoot, entry => Path.Combine(entry.RepositoryId, "metainfo", entry.TorrentFileName));
 
         foreach (PatchEntry entry in Entries)
         {
-            string patchPath = string.IsNullOrWhiteSpace(normalizedRoot)
+            string patchPath = string.IsNullOrWhiteSpace(patchBasePath)
                 ? ""
-                : Path.Combine(normalizedRoot, entry.RelativePatchPath);
-            string metainfoPath = string.IsNullOrWhiteSpace(normalizedRoot)
+                : Path.Combine(patchBasePath, entry.RepositoryId, "patch", entry.PatchFileName);
+            string metainfoPath = string.IsNullOrWhiteSpace(metainfoBasePath)
                 ? ""
-                : Path.Combine(normalizedRoot, entry.RelativeMetainfoPath);
+                : Path.Combine(metainfoBasePath, entry.RepositoryId, "metainfo", entry.TorrentFileName);
             bool patchExists = !string.IsNullOrWhiteSpace(patchPath) && File.Exists(patchPath);
             bool metainfoExists = !string.IsNullOrWhiteSpace(metainfoPath) && File.Exists(metainfoPath);
             long? actualSize = patchExists ? new FileInfo(patchPath).Length : null;
@@ -155,12 +168,38 @@ public static class LegacyPatchManifest
 
         return new PatchLibraryReport(
             normalizedRoot,
+            patchBasePath,
+            metainfoBasePath,
             Entries,
             fileReports,
             missingPatches,
             missingMetainfo,
             invalidPatches,
             inspectionMode);
+    }
+
+    private static string ResolveBestBasePath(string normalizedRoot, Func<PatchEntry, string> relativePathFactory)
+    {
+        if (string.IsNullOrWhiteSpace(normalizedRoot))
+            return "";
+
+        string[] candidates =
+        {
+            Path.Combine(normalizedRoot, "ffxiv"),
+            Path.Combine(normalizedRoot, "ffxiv_patches"),
+            normalizedRoot
+        };
+
+        return candidates
+            .Select(path => new
+            {
+                Path = path,
+                PresentCount = Entries.Count(entry => File.Exists(Path.Combine(path, relativePathFactory(entry))))
+            })
+            .OrderByDescending(candidate => candidate.PresentCount)
+            .ThenBy(candidate => candidate.Path.EndsWith($"{Path.DirectorySeparatorChar}ffxiv_patches", StringComparison.Ordinal) ? 0 : 1)
+            .First()
+            .Path;
     }
 
     private static IReadOnlyList<PatchEntry> CreateEntries()

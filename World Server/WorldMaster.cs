@@ -22,16 +22,16 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 using System;
 using System.Collections.Generic;
 
-using Meteor.Common;
-using Meteor.World.DataObjects;
-using Meteor.World.DataObjects.Group;
-using Meteor.World.Packets.Send.Subpackets;
-using Meteor.World.Packets.Send.Subpackets.Groups;
-using Meteor.World.Packets.WorldPackets.Send;
-using Meteor.World.Packets.WorldPackets.Send.Group;
+using MeteorXIV.Core.Common;
+using MeteorXIV.Core.World.DataObjects;
+using MeteorXIV.Core.World.DataObjects.Group;
+using MeteorXIV.Core.World.Packets.Send.Subpackets;
+using MeteorXIV.Core.World.Packets.Send.Subpackets.Groups;
+using MeteorXIV.Core.World.Packets.WorldPackets.Send;
+using MeteorXIV.Core.World.Packets.WorldPackets.Send.Group;
 using MySql.Data.MySqlClient;
 
-namespace Meteor.World
+namespace MeteorXIV.Core.World
 {
     class WorldManager
     {
@@ -205,21 +205,59 @@ namespace Meteor.World
         {
             ZoneServer zs = GetZoneServer(destinationZoneId);
 
-            if (zs == null)
+            if (session == null)
+            {
+                Program.Log.Error("Zone handoff failed: session was missing for destination zone {0}.", destinationZoneId);
                 return;
+            }
 
+            if (zs == null)
+            {
+                Program.Log.Error(
+                    "Zone handoff failed for session {0}: destination zone {1} has no registered map server.",
+                    session.sessionId,
+                    destinationZoneId);
+                return;
+            }
+
+            uint previousZoneId = session.currentZoneId;
+            ZoneServer previousRoute = session.routing1;
+            bool sameRoute = zs.Equals(previousRoute);
             session.currentZoneId = destinationZoneId;
 
-            //Intrazone change, just update the id
-            if (zs.Equals(session.routing1))            
+            Program.Log.Info(
+                "Zone handoff requested: session={0} fromZone={1} toZone={2} route={3}:{4} sameRoute={5} spawnType={6} pos=({7:F2},{8:F2},{9:F2}) rot={10:F2}",
+                session.sessionId,
+                previousZoneId,
+                destinationZoneId,
+                zs.zoneServerIp,
+                zs.zoneServerPort,
+                sameRoute,
+                spawnType,
+                spawnX,
+                spawnY,
+                spawnZ,
+                spawnRotation);
+
+            // Intrazone position-only changes do not need a map session restart.
+            if (sameRoute && previousZoneId == destinationZoneId)
+            {
+                Program.Log.Info("Zone handoff completed in-place for session {0} in zone {1}.", session.sessionId, destinationZoneId);
                 return;            
+            }
+
+            if (previousRoute == null)
+            {
+                Program.Log.Error("Zone handoff failed for session {0}: current map route is missing.", session.sessionId);
+                return;
+            }
 
             if (zs.isConnected)
-                session.routing1.SendSessionEnd(session, destinationZoneId, destinationPrivateArea, spawnType, spawnX, spawnY, spawnZ, spawnRotation);
+                previousRoute.SendSessionEnd(session, destinationZoneId, destinationPrivateArea, spawnType, spawnX, spawnY, spawnZ, spawnRotation);
             else if (zs.Connect())
-                session.routing1.SendSessionEnd(session, destinationZoneId, destinationPrivateArea, spawnType, spawnX, spawnY, spawnZ, spawnRotation);
-            else            
-                session.routing1.SendPacket(ErrorPacket.BuildPacket(session, 1));            
+                previousRoute.SendSessionEnd(session, destinationZoneId, destinationPrivateArea, spawnType, spawnX, spawnY, spawnZ, spawnRotation);
+            else
+                previousRoute.SendPacket(ErrorPacket.BuildPacket(session, 1));
         }
 
         //Login Zone In

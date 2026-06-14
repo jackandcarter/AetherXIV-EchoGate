@@ -23,7 +23,7 @@ using System;
 using System.IO;
 using System.Text;
 
-namespace Meteor.World.Packets.Receive.Subpackets
+namespace MeteorXIV.Core.World.Packets.Receive.Subpackets
 {
     class PartyChatMessagePacket
     {

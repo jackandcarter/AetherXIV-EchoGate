@@ -23,9 +23,9 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 
-using Meteor.Map.lua;
+using MeteorXIV.Core.Map.lua;
 
-namespace Meteor.Map.packets.receive.events
+namespace MeteorXIV.Core.Map.packets.receive.events
 {
     class EventUpdatePacket
     {

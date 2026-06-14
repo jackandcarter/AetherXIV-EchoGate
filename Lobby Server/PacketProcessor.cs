@@ -1,4 +1,4 @@
-﻿/*
+/*
 ===========================================================================
 Copyright (C) 2015-2019 Project Meteor Dev Team
 
@@ -25,12 +25,12 @@ using System.IO;
 using System.Security.Cryptography;
 using System.Text;
 
-using Meteor.Common;
-using Meteor.Lobby.DataObjects;
-using Meteor.Lobby.Packets;
-using Meteor.Lobby.Packets.Receive;
+using MeteorXIV.Core.Common;
+using MeteorXIV.Core.Lobby.DataObjects;
+using MeteorXIV.Core.Lobby.Packets;
+using MeteorXIV.Core.Lobby.Packets.Receive;
 
-namespace Meteor.Lobby
+namespace MeteorXIV.Core.Lobby
 {
     class PacketProcessor
     {
@@ -94,10 +94,17 @@ namespace Meteor.Lobby
             client.blowfish = new Blowfish(blowfishKey);
 
             Program.Log.Info("SecCNum: 0x{0:X}", securityHandshake.clientNumber);
+            Program.Log.Info(
+                "Secure handshake parsed from {0}; ticketLength={1}; packetSize={2}",
+                client.GetAddress(),
+                securityHandshake.ticketPhrase == null ? 0 : securityHandshake.ticketPhrase.Length,
+                packet.header.packetSize);
 
             //Respond with acknowledgment
             BasePacket outgoingPacket = new BasePacket(HardCoded_Packets.g_secureConnectionAcknowledgment);
+            PacketDiagnostics.LogBasePacket("Lobby", "secure-ack-out-plain", outgoingPacket);
             BasePacket.EncryptPacket(client.blowfish, outgoingPacket);
+            PacketDiagnostics.LogBasePacket("Lobby", "secure-ack-out-encrypted", outgoingPacket);
             client.QueuePacket(outgoingPacket);
         }
 
@@ -105,6 +112,13 @@ namespace Meteor.Lobby
         {
             packet.DebugPrintSubPacket();
             SessionPacket sessionPacket = new SessionPacket(packet.data);
+	    Program.Log.Info(
+		"SESSION PACKET PARSED: session='{0}' len={1} version='{2}' sequence={3}",
+		sessionPacket.session,
+                sessionPacket.session == null ? 0 : sessionPacket.session.Length,
+                sessionPacket.version,
+                sessionPacket.sequence
+            );
             String clientVersion = sessionPacket.version;
 
             Program.Log.Info("Got acknowledgment for secure session.");         
@@ -192,6 +206,21 @@ namespace Meteor.Lobby
             //Get world from new char instance
             if (worldId == 0)
                 worldId = client.newCharaWorldId;
+
+            if (charaReq.command == CharaCreatorPacket.MAKE && (worldId == 0 || client.newCharaCid == 0 || String.IsNullOrEmpty(client.newCharaName)))
+            {
+                Character reservedChara = Database.GetReservedCharacter(client.currentUserId);
+                if (reservedChara != null)
+                {
+                    client.newCharaCid = reservedChara.id;
+                    client.newCharaSlot = reservedChara.slot;
+                    client.newCharaWorldId = reservedChara.serverId;
+                    client.newCharaName = reservedChara.name;
+                    worldId = reservedChara.serverId;
+                    name = reservedChara.name;
+                    Program.Log.Info("User {0} => Recovered reserved character \"{1}\" cid={2} world={3}", client.currentUserId, reservedChara.name, reservedChara.id, reservedChara.serverId);
+                }
+            }
 
             //Check if this character exists, Get world from there
             if (worldId == 0 && charaReq.characterId != 0)
@@ -291,6 +320,18 @@ namespace Meteor.Lobby
                             info.z = 133.6561f;
                             info.rot = -2.849384f;
                             break;
+                    }
+
+                    if (client.newCharaCid == 0 || String.IsNullOrEmpty(client.newCharaName))
+                    {
+                        ErrorPacket errorPacket = new ErrorPacket(charaReq.sequence, 0, 0, 13001, "Character reservation was not found, please create the character again.");
+                        SubPacket subpacket = errorPacket.BuildPacket();
+                        BasePacket basePacket = BasePacket.CreatePacket(subpacket, true, false);
+                        BasePacket.EncryptPacket(client.blowfish, basePacket);
+                        client.QueuePacket(basePacket);
+
+                        Program.Log.Info("User {0} => Error; missing reserved character for make request.", client.currentUserId);
+                        return;
                     }
 
                     Database.MakeCharacter(client.currentUserId, client.newCharaCid, info);

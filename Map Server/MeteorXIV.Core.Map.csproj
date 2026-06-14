@@ -8,8 +8,8 @@
     <ProjectGuid>{E8FA2784-D4B9-4711-8CC6-712A4B1CD54F}</ProjectGuid>
     <OutputType>Exe</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>Meteor.Map</RootNamespace>
-    <AssemblyName>Map Server</AssemblyName>
+    <RootNamespace>MeteorXIV.Core.Map</RootNamespace>
+    <AssemblyName>MeteorXIV.Core.Map</AssemblyName>
     <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <NuGetPackageImportStamp>1d22ec4a</NuGetPackageImportStamp>
@@ -241,6 +241,7 @@
     <Compile Include="Packets\Receive\Recruitment\RecruitmentDetailsRequestPacket.cs" />
     <Compile Include="Packets\Receive\Recruitment\RecruitmentSearchRequestPacket.cs" />
     <Compile Include="Packets\Receive\Recruitment\StartRecruitingRequestPacket.cs" />
+    <Compile Include="Packets\Receive\ClientInteractionDiagnostics.cs" />
     <Compile Include="Packets\Receive\SetTargetPacket.cs" />
     <Compile Include="Packets\Receive\LockTargetPacket.cs" />
     <Compile Include="Packets\Receive\Social\AddRemoveSocialPacket.cs" />
@@ -260,6 +261,7 @@
     <Compile Include="Packets\Send\Actor\Battle\CommandResultX18Packet.cs" />
     <Compile Include="Packets\Send\Actor\Battle\CommandResultX10Packet.cs" />
     <Compile Include="Packets\Send\Actor\DeleteAllActorsPacket.cs" />
+    <Compile Include="Packets\Send\Actor\Events\EventConditionDiagnostics.cs" />
     <Compile Include="Packets\Send\Actor\Events\SetEventStatusPacket.cs" />
     <Compile Include="Packets\Send\Actor\Events\SetNoticeEventCondition.cs" />
     <Compile Include="Packets\Send\Actor\Events\SetPushEventConditionWithTriggerBox.cs" />
@@ -448,9 +450,9 @@
   </ItemGroup>
   <ItemGroup />
   <ItemGroup>
-    <ProjectReference Include="..\Common Class Lib\Common Class Lib.csproj">
+    <ProjectReference Include="..\Common Class Lib\MeteorXIV.Core.Common.csproj">
       <Project>{3a3d6626-c820-4c18-8c81-64811424f20e}</Project>
-      <Name>Common Class Lib</Name>
+      <Name>MeteorXIV.Core.Common</Name>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

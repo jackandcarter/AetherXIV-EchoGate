@@ -21,7 +21,7 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 
 using System;
 
-namespace Meteor.Map.actors.chara
+namespace MeteorXIV.Core.Map.actors.chara
 {
     //These will need to be redone at some point. remember to update tables in db.
     //Consider using text_paramname sheet. that matches up with the stats on armor, but some things will need special handling

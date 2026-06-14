@@ -7,8 +7,8 @@
     <ProjectGuid>{3067889D-8A50-40D6-9CD5-23AA8EA96F26}</ProjectGuid>
     <OutputType>Exe</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>Meteor.World</RootNamespace>
-    <AssemblyName>World Server</AssemblyName>
+    <RootNamespace>MeteorXIV.Core.World</RootNamespace>
+    <AssemblyName>MeteorXIV.Core.World</AssemblyName>
     <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
@@ -216,9 +216,9 @@
     </Content>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Common Class Lib\Common Class Lib.csproj">
+    <ProjectReference Include="..\Common Class Lib\MeteorXIV.Core.Common.csproj">
       <Project>{3a3d6626-c820-4c18-8c81-64811424f20e}</Project>
-      <Name>Common Class Lib</Name>
+      <Name>MeteorXIV.Core.Common</Name>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>

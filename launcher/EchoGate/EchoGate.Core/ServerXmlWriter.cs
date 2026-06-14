@@ -8,16 +8,14 @@ public static class ServerXmlWriter
     {
         ArgumentNullException.ThrowIfNull(profiles);
 
-        XElement root = new("servers");
+        XElement root = new("Servers");
         foreach (ServerProfile profile in profiles)
         {
             profile.Validate();
-            root.Add(new XElement("server",
-                new XAttribute("name", profile.Name),
-                new XAttribute("host", profile.Host),
-                new XAttribute("lobbyPort", profile.LobbyPort),
-                new XAttribute("worldPort", profile.WorldPort),
-                new XAttribute("mapPort", profile.MapPort)));
+            root.Add(new XElement("Server",
+                new XAttribute("Name", profile.Name),
+                new XAttribute("Address", profile.Host),
+                new XAttribute("LoginUrl", profile.LoginUrl)));
         }
 
         return new XDocument(new XDeclaration("1.0", "utf-8", "yes"), root);

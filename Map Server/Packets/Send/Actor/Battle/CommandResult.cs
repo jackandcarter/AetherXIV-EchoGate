@@ -20,11 +20,11 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 */
 
 using System;
-using Meteor.Map.actors.chara.ai;
-using Meteor.Map.actors.chara.ai.utils;
-using Meteor.Map.Actors;
+using MeteorXIV.Core.Map.actors.chara.ai;
+using MeteorXIV.Core.Map.actors.chara.ai.utils;
+using MeteorXIV.Core.Map.Actors;
 
-namespace Meteor.Map.packets.send.actor.battle
+namespace MeteorXIV.Core.Map.packets.send.actor.battle
 {
     //These flags can be stacked and mixed, but the client will prioritize certain flags over others.
     [Flags]

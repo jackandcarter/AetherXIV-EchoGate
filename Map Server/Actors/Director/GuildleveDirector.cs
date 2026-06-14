@@ -19,15 +19,15 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 ===========================================================================
 */
 
-using Meteor.Common;
-using Meteor.Map.actors.director.Work;
-using Meteor.Map.Actors;
-using Meteor.Map.dataobjects;
-using Meteor.Map.utils;
+using MeteorXIV.Core.Common;
+using MeteorXIV.Core.Map.actors.director.Work;
+using MeteorXIV.Core.Map.Actors;
+using MeteorXIV.Core.Map.dataobjects;
+using MeteorXIV.Core.Map.utils;
 using System;
 using System.Collections.Generic;
 
-namespace Meteor.Map.actors.director
+namespace MeteorXIV.Core.Map.actors.director
 {
     class GuildleveDirector : Director
     {

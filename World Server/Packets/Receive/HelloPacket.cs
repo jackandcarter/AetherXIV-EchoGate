@@ -23,7 +23,7 @@ using System;
 using System.IO;
 using System.Text;
 
-namespace Meteor.World.Packets.Receive
+namespace MeteorXIV.Core.World.Packets.Receive
 {
     class HelloPacket
     {

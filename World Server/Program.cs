@@ -23,12 +23,14 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Threading;
 
 using NLog;
-using Meteor.World.DataObjects;
+using MeteorXIV.Core.Common;
+using MeteorXIV.Core.World.DataObjects;
 using MySql.Data.MySqlClient;
 
-namespace Meteor.World
+namespace MeteorXIV.Core.World
 {
     class Program
     {
@@ -46,7 +48,7 @@ namespace Meteor.World
             Log = LogManager.GetCurrentClassLogger();
 
             Log.Info("==================================");
-            Log.Info("Project Meteor: World Server");
+            Log.Info("MeteorXIV Core: World Server");
             Log.Info("Version: 0.1");            
             Log.Info("==================================");
 
@@ -62,11 +64,13 @@ namespace Meteor.World
 #endif
 
             bool smoke = HasFlag(args, "smoke");
+            bool noConsole = HasFlag(args, "no-console");
+            DevDiagnostics.Configure("World", args);
 
             try
             {
                 ConfigConstants.Load();
-                ConfigConstants.ApplyLaunchArgs(FilterSmokeArgs(args));
+                ConfigConstants.ApplyLaunchArgs(FilterLaunchArgs(args));
             }
             catch (Exception e)
             {
@@ -106,9 +110,21 @@ namespace Meteor.World
                 if (smoke)
                     return SmokeOk("World", GetEndpoint());
 
+                if (noConsole)
+                {
+                    Log.Info("Console input disabled; server running until process exit.");
+                    while (true) Thread.Sleep(10000);
+                }
+
                 while (true)
                 {
                     String input = Console.ReadLine();
+                    if (input == null)
+                    {
+                        Thread.Sleep(1000);
+                        continue;
+                    }
+
                     Log.Info("[Console Input] " + input);
                     //cp.DoCommand(input, null);
                 }
@@ -157,16 +173,23 @@ namespace Meteor.World
             return false;
         }
 
-        private static string[] FilterSmokeArgs(string[] args)
+        private static string[] FilterLaunchArgs(string[] args)
         {
             List<string> filtered = new List<string>();
             foreach (string arg in args)
             {
-                if (!arg.Trim().TrimStart('-').Equals("smoke", StringComparison.OrdinalIgnoreCase))
+                if (!IsRuntimeFlag(arg) && !DevDiagnostics.IsFlag(arg))
                     filtered.Add(arg);
             }
 
             return filtered.ToArray();
+        }
+
+        private static bool IsRuntimeFlag(string arg)
+        {
+            string name = arg.Trim().TrimStart('-');
+            return name.Equals("smoke", StringComparison.OrdinalIgnoreCase)
+                || name.Equals("no-console", StringComparison.OrdinalIgnoreCase);
         }
 
         private static string GetEndpoint()

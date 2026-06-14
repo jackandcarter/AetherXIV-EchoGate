@@ -19,7 +19,7 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 ===========================================================================
 */
 
-namespace Meteor.Map.dataobjects.chara
+namespace MeteorXIV.Core.Map.dataobjects.chara
 {
     class PlayerWork
     {

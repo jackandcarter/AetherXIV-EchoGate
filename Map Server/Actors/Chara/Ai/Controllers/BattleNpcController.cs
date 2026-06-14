@@ -21,15 +21,15 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 
 using System;
 using System.Collections.Generic;
-using Meteor.Common;
-using Meteor.Map.Actors;
-using Meteor.Map.packets.send.actor;
-using Meteor.Map.actors.area;
-using Meteor.Map.utils;
-using Meteor.Map.actors.chara.ai.state;
-using Meteor.Map.actors.chara.npc;
+using MeteorXIV.Core.Common;
+using MeteorXIV.Core.Map.Actors;
+using MeteorXIV.Core.Map.packets.send.actor;
+using MeteorXIV.Core.Map.actors.area;
+using MeteorXIV.Core.Map.utils;
+using MeteorXIV.Core.Map.actors.chara.ai.state;
+using MeteorXIV.Core.Map.actors.chara.npc;
 
-namespace Meteor.Map.actors.chara.ai.controllers
+namespace MeteorXIV.Core.Map.actors.chara.ai.controllers
 {
     class BattleNpcController : Controller
     {

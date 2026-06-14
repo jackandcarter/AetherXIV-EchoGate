@@ -19,12 +19,12 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 ===========================================================================
 */
 
-using Meteor.Common;
-using Meteor.Map.dataobjects;
+using MeteorXIV.Core.Common;
+using MeteorXIV.Core.Map.dataobjects;
 using System.IO;
 using System.Text;
 
-namespace Meteor.Map.packets.WorldPackets.Send.Group
+namespace MeteorXIV.Core.Map.packets.WorldPackets.Send.Group
 {
     class LinkshellChangePacket
     {

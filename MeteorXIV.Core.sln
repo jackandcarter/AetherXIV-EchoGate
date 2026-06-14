@@ -3,19 +3,19 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
 VisualStudioVersion = 15.0.28307.168
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Map Server", "Map Server\Map Server.csproj", "{E8FA2784-D4B9-4711-8CC6-712A4B1CD54F}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MeteorXIV Core Map Server", "Map Server\MeteorXIV.Core.Map.csproj", "{E8FA2784-D4B9-4711-8CC6-712A4B1CD54F}"
 	ProjectSection(ProjectDependencies) = postProject
 		{3A3D6626-C820-4C18-8C81-64811424F20E} = {3A3D6626-C820-4C18-8C81-64811424F20E}
 	EndProjectSection
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Lobby Server", "Lobby Server\Lobby Server.csproj", "{703091E0-F69C-4177-8FAE-C258AC6A65AA}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MeteorXIV Core Lobby Server", "Lobby Server\MeteorXIV.Core.Lobby.csproj", "{703091E0-F69C-4177-8FAE-C258AC6A65AA}"
 	ProjectSection(ProjectDependencies) = postProject
 		{3A3D6626-C820-4C18-8C81-64811424F20E} = {3A3D6626-C820-4C18-8C81-64811424F20E}
 	EndProjectSection
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Common Class Lib", "Common Class Lib\Common Class Lib.csproj", "{3A3D6626-C820-4C18-8C81-64811424F20E}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MeteorXIV Core Common", "Common Class Lib\MeteorXIV.Core.Common.csproj", "{3A3D6626-C820-4C18-8C81-64811424F20E}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "World Server", "World Server\World Server.csproj", "{3067889D-8A50-40D6-9CD5-23AA8EA96F26}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MeteorXIV Core World Server", "World Server\MeteorXIV.Core.World.csproj", "{3067889D-8A50-40D6-9CD5-23AA8EA96F26}"
 	ProjectSection(ProjectDependencies) = postProject
 		{3A3D6626-C820-4C18-8C81-64811424F20E} = {3A3D6626-C820-4C18-8C81-64811424F20E}
 	EndProjectSection

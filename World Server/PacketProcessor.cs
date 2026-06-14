@@ -21,17 +21,17 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 
 using System.Collections.Generic;
 
-using Meteor.Common;
-using Meteor.World.DataObjects;
-using Meteor.World.DataObjects.Group;
-using Meteor.World.Packets.Receive;
-using Meteor.World.Packets.Receive.Subpackets;
-using Meteor.World.Packets.Send;
-using Meteor.World.Packets.Send.Login;
-using Meteor.World.Packets.Send.Subpackets;
-using Meteor.World.Packets.WorldPackets.Receive;
+using MeteorXIV.Core.Common;
+using MeteorXIV.Core.World.DataObjects;
+using MeteorXIV.Core.World.DataObjects.Group;
+using MeteorXIV.Core.World.Packets.Receive;
+using MeteorXIV.Core.World.Packets.Receive.Subpackets;
+using MeteorXIV.Core.World.Packets.Send;
+using MeteorXIV.Core.World.Packets.Send.Login;
+using MeteorXIV.Core.World.Packets.Send.Subpackets;
+using MeteorXIV.Core.World.Packets.WorldPackets.Receive;
 
-namespace Meteor.World
+namespace MeteorXIV.Core.World
 {
     class PacketProcessor
     {
@@ -124,16 +124,19 @@ namespace Meteor.World
                         case 0x1000:
                             SessionBeginConfirmPacket beginConfirmPacket = new SessionBeginConfirmPacket(packet.data);
 
-                            if (beginConfirmPacket.invalidPacket || beginConfirmPacket.errorCode == 0)                            
+                            if (beginConfirmPacket.invalidPacket || beginConfirmPacket.errorCode != 0)
                                 Program.Log.Error("Session {0} had a error beginning session.", beginConfirmPacket.sessionId);                            
+                            else
+                                Program.Log.Info("Session begin confirmed by world packet path: session={0}", beginConfirmPacket.sessionId);
 
                             break;
                         //Session End Confirm
                         case 0x1001:
                             SessionEndConfirmPacket endConfirmPacket = new SessionEndConfirmPacket(packet.data);
                             
-                            if (!endConfirmPacket.invalidPacket && endConfirmPacket.errorCode != 0)
+                            if (!endConfirmPacket.invalidPacket && endConfirmPacket.errorCode == 0)
                             {
+                                Program.Log.Info("Session end confirmed by world packet path: session={0} destinationZone={1}", endConfirmPacket.sessionId, endConfirmPacket.destinationZone);
                                 //Check destination, if != 0, update route and start new session
                                 if (endConfirmPacket.destinationZone != 0)
                                 {
@@ -157,6 +160,15 @@ namespace Meteor.World
 
                             if (!zoneChangePacket.invalidPacket)
                             {
+                                Program.Log.Info(
+                                    "World packet path zone change request: session={0} destinationZone={1} spawnType={2} pos=({3:F2},{4:F2},{5:F2}) rot={6:F2}",
+                                    zoneChangePacket.sessionId,
+                                    zoneChangePacket.destinationZoneId,
+                                    zoneChangePacket.destinationSpawnType,
+                                    zoneChangePacket.destinationX,
+                                    zoneChangePacket.destinationY,
+                                    zoneChangePacket.destinationZ,
+                                    zoneChangePacket.destinationRot);
                                 mServer.GetWorldManager().DoZoneServerChange(session, zoneChangePacket.destinationZoneId, "", zoneChangePacket.destinationSpawnType, zoneChangePacket.destinationX, zoneChangePacket.destinationY, zoneChangePacket.destinationZ, zoneChangePacket.destinationRot);
                             }
                            
@@ -200,6 +212,41 @@ namespace Meteor.World
                     GroupCreatedPacket groupCreatedPacket = new GroupCreatedPacket(subpacket.data);
                     if (!mServer.GetWorldManager().SendGroupInit(session, groupCreatedPacket.groupId))                                    
                         session.clientConnection.QueuePacket(subpacket);
+                    break;
+                case 0x0001:
+                case 0x0002:
+                case 0x0003:
+                case 0x0007:
+                case 0x00CA:
+                case 0x00CC:
+                case 0x00CD:
+                case 0x00CE:
+                case 0x00CF:
+                case 0x012D:
+                case 0x012E:
+                case 0x012F:
+                case 0x0131:
+                case 0x0135:
+                case 0x01C3:
+                case 0x01C4:
+                case 0x01C5:
+                case 0x01C6:
+                case 0x01C7:
+                case 0x01C8:
+                case 0x01C9:
+                case 0x01CA:
+                case 0x01CB:
+                case 0x01CC:
+                case 0x01CD:
+                case 0x01CE:
+                case 0x01CF:
+                case 0x01D0:
+                case 0x01D1:
+                case 0x01D2:
+                case 0x01D3:
+                case 0x01D4:
+                case 0x01D5:
+                case 0x01D6:
                     break;
                 default:
                     PacketDiagnostics.LogUnknownGameMessage("World", "world game message passthrough", subpacket);

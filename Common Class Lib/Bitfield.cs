@@ -21,7 +21,7 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 
 using System;
 
-namespace Meteor.Common
+namespace MeteorXIV.Core.Common
 {
     [global::System.AttributeUsage(AttributeTargets.Field, AllowMultiple = false)]
     public sealed class BitfieldLengthAttribute : Attribute

@@ -22,7 +22,7 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 using System;
 using System.IO;
 
-namespace Meteor.Map.packets.receive
+namespace MeteorXIV.Core.Map.packets.receive
 {
     class UpdateItemPackagePacket
     {

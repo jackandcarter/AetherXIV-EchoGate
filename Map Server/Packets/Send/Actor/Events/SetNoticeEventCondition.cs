@@ -19,14 +19,14 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 ===========================================================================
 */
 
-using Meteor.Map.actors;
+using MeteorXIV.Core.Map.actors;
 using System;
 using System.IO;
 using System.Text;
 
-using Meteor.Common;
+using MeteorXIV.Core.Common;
 
-namespace  Meteor.Map.packets.send.actor.events
+namespace MeteorXIV.Core.Map.packets.send.actor.events
 {
     class SetNoticeEventCondition
     {
@@ -41,6 +41,7 @@ namespace  Meteor.Map.packets.send.actor.events
             {
                 using (BinaryWriter binWriter = new BinaryWriter(mem))
                 {
+                    EventConditionDiagnostics.TraceNotice(sourceActorId, condition);
                     binWriter.Write((Byte)condition.unknown1); //Seen: 0, 1, E
                     binWriter.Write((Byte)condition.unknown2); //Seen: 0, 1
                     binWriter.Write(Encoding.ASCII.GetBytes(condition.conditionName), 0, Encoding.ASCII.GetByteCount(condition.conditionName) >= 0x24 ? 0x24 : Encoding.ASCII.GetByteCount(condition.conditionName));

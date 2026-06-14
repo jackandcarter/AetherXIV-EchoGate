@@ -24,10 +24,10 @@ using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
 
-using Meteor.Common;
-using Meteor.World.Packets.WorldPackets.Send;
+using MeteorXIV.Core.Common;
+using MeteorXIV.Core.World.Packets.WorldPackets.Send;
 
-namespace Meteor.World.DataObjects
+namespace MeteorXIV.Core.World.DataObjects
 {
     class ZoneServer
     {
@@ -171,16 +171,41 @@ namespace Meteor.World.DataObjects
 
         public void SendSessionStart(Session session, bool isLogin = false)
         {
+            Program.Log.Info(
+                "Sending session begin to map route {0}:{1}: session={2} zone={3} login={4}",
+                zoneServerIp,
+                zoneServerPort,
+                session.sessionId,
+                session.currentZoneId,
+                isLogin);
             SendPacket(SessionBeginPacket.BuildPacket(session, isLogin));
         }
 
         public void SendSessionEnd(Session session)
         {
+            Program.Log.Info(
+                "Sending session end to map route {0}:{1}: session={2} zone={3}",
+                zoneServerIp,
+                zoneServerPort,
+                session.sessionId,
+                session.currentZoneId);
             SendPacket(SessionEndPacket.BuildPacket(session));
         }
 
         public void SendSessionEnd(Session session, uint destinationZoneId, string destinationPrivateArea, byte spawnType, float spawnX, float spawnY, float spawnZ, float spawnRotation)
         {
+            Program.Log.Info(
+                "Sending session end to map route {0}:{1}: session={2} destinationZone={3} privateArea={4} spawnType={5} pos=({6:F2},{7:F2},{8:F2}) rot={9:F2}",
+                zoneServerIp,
+                zoneServerPort,
+                session.sessionId,
+                destinationZoneId,
+                destinationPrivateArea ?? "",
+                spawnType,
+                spawnX,
+                spawnY,
+                spawnZ,
+                spawnRotation);
             SendPacket(SessionEndPacket.BuildPacket(session, destinationZoneId, destinationPrivateArea, spawnType, spawnX, spawnY, spawnZ, spawnRotation));
         }
 

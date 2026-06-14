@@ -19,10 +19,10 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 ===========================================================================
 */
 
-using Meteor.Common;
-using Meteor.World.Packets.Send.Subpackets.Groups;
+using MeteorXIV.Core.Common;
+using MeteorXIV.Core.World.Packets.Send.Subpackets.Groups;
 
-namespace Meteor.World.DataObjects.Group
+namespace MeteorXIV.Core.World.DataObjects.Group
 {
     class RetainerMeetingRelationGroup : Relation
     {

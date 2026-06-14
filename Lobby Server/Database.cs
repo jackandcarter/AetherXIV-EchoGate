@@ -22,10 +22,10 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 using System;
 using System.Collections.Generic;
 
-using Meteor.Lobby.DataObjects;
+using MeteorXIV.Core.Lobby.DataObjects;
 using MySql.Data.MySqlClient;
 
-namespace Meteor.Lobby
+namespace MeteorXIV.Core.Lobby
 {
     //charState: 0 - Reserved, 1 - Inactive, 2 - Active
 
@@ -140,6 +140,45 @@ namespace Meteor.Lobby
                 Program.Log.Debug("[SQL] CID={0} Created on 'characters' table.", cid);
             }
             return alreadyExists;
+        }
+
+        public static Character GetReservedCharacter(uint userId)
+        {
+            Character chara = null;
+            using (MySqlConnection conn = new MySqlConnection(String.Format("Server={0}; Port={1}; Database={2}; UID={3}; Password={4}", ConfigConstants.DATABASE_HOST, ConfigConstants.DATABASE_PORT, ConfigConstants.DATABASE_NAME, ConfigConstants.DATABASE_USERNAME, ConfigConstants.DATABASE_PASSWORD)))
+            {
+                try
+                {
+                    conn.Open();
+
+                    MySqlCommand cmd = new MySqlCommand(
+                        "SELECT id, slot, serverId, name, state FROM characters WHERE userId=@userId AND state=0 ORDER BY id DESC LIMIT 1",
+                        conn);
+                    cmd.Parameters.AddWithValue("@userId", userId);
+
+                    using (MySqlDataReader reader = cmd.ExecuteReader())
+                    {
+                        if (reader.Read())
+                        {
+                            chara = new Character();
+                            chara.id = reader.GetUInt32("id");
+                            chara.slot = reader.GetUInt16("slot");
+                            chara.serverId = reader.GetUInt16("serverId");
+                            chara.name = reader.GetString("name");
+                            chara.state = reader.GetUInt16("state");
+                        }
+                    }
+                }
+                catch (MySqlException e)
+                {
+                    Program.Log.Error(e.ToString());
+                }
+                finally
+                {
+                    conn.Dispose();
+                }
+            }
+            return chara;
         }
 
         public static void MakeCharacter(uint accountId, uint cid, CharaInfo charaInfo)

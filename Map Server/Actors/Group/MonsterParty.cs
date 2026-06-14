@@ -19,13 +19,13 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 ===========================================================================
 */
 
-using Meteor.Common;
-using Meteor.Map.dataobjects;
-using Meteor.Map.packets.send.group;
-using Meteor.Map.packets.send.groups;
+using MeteorXIV.Core.Common;
+using MeteorXIV.Core.Map.dataobjects;
+using MeteorXIV.Core.Map.packets.send.group;
+using MeteorXIV.Core.Map.packets.send.groups;
 using System.Collections.Generic;
 
-namespace Meteor.Map.actors.group
+namespace MeteorXIV.Core.Map.actors.group
 {
     class MonsterParty : Group
     {

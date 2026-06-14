@@ -22,7 +22,7 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 using System;
 using System.IO;
 
-namespace Meteor.Map.packets.WorldPackets.Receive
+namespace MeteorXIV.Core.Map.packets.WorldPackets.Receive
 {
     class ErrorPacket
     {

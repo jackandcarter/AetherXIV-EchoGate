@@ -19,7 +19,7 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 ===========================================================================
 */
 
-namespace Meteor.Map.actors.area
+namespace MeteorXIV.Core.Map.actors.area
 {
     class SpawnLocation
     {

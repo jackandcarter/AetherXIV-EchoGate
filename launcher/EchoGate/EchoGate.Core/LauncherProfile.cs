@@ -2,11 +2,30 @@ namespace EchoGate.Core;
 
 public sealed record LauncherProfile(
     string ClientRootPath,
+    string PatchLibraryRootPath,
+    string LauncherServiceUrl,
+    string PatchBaseUrl,
     ServerProfile ServerProfile,
-    WineRuntimeProfile RuntimeProfile)
+    WineRuntimeProfile RuntimeProfile,
+    RuntimeSelectionMode RuntimeMode = RuntimeSelectionMode.AutomaticManaged,
+    string SavedUsername = "",
+    bool RememberUsername = false)
 {
     public static LauncherProfile LocalDefault() => new(
         "",
+        "",
+        "http://127.0.0.1:8080/launcher",
+        "",
         ServerProfile.LocalDefault(),
-        WineRuntimeProfile.Custom("Manual Wine/CrossOver", "wine"));
+        LauncherPlatform.Current.RequiresCompatibilityRuntime
+            ? WineRuntimeProfile.WinePrefix(
+                "Echo Gate Managed",
+                RuntimeInstallStore.ManagedPrefixPath,
+                "wine")
+            : WineRuntimeProfile.NativeWindows(),
+        LauncherPlatform.Current.RequiresCompatibilityRuntime
+            ? RuntimeSelectionMode.AutomaticManaged
+            : RuntimeSelectionMode.CustomRuntime,
+        "",
+        false);
 }
