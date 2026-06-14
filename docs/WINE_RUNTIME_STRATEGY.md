@@ -225,7 +225,7 @@ Required profile fields:
 
 Managed Wine archives must be relocatable zip files with the Wine executable path recorded in `launcher_runtime_artifacts.executable_relative_path`.
 
-For local Ubuntu/Debian build machines, `tools/bootstrap-ubuntu-build.sh --with-wine` installs basic distro Wine and Winetricks packages. `tools/bootstrap-ubuntu-build.sh --with-client-runtime` also initializes Echo Gate's default prefix, sets Windows 7 mode, and installs `d3dx9_41`. Use `--wine-source winehq` to add WineHQ's Ubuntu package source and install WineHQ Stable instead of distro Wine.
+For local Ubuntu/Debian build machines, `tools/bootstrap-ubuntu-build.sh --yes` installs basic distro Wine and Winetricks packages, initializes Echo Gate's default prefix, sets Windows 7 mode, and installs `d3dx9_41`. Use `--wine-source winehq` to add WineHQ's Ubuntu package source and install WineHQ Stable instead of distro Wine. Use `--no-client-runtime` to install Wine packages without preparing the prefix, or `--no-wine` for server-only build machines.
 
 The 1.23b client depends on the legacy D3DX9 helper DLLs. For a manually managed Linux prefix, install them into the same prefix Echo Gate launches:
 

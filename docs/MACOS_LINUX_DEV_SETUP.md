@@ -22,35 +22,45 @@ Ubuntu/Debian contributors can use the bootstrap helper instead of installing ea
 ./tools/bootstrap-ubuntu-build.sh --yes
 ```
 
-The helper checks for existing tools first, installs only missing apt packages, runs the environment audit, builds the legacy Meteor server solution, copies runtime data, runs Echo Gate tests, and publishes the Linux launcher to:
+The helper checks for existing tools first, installs only missing apt packages, runs the environment audit, builds the legacy Meteor server solution, copies runtime data, runs Echo Gate tests, installs Wine/Winetricks, prepares the Echo Gate Wine prefix, and publishes the Linux launcher to:
 
 ```text
-build/echo-gate/linux-x64/publish
+build/echo-gate/linux-x64/
 ```
+
+Linux publish output includes:
+
+```text
+build/echo-gate/linux-x64/launch-echo-gate.sh
+build/echo-gate/linux-x64/Echo Gate.desktop
+build/echo-gate/linux-x64/publish/
+```
+
+Run the shell launcher directly, or open the `.desktop` shortcut from your file manager. There is no macOS-style `.app` bundle on Linux.
 
 Useful options:
 
 ```sh
 ./tools/bootstrap-ubuntu-build.sh --no-install
-./tools/bootstrap-ubuntu-build.sh --yes --with-wine
-./tools/bootstrap-ubuntu-build.sh --yes --with-client-runtime
-./tools/bootstrap-ubuntu-build.sh --yes --with-client-runtime --wine-source winehq
+./tools/bootstrap-ubuntu-build.sh --yes --wine-source winehq
+./tools/bootstrap-ubuntu-build.sh --yes --no-client-runtime
+./tools/bootstrap-ubuntu-build.sh --yes --no-wine
 ./tools/bootstrap-ubuntu-build.sh --yes --launcher-only
 ./tools/bootstrap-ubuntu-build.sh --yes --legacy-only
 ./tools/bootstrap-ubuntu-build.sh --yes --rid linux-arm64
 ```
 
-`--with-wine` installs basic distro Wine and Winetricks packages for local client testing. It does not replace Echo Gate runtime validation, and it does not install a project-owned Wine runtime archive.
+Wine and Winetricks are installed by default for local client testing. `--no-client-runtime` installs Wine packages but skips prefix preparation. `--no-wine` skips Wine/Winetricks package installation and prefix setup for server-only build machines. This does not replace Echo Gate runtime validation, and it does not install a project-owned Wine runtime archive.
 
 Some newer Ubuntu releases list `nuget` in package metadata but do not provide an install candidate. When that happens, the bootstrap helper downloads the official NuGet command-line executable into the ignored local `.tools/` folder and creates a `nuget` wrapper that runs through Mono.
 
-`--with-client-runtime` additionally prepares the default Echo Gate Wine prefix:
+By default the helper also prepares the Echo Gate Wine prefix:
 
 ```text
 ~/.local/share/Demi Dev Unit/Echo Gate/Prefixes/ffxiv-1x
 ```
 
-It enables 32-bit Wine package support, installs Wine and Winetricks, initializes the prefix, sets Windows 7 mode, installs `d3dx9_41`, and records the current Direct3D compatibility settings. Use `--wine-source winehq` when testing WineHQ Stable instead of Ubuntu's distro Wine packages, or `--client-prefix /path/to/prefix` when Echo Gate should use a custom prefix.
+It enables 32-bit Wine package support, initializes the prefix, sets Windows 7 mode, installs `d3dx9_41`, and records the current Direct3D compatibility settings. Use `--wine-source winehq` when testing WineHQ Stable instead of Ubuntu's distro Wine packages, or `--client-prefix /path/to/prefix` when Echo Gate should use a custom prefix.
 
 Run the environment audit:
 

@@ -13,8 +13,8 @@ BUILD_LEGACY=1
 BUILD_LAUNCHER=1
 PUBLISH_LAUNCHER=1
 RUN_SMOKE=0
-WITH_WINE=0
-PREPARE_CLIENT_RUNTIME=0
+WITH_WINE=1
+PREPARE_CLIENT_RUNTIME=1
 WINE_SOURCE="${WINE_SOURCE:-distro}"
 CLIENT_PREFIX="${WINEPREFIX:-$HOME/.local/share/Demi Dev Unit/Echo Gate/Prefixes/ffxiv-1x}"
 LAUNCHER_RID="${RUNTIME_IDENTIFIER:-linux-x64}"
@@ -34,8 +34,10 @@ Options:
   --no-publish          Run Echo Gate tests but do not publish the launcher.
   --rid RID             Launcher runtime id to publish. Default: linux-x64.
   --configuration NAME  Build configuration. Default: Release.
-  --with-wine           Also install basic Wine/client-test packages.
-  --with-client-runtime Install Wine/Winetricks and prepare the Echo Gate Wine prefix.
+  --with-wine           Install basic Wine/client-test packages. Default.
+  --no-wine             Skip Wine/Winetricks package installation and prefix setup.
+  --with-client-runtime Install Wine/Winetricks and prepare the Echo Gate Wine prefix. Default.
+  --no-client-runtime   Install Wine packages, but skip Echo Gate Wine prefix setup.
   --wine-source SOURCE  Wine package source: distro or winehq. Default: distro.
   --client-prefix PATH  Wine prefix to prepare. Default: ~/.local/share/Demi Dev Unit/Echo Gate/Prefixes/ffxiv-1x
   --smoke               Run smoke-local after building.
@@ -43,8 +45,8 @@ Options:
 
 Examples:
   ./tools/bootstrap-ubuntu-build.sh --yes
-  ./tools/bootstrap-ubuntu-build.sh --yes --with-wine
-  ./tools/bootstrap-ubuntu-build.sh --yes --with-client-runtime --wine-source winehq
+  ./tools/bootstrap-ubuntu-build.sh --yes --wine-source winehq
+  ./tools/bootstrap-ubuntu-build.sh --yes --no-wine
   ./tools/bootstrap-ubuntu-build.sh --no-install --launcher-only
 USAGE
 }
@@ -94,9 +96,16 @@ while [[ $# -gt 0 ]]; do
     --with-wine)
       WITH_WINE=1
       ;;
+    --no-wine)
+      WITH_WINE=0
+      PREPARE_CLIENT_RUNTIME=0
+      ;;
     --with-client-runtime)
       WITH_WINE=1
       PREPARE_CLIENT_RUNTIME=1
+      ;;
+    --no-client-runtime)
+      PREPARE_CLIENT_RUNTIME=0
       ;;
     --wine-source)
       [[ $# -ge 2 ]] || die "--wine-source requires a value"
@@ -487,7 +496,8 @@ build_legacy() {
 publish_echo_gate_linux() {
   local app_project="$ROOT_DIR/launcher/EchoGate/EchoGate.App/EchoGate.App.csproj"
   local helper_project="$ROOT_DIR/launcher/EchoGate/EchoGate.ClientLauncher/EchoGate.ClientLauncher.csproj"
-  local output="$ROOT_DIR/build/echo-gate/$LAUNCHER_RID/publish"
+  local bundle_dir="$ROOT_DIR/build/echo-gate/$LAUNCHER_RID"
+  local output="$bundle_dir/publish"
   local helper_rid
 
   log "Publishing Echo Gate for $LAUNCHER_RID..."
@@ -510,7 +520,57 @@ publish_echo_gate_linux() {
       /p:UseAppHost=true
   done
 
+  create_echo_gate_linux_launchers "$bundle_dir" "$output"
   log "Echo Gate publish output: $output"
+}
+
+create_echo_gate_linux_launchers() {
+  local bundle_dir="$1"
+  local output="$2"
+  local launcher_script="$bundle_dir/launch-echo-gate.sh"
+  local desktop_file="$bundle_dir/Echo Gate.desktop"
+  local icon_source="$ROOT_DIR/launcher/EchoGate/Image/icon.png"
+  local icon_dest="$bundle_dir/EchoGate.png"
+
+  if [[ ! -x "$output/EchoGate.App" && ! -f "$output/EchoGate.App.dll" ]]; then
+    die "Echo Gate publish output is missing EchoGate.App"
+  fi
+
+  cat > "$launcher_script" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_DIR="$SCRIPT_DIR/publish"
+
+if [[ -x "$APP_DIR/EchoGate.App" ]]; then
+  exec "$APP_DIR/EchoGate.App" "$@"
+fi
+
+exec dotnet "$APP_DIR/EchoGate.App.dll" "$@"
+EOF
+  chmod +x "$launcher_script"
+
+  if [[ -f "$icon_source" ]]; then
+    cp "$icon_source" "$icon_dest"
+  fi
+
+  {
+    printf '[Desktop Entry]\n'
+    printf 'Type=Application\n'
+    printf 'Name=Echo Gate\n'
+    printf 'Comment=FFXIV Classic Launcher\n'
+    printf 'Exec=%s\n' "$launcher_script"
+    if [[ -f "$icon_dest" ]]; then
+      printf 'Icon=%s\n' "$icon_dest"
+    fi
+    printf 'Terminal=false\n'
+    printf 'Categories=Game;\n'
+  } > "$desktop_file"
+  chmod +x "$desktop_file"
+
+  log "Echo Gate launcher script: $launcher_script"
+  log "Echo Gate desktop shortcut: $desktop_file"
 }
 
 build_launcher() {
