@@ -29,6 +29,7 @@ public static class RuntimeLaunchDiagnostics
         writer.WriteLine($"started_at={DateTimeOffset.Now:O}");
         writer.WriteLine($"file={startInfo.FileName}");
         writer.WriteLine($"arguments={startInfo.Arguments}");
+        WriteEnvironmentProbe(startInfo.Environment, writer);
         writer.Flush();
 
         Process process = new() { StartInfo = startInfo, EnableRaisingEvents = true };
@@ -83,5 +84,26 @@ public static class RuntimeLaunchDiagnostics
         }
 
         return new RuntimeLaunchResult(process.Id, outputPath);
+    }
+
+    private static void WriteEnvironmentProbe(IDictionary<string, string?> environment, TextWriter writer)
+    {
+        string[] keys =
+        {
+            "WINEPREFIX",
+            "WINE_D3D_CONFIG",
+            "WINEDEBUG",
+            "CX_BOTTLE",
+            "ECHO_GATE_SERVER_HOST",
+            "ECHO_GATE_LOBBY_PORT",
+            "ECHO_GATE_WORLD_PORT",
+            "ECHO_GATE_MAP_PORT"
+        };
+
+        foreach (string key in keys)
+        {
+            if (environment.TryGetValue(key, out string? value) && !string.IsNullOrWhiteSpace(value))
+                writer.WriteLine($"env.{key}={value}");
+        }
     }
 }

@@ -23,6 +23,7 @@ public sealed record RuntimeCandidate(
 
 public static class RuntimeDiscovery
 {
+    private const string HomebrewWineStableCommand = "/Applications/Wine Stable.app/Contents/Resources/wine/bin/wine";
     private const string DefaultWhiskyCommand = "/Applications/Whisky.app/Contents/Resources/WhiskyCmd";
 
     public static IReadOnlyList<RuntimeCandidate> Discover() =>
@@ -44,6 +45,15 @@ public static class RuntimeDiscovery
 
         string home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
         List<RuntimeCandidate> candidates = new();
+
+        AddIfFileExists(
+            candidates,
+            fileExists,
+            "Homebrew Wine Stable",
+            WineRuntimeKind.WinePrefix,
+            HomebrewWineStableCommand,
+            Path.Combine(home, ".wine"),
+            "Homebrew Wine Stable cask");
 
         AddIfFileExists(
             candidates,

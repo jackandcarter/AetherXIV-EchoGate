@@ -213,6 +213,21 @@ Kicks a quest-owned `noticeEvent`, calls a named client event on an active quest
 !questevent Man0u1 processEvent020
 ```
 
+```text
+!warpaeth <aetheryteId|alias>
+!warpaeth list
+```
+
+Teleports the current GM/player to a known aetheryte or aetherial gate destination from `Data/scripts/aetheryte.lua`. This is diagnostic movement only: it does not attune, unlock, progress quests, or create missing world objects. Numeric IDs are the canonical source; aliases are only convenience labels.
+
+Useful probes for the current Thanalan work:
+
+```text
+!warpaeth 1280032
+!warpaeth blackbrush
+!warpaeth uldah
+```
+
 ## Opening Tutorial Reset
 
 Use the reset helper to put a local character back at a known opening tutorial state. Dry-run is the default:

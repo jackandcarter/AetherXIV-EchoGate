@@ -36,7 +36,7 @@ macOS and Linux builds default to `Automatic Managed`.
 Runtime selection priority:
 
 1. active service-catalog managed Wine artifact
-2. detected free Wine or XIV on Mac Wine runtime
+2. detected Homebrew Wine Stable, free Wine, or XIV on Mac Wine runtime
 3. detected CrossOver or Whisky runtime
 4. custom runtime profile
 
@@ -66,6 +66,55 @@ Logs/
 ```
 
 ## macOS Runtime Options
+
+### Homebrew Wine Stable
+
+Preferred local macOS detection target when no service-catalog managed runtime is installed.
+
+Detected runtime tool:
+
+```text
+/Applications/Wine Stable.app/Contents/Resources/wine/bin/wine
+```
+
+Echo Gate checks the app-bundle command before generic Homebrew symlinks such as `/opt/homebrew/bin/wine` or `/usr/local/bin/wine`. The runtime still must pass Echo Gate's `win-x86` launch-helper probe before launch is enabled.
+
+Homebrew's cask state can drift from the app bundle on disk, so diagnostics should report the exact command path and `wine --version` output used for each launch.
+
+### D3D9 Renderer Probe
+
+Wine 11.0 on macOS can expose MoltenVK/Vulkan to WineD3D. The FFXIV 1.x client is a 32-bit Direct3D 9 process, and one observed Wine 11.0 crash failed inside the 32-bit `d3d9`/`wined3d` stack after the helper had successfully launched `ffxivgame.exe`.
+
+Wine's WineD3D loader reads Direct3D settings from `HKCU\Software\Wine\Direct3D`, `HKCU\Software\Wine\AppDefaults\<app.exe>\Direct3D`, and the `WINE_D3D_CONFIG` environment variable. `WINE_D3D_CONFIG` takes precedence over the registry. Echo Gate uses the Wine-supported value below for Wine-prefix launches unless a runtime profile explicitly overrides it:
+
+```text
+WINE_D3D_CONFIG=renderer=gl,csmt=0
+```
+
+The equivalent per-game registry probe is:
+
+```text
+HKCU\Software\Wine\AppDefaults\ffxivgame.exe\Direct3D
+renderer=gl
+csmt=0
+```
+
+`renderer=gl` keeps the 1.x DX9 client on Wine's OpenGL-backed WineD3D path while Vulkan/MoltenVK remains an explicit future test target. `csmt=0` disables WineD3D's command-stream worker for this client after an observed Wine 11.0 crash repeated through the `wined3d_cs` path after the Square Enix logo.
+
+This is a runtime compatibility setting, not a gameplay or server behavior change.
+
+### DirectInput Mouse Capture Probe
+
+Wine's DirectInput mouse path reads `MouseWarpOverride` from `HKCU\Software\Wine\AppDefaults\<app.exe>\DirectInput`. For FFXIV 1.x mouse-focus testing, apply any setting only to `ffxivgame.exe`:
+
+```text
+HKCU\Software\Wine\AppDefaults\ffxivgame.exe\DirectInput
+MouseWarpOverride=force
+```
+
+This is a runtime compatibility probe, not a gameplay or server behavior change. It is meant to test whether Wine's cursor clipping/warping path is dropping focus or letting macOS regain the cursor during client input.
+
+Observed Wine 11.0 result: `MouseWarpOverride=force` let the cursor move over the FFXIV 1.x title screen, but clicks and keyboard input did not land in the client. Leave this value unset by default. If a future focus test needs the opposite comparison, use `MouseWarpOverride=disable` for the same app key and remove it afterward.
 
 ### CrossOver
 
@@ -175,6 +224,23 @@ Required profile fields:
 - log path
 
 Managed Wine archives must be relocatable zip files with the Wine executable path recorded in `launcher_runtime_artifacts.executable_relative_path`.
+
+For local Ubuntu/Debian build machines, `tools/bootstrap-ubuntu-build.sh --with-wine` installs basic distro Wine and Winetricks packages. `tools/bootstrap-ubuntu-build.sh --with-client-runtime` also initializes Echo Gate's default prefix, sets Windows 7 mode, and installs `d3dx9_41`. Use `--wine-source winehq` to add WineHQ's Ubuntu package source and install WineHQ Stable instead of distro Wine.
+
+The 1.23b client depends on the legacy D3DX9 helper DLLs. For a manually managed Linux prefix, install them into the same prefix Echo Gate launches:
+
+```sh
+export WINEPREFIX=/path/to/ffxiv-prefix
+winetricks -q d3dx9_41
+```
+
+In a WoW64 prefix, the 32-bit helper DLL should normally live under:
+
+```text
+$WINEPREFIX/drive_c/windows/syswow64/d3dx9_41.dll
+```
+
+If the game only finds `d3dx9_41.dll` after copying it beside `ffxivgame.exe`, the DLL itself is probably valid, but the launch path is using a different prefix or DLL lookup context than the one that was prepared.
 
 ### Proton
 

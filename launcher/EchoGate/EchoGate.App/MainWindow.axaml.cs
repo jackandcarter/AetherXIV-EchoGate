@@ -21,6 +21,7 @@ public sealed partial class MainWindow : Window
     private IReadOnlyList<RuntimeCandidate> runtimeCandidates = Array.Empty<RuntimeCandidate>();
     private string? currentSessionId;
     private string? currentSessionUsername;
+    private bool launchInProgress;
     private bool isInitialized;
 
     public MainWindow()
@@ -170,7 +171,7 @@ public sealed partial class MainWindow : Window
                 ? $"Client: ready ({report.Version.GameVersion})"
                 : $"Client: {report.State}";
             HomeClientVersionStatus.Text = $"Version: {report.Version.DisplayText}";
-            PlayGameButton.IsEnabled = report.IsLaunchReady;
+            UpdateLaunchButtonState(report.IsLaunchReady);
             HomeLocateClientButton.IsVisible = false;
 
             AppendLog($"Client state: {report.State} ({report.Version.DisplayText})");
@@ -186,7 +187,7 @@ public sealed partial class MainWindow : Window
             StaticActorsStatus.Text = "Validation failed";
             HomeClientStatus.Text = "Client: validation failed";
             HomeClientVersionStatus.Text = "Version: validation failed";
-            PlayGameButton.IsEnabled = false;
+            UpdateLaunchButtonState(false);
             HomeLocateClientButton.IsVisible = true;
             AppendLog($"Client validation failed: {ex.Message}");
         }
@@ -352,7 +353,7 @@ public sealed partial class MainWindow : Window
                 ? $"Client: ready ({updatedReport.Version.GameVersion})"
                 : $"Client: {updatedReport.State}";
             HomeClientVersionStatus.Text = $"Version: {updatedReport.Version.DisplayText}";
-            PlayGameButton.IsEnabled = updatedReport.IsLaunchReady;
+            UpdateLaunchButtonState(updatedReport.IsLaunchReady);
             HomeLocateClientButton.IsVisible = false;
             SaveCurrentProfile();
         }
@@ -701,6 +702,10 @@ public sealed partial class MainWindow : Window
 
     private async void LaunchGame_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
+        if (launchInProgress)
+            return;
+
+        SetLaunchInProgress("Preparing...", "Preparing launch...");
         try
         {
             SaveCurrentProfile();
@@ -709,6 +714,7 @@ public sealed partial class MainWindow : Window
             if (!report.IsLaunchReady)
             {
                 AppendLog("Launch blocked: client is not ready.");
+                HomeLoginStatus.Text = "Client is not ready to launch.";
                 UpdateHomeState();
                 return;
             }
@@ -717,10 +723,12 @@ public sealed partial class MainWindow : Window
             WineRuntimeProfile runtimeProfile = ReadRuntimeProfile();
             Directory.CreateDirectory(Path.GetDirectoryName(RuntimeInstallStore.ServerProfilePath)!);
             ServerXmlWriter.Write(RuntimeInstallStore.ServerProfilePath, new[] { serverProfile });
+            SetLaunchInProgress("Signing in...", "Signing in...");
             string sessionId = await EnsureSessionAsync();
 
             if (platform.RequiresCompatibilityRuntime)
             {
+                SetLaunchInProgress("Checking runtime...", "Checking Wine runtime...");
                 ManagedRuntimeStatus.Text = "Validating runtime before launch...";
                 RuntimeValidationResult validation = await RuntimeValidator.ValidateAsync(
                     runtimeProfile,
@@ -732,11 +740,13 @@ public sealed partial class MainWindow : Window
                 {
                     ManagedRuntimeStatus.Text = validation.Message;
                     AppendLog("Launch blocked: runtime validation failed.");
+                    HomeLoginStatus.Text = "Runtime validation failed.";
                     return;
                 }
             }
 
-            string helperPath = ClientLaunchHelperLocator.FindRequired();
+            SetLaunchInProgress("Launching game...", "Launching game...");
+            string helperPath = ClientLaunchHelperLocator.FindLaunchHelperRequired();
             LaunchPlan plan = LaunchPlan.CreateWithHelper(
                 clientInstall,
                 serverProfile,
@@ -748,10 +758,17 @@ public sealed partial class MainWindow : Window
             RuntimeLaunchResult result = RuntimeLaunchDiagnostics.StartWithLogging(startInfo, plan.LogPath);
             AppendLog($"Launch started: pid {result.ProcessId}");
             AppendLog($"Launch log: {result.LogPath}");
+            HomeLoginStatus.Text = "Launch sent to Wine. Watch for the game window.";
+            HomeProgressBar.Value = 100;
         }
         catch (Exception ex)
         {
             AppendLog($"Launch failed: {ex.Message}");
+            HomeLoginStatus.Text = FormatLaunchFailure(ex.Message);
+        }
+        finally
+        {
+            ClearLaunchInProgress();
         }
     }
 
@@ -767,6 +784,65 @@ public sealed partial class MainWindow : Window
 
         profile.Validate();
         return profile;
+    }
+
+    private void SetLaunchInProgress(string buttonText, string statusText)
+    {
+        launchInProgress = true;
+        PlayGameButton.Content = buttonText;
+        PlayGameButton.IsEnabled = false;
+        HomeProgressBar.Value = 0;
+        HomeProgressBar.IsIndeterminate = true;
+        HomeLoginStatus.Text = statusText;
+    }
+
+    private void ClearLaunchInProgress()
+    {
+        launchInProgress = false;
+        HomeProgressBar.IsIndeterminate = false;
+        UpdateHomeState();
+    }
+
+    private void UpdateLaunchButtonState(bool? clientReady = null)
+    {
+        if (launchInProgress)
+        {
+            PlayGameButton.IsEnabled = false;
+            return;
+        }
+
+        PlayGameButton.Content = "Log In & Play";
+        PlayGameButton.IsEnabled = clientReady ?? IsSelectedClientLaunchReady();
+    }
+
+    private bool IsSelectedClientLaunchReady()
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(ClientPathBox.Text))
+                return false;
+
+            return ClientInstall.FromPath(ClientPathBox.Text).Inspect().IsLaunchReady;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static string FormatLaunchFailure(string message)
+    {
+        if (string.IsNullOrWhiteSpace(message))
+            return "Launch failed.";
+
+        if (message.Contains("username", StringComparison.OrdinalIgnoreCase)
+            || message.Contains("password", StringComparison.OrdinalIgnoreCase)
+            || message.Contains("Login", StringComparison.OrdinalIgnoreCase))
+        {
+            return $"Login failed: {message}";
+        }
+
+        return $"Launch failed: {message}";
     }
 
     private WineRuntimeProfile ReadRuntimeProfile()
@@ -1143,12 +1219,13 @@ public sealed partial class MainWindow : Window
         {
             HomeClientStatus.Text = "Client: not selected";
             HomeClientVersionStatus.Text = "Version: not checked";
-            PlayGameButton.IsEnabled = false;
+            UpdateLaunchButtonState(false);
             HomeLocateClientButton.IsVisible = true;
         }
         else
         {
             HomeLocateClientButton.IsVisible = false;
+            UpdateLaunchButtonState();
         }
 
     }

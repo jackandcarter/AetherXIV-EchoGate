@@ -92,34 +92,44 @@ public static class RuntimeValidator
                 logPath);
         }
 
-        (string winebootCommand, string winebootArguments) = ResolveWinebootCommand(profile.Command);
-        ProcessRunResult winebootResult = await RunAndLogAsync(
-            winebootCommand,
-            winebootArguments,
-            environment,
-            logPath,
-            TimeSpan.FromSeconds(90),
-            cancellationToken);
-        if (winebootResult.ExitCode != 0)
+        if (IsPrefixInitialized(normalizedPrefix))
         {
-            return new RuntimeValidationResult(
-                false,
-                $"Prefix setup failed with exit code {winebootResult.ExitCode}.",
-                version.Output.Trim(),
-                normalizedPrefix,
-                logPath);
+            await File.AppendAllTextAsync(
+                logPath,
+                $"prefix_already_initialized={normalizedPrefix}{Environment.NewLine}",
+                cancellationToken);
         }
-
-        string wineserver = ResolveSiblingTool(profile.Command, "wineserver");
-        if (File.Exists(wineserver) || CommandExistsOnPath(wineserver))
+        else
         {
-            await RunAndLogAsync(
-                wineserver,
-                "-w",
+            (string winebootCommand, string winebootArguments) = ResolveWinebootCommand(profile.Command);
+            ProcessRunResult winebootResult = await RunAndLogAsync(
+                winebootCommand,
+                winebootArguments,
                 environment,
                 logPath,
-                TimeSpan.FromSeconds(30),
+                TimeSpan.FromSeconds(90),
                 cancellationToken);
+            if (winebootResult.ExitCode != 0)
+            {
+                return new RuntimeValidationResult(
+                    false,
+                    $"Prefix setup failed with exit code {winebootResult.ExitCode}.",
+                    version.Output.Trim(),
+                    normalizedPrefix,
+                    logPath);
+            }
+
+            string wineserver = ResolveSiblingTool(profile.Command, "wineserver");
+            if (File.Exists(wineserver) || CommandExistsOnPath(wineserver))
+            {
+                await RunAndLogAsync(
+                    wineserver,
+                    "-w",
+                    environment,
+                    logPath,
+                    TimeSpan.FromSeconds(30),
+                    cancellationToken);
+            }
         }
 
         string? helperPath = ClientLaunchHelperLocator.Find();
@@ -230,6 +240,12 @@ public static class RuntimeValidator
             return ("wineboot", "-u");
 
         return (wineCommand, "wineboot -u");
+    }
+
+    private static bool IsPrefixInitialized(string prefixPath)
+    {
+        return File.Exists(Path.Combine(prefixPath, "system.reg"))
+            && File.Exists(Path.Combine(prefixPath, "user.reg"));
     }
 
     private static bool CommandExistsOnPath(string command)

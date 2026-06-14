@@ -51,23 +51,28 @@ cp -R "$PUBLISH_DIR"/. "$MACOS_DIR"/
 
 if [[ -f "$ICON_SOURCE" ]] && command -v iconutil >/dev/null 2>&1 && command -v sips >/dev/null 2>&1; then
   ICONSET_DIR="$BUILD_ROOT/EchoGate.iconset"
+  ICON_BASE="$BUILD_ROOT/EchoGate-icon-1024.png"
   rm -rf "$ICONSET_DIR"
   mkdir -p "$ICONSET_DIR"
-  sips -z 16 16 "$ICON_SOURCE" --out "$ICONSET_DIR/icon_16x16.png" >/dev/null
-  sips -z 32 32 "$ICON_SOURCE" --out "$ICONSET_DIR/icon_16x16@2x.png" >/dev/null
-  sips -z 32 32 "$ICON_SOURCE" --out "$ICONSET_DIR/icon_32x32.png" >/dev/null
-  sips -z 64 64 "$ICON_SOURCE" --out "$ICONSET_DIR/icon_32x32@2x.png" >/dev/null
-  sips -z 128 128 "$ICON_SOURCE" --out "$ICONSET_DIR/icon_128x128.png" >/dev/null
-  sips -z 256 256 "$ICON_SOURCE" --out "$ICONSET_DIR/icon_128x128@2x.png" >/dev/null
-  sips -z 256 256 "$ICON_SOURCE" --out "$ICONSET_DIR/icon_256x256.png" >/dev/null
-  sips -z 512 512 "$ICON_SOURCE" --out "$ICONSET_DIR/icon_256x256@2x.png" >/dev/null
-  sips -z 512 512 "$ICON_SOURCE" --out "$ICONSET_DIR/icon_512x512.png" >/dev/null
-  sips -z 1024 1024 "$ICON_SOURCE" --out "$ICONSET_DIR/icon_512x512@2x.png" >/dev/null
+  sips -z 1024 1024 "$ICON_SOURCE" --out "$ICON_BASE" >/dev/null
+  sips -z 16 16 "$ICON_BASE" --out "$ICONSET_DIR/icon_16x16.png" >/dev/null
+  sips -z 32 32 "$ICON_BASE" --out "$ICONSET_DIR/icon_16x16@2x.png" >/dev/null
+  sips -z 32 32 "$ICON_BASE" --out "$ICONSET_DIR/icon_32x32.png" >/dev/null
+  sips -z 64 64 "$ICON_BASE" --out "$ICONSET_DIR/icon_32x32@2x.png" >/dev/null
+  sips -z 128 128 "$ICON_BASE" --out "$ICONSET_DIR/icon_128x128.png" >/dev/null
+  sips -z 256 256 "$ICON_BASE" --out "$ICONSET_DIR/icon_128x128@2x.png" >/dev/null
+  sips -z 256 256 "$ICON_BASE" --out "$ICONSET_DIR/icon_256x256.png" >/dev/null
+  sips -z 512 512 "$ICON_BASE" --out "$ICONSET_DIR/icon_256x256@2x.png" >/dev/null
+  sips -z 512 512 "$ICON_BASE" --out "$ICONSET_DIR/icon_512x512.png" >/dev/null
+  sips -z 1024 1024 "$ICON_BASE" --out "$ICONSET_DIR/icon_512x512@2x.png" >/dev/null
   if ! iconutil -c icns "$ICONSET_DIR" -o "$ICON_FILE"; then
-    echo "Warning: iconutil rejected the generated iconset; continuing without a bundle icns." >&2
-    rm -f "$ICON_FILE"
+    echo "Warning: iconutil rejected the generated iconset; using sips icns fallback." >&2
+    if ! sips -s format icns "$ICON_BASE" --out "$ICON_FILE" >/dev/null; then
+      echo "Warning: sips rejected the generated icon; continuing without a bundle icns." >&2
+      rm -f "$ICON_FILE"
+    fi
   fi
-  rm -rf "$ICONSET_DIR"
+  rm -rf "$ICONSET_DIR" "$ICON_BASE"
 fi
 
 cat > "$CONTENTS_DIR/Info.plist" <<EOF

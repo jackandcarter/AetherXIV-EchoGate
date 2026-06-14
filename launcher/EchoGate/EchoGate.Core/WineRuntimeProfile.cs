@@ -24,6 +24,8 @@ public sealed record WineRuntimeProfile(
     string? PrefixPath,
     Dictionary<string, string> Environment)
 {
+    public const string DefaultDirect3DConfig = "renderer=gl,csmt=0";
+
     public static WineRuntimeProfile NativeWindows()
     {
         return new WineRuntimeProfile(
@@ -58,6 +60,7 @@ public sealed record WineRuntimeProfile(
         Dictionary<string, string> variables = environment is null
             ? new Dictionary<string, string>()
             : new Dictionary<string, string>(environment);
+        variables.TryAdd("WINE_D3D_CONFIG", DefaultDirect3DConfig);
         variables["WINEPREFIX"] = prefixPath;
 
         return new WineRuntimeProfile(name, WineRuntimeKind.WinePrefix, command, null, prefixPath, variables);

@@ -13,8 +13,42 @@ brew install mono nuget mariadb php
 Linux package names vary by distro. On Debian/Ubuntu-style systems, install equivalents for:
 
 ```sh
-mono-complete msbuild nuget mariadb-server mariadb-client php php-mysqli
+mono-complete msbuild nuget mariadb-server mariadb-client php-cli php-mysql
 ```
+
+Ubuntu/Debian contributors can use the bootstrap helper instead of installing each package manually:
+
+```sh
+./tools/bootstrap-ubuntu-build.sh --yes
+```
+
+The helper checks for existing tools first, installs only missing apt packages, runs the environment audit, builds the legacy Meteor server solution, copies runtime data, runs Echo Gate tests, and publishes the Linux launcher to:
+
+```text
+build/echo-gate/linux-x64/publish
+```
+
+Useful options:
+
+```sh
+./tools/bootstrap-ubuntu-build.sh --no-install
+./tools/bootstrap-ubuntu-build.sh --yes --with-wine
+./tools/bootstrap-ubuntu-build.sh --yes --with-client-runtime
+./tools/bootstrap-ubuntu-build.sh --yes --with-client-runtime --wine-source winehq
+./tools/bootstrap-ubuntu-build.sh --yes --launcher-only
+./tools/bootstrap-ubuntu-build.sh --yes --legacy-only
+./tools/bootstrap-ubuntu-build.sh --yes --rid linux-arm64
+```
+
+`--with-wine` installs basic distro Wine and Winetricks packages for local client testing. It does not replace Echo Gate runtime validation, and it does not install a project-owned Wine runtime archive.
+
+`--with-client-runtime` additionally prepares the default Echo Gate Wine prefix:
+
+```text
+~/.local/share/Demi Dev Unit/Echo Gate/Prefixes/ffxiv-1x
+```
+
+It enables 32-bit Wine package support, installs Wine and Winetricks, initializes the prefix, sets Windows 7 mode, installs `d3dx9_41`, and records the current Direct3D compatibility settings. Use `--wine-source winehq` when testing WineHQ Stable instead of Ubuntu's distro Wine packages, or `--client-prefix /path/to/prefix` when Echo Gate should use a custom prefix.
 
 Run the environment audit:
 
@@ -145,7 +179,8 @@ The server supports Apple Silicon development. The 1.23b game client is a legacy
 - Echo Gate defaults to `Automatic Managed` runtime mode on macOS and Linux.
 - Automatic mode uses `/launcher/runtime-catalog?platform=<rid>` to install a service-recommended free Wine archive when one is configured.
 - Echo Gate creates and reuses a managed prefix at `~/Library/Application Support/Demi Dev Unit/Echo Gate/Prefixes/ffxiv-1x/` on macOS.
-- Detected runtime mode can use Homebrew Wine, XIV on Mac's bundled Wine, Game Porting Toolkit Wine, CrossOver, or Whisky when available.
+- Detected runtime mode can use Homebrew Wine Stable, generic Homebrew Wine, XIV on Mac's bundled Wine, Game Porting Toolkit Wine, CrossOver, or Whisky when available.
+- On macOS, Homebrew Wine Stable is checked at `/Applications/Wine Stable.app/Contents/Resources/wine/bin/wine` before generic Homebrew symlinks. It must pass the `win-x86` launch-helper probe before launch is enabled.
 - Custom runtime mode allows explicit runtime commands and prefixes for advanced testing.
 - Use a Windows x86 environment on another machine or VM/emulator for client testing when Wine compatibility blocks a path.
 - Use client packet captures to update `CLIENT_REQUIREMENTS.md`.

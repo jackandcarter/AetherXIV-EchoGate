@@ -56,6 +56,7 @@ public sealed class EchoGateCoreTests
         Assert.Contains("ffxivboot.exe", plan.Arguments);
         Assert.Equal("127.0.0.1", plan.Environment["ECHO_GATE_SERVER_HOST"]);
         Assert.Equal("/tmp/echo-gate-prefix", plan.Environment["WINEPREFIX"]);
+        Assert.Equal(WineRuntimeProfile.DefaultDirect3DConfig, plan.Environment["WINE_D3D_CONFIG"]);
         Assert.False(string.IsNullOrWhiteSpace(plan.LogPath));
     }
 
@@ -84,6 +85,24 @@ public sealed class EchoGateCoreTests
     }
 
     [Fact]
+    public void ClientLaunchHelperLocatorUsesX86ForProbeAndX64ForLaunch()
+    {
+        string root = CreateTempDirectory();
+        string x86Directory = Path.Combine(root, "Helpers", "win-x86");
+        string x64Directory = Path.Combine(root, "Helpers", "win-x64");
+        Directory.CreateDirectory(x86Directory);
+        Directory.CreateDirectory(x64Directory);
+
+        string x86Helper = Path.Combine(x86Directory, "EchoGate.ClientLauncher.exe");
+        string x64Helper = Path.Combine(x64Directory, "EchoGate.ClientLauncher.exe");
+        File.WriteAllText(x86Helper, "");
+        File.WriteAllText(x64Helper, "");
+
+        Assert.Equal(x86Helper, ClientLaunchHelperLocator.Find(root));
+        Assert.Equal(x64Helper, ClientLaunchHelperLocator.FindLaunchHelper(root));
+    }
+
+    [Fact]
     public void LaunchPlanWithHelperCarriesSessionAndMappedGamePath()
     {
         string root = CreateTempDirectory();
@@ -107,6 +126,21 @@ public sealed class EchoGateCoreTests
         Assert.Contains("Z:", plan.Arguments);
         Assert.Contains("127.0.0.1", plan.Arguments);
         Assert.Equal("/tmp/echo-gate-prefix", plan.Environment["WINEPREFIX"]);
+        Assert.Equal(WineRuntimeProfile.DefaultDirect3DConfig, plan.Environment["WINE_D3D_CONFIG"]);
+    }
+
+    [Fact]
+    public void WinePrefixPreservesExplicitDirect3DConfig()
+    {
+        WineRuntimeProfile runtime = WineRuntimeProfile.WinePrefix(
+            "Wine",
+            "/tmp/echo-gate-prefix",
+            environment: new Dictionary<string, string>
+            {
+                ["WINE_D3D_CONFIG"] = "renderer=vulkan"
+            });
+
+        Assert.Equal("renderer=vulkan", runtime.Environment["WINE_D3D_CONFIG"]);
     }
 
     [Fact]
@@ -352,12 +386,18 @@ public sealed class EchoGateCoreTests
     public void RuntimeDiscoveryFindsKnownMacRuntimeTools()
     {
         IReadOnlyList<RuntimeCandidate> candidates = RuntimeDiscovery.Discover(
-            path => path.Contains("XIV on Mac", StringComparison.Ordinal)
+            path => path.Contains("Wine Stable.app", StringComparison.Ordinal)
+                || path.Contains("XIV on Mac", StringComparison.Ordinal)
                 || path.Contains("WhiskyCmd", StringComparison.Ordinal),
             _ => false,
             _ => new[] { "wow" });
 
+        Assert.Equal("Homebrew Wine Stable", candidates[0].Name);
         Assert.Contains(candidates, candidate => candidate.Name == "XIV on Mac Wine");
+        Assert.Contains(candidates, candidate =>
+            candidate.Name == "Homebrew Wine Stable"
+            && candidate.Kind == WineRuntimeKind.WinePrefix
+            && candidate.Command.Contains("Wine Stable.app", StringComparison.Ordinal));
         Assert.Contains(candidates, candidate =>
             candidate.Kind == WineRuntimeKind.WhiskyBottle
             && candidate.Name == "Whisky - wow"
@@ -639,6 +679,7 @@ public sealed class EchoGateCoreTests
         Assert.Equal("/managed/runtime/bin/wine", resolved.Command);
         Assert.Equal("/managed/prefix", resolved.Environment["WINEPREFIX"]);
         Assert.Equal("-all", resolved.Environment["WINEDEBUG"]);
+        Assert.Equal(WineRuntimeProfile.DefaultDirect3DConfig, resolved.Environment["WINE_D3D_CONFIG"]);
     }
 
     [Fact]
@@ -653,7 +694,7 @@ public sealed class EchoGateCoreTests
         await File.WriteAllTextAsync(
             fakeWine,
             $"""
-            #!/usr/bin/env sh
+            #!/bin/sh
             echo "$@" >> "{argsLog}"
             if [ "$1" = "--version" ]; then
               echo "wine-11.0"
@@ -677,12 +718,80 @@ public sealed class EchoGateCoreTests
         string prefix = Path.Combine(root, "prefix");
         WineRuntimeProfile profile = WineRuntimeProfile.WinePrefix("Fake Wine", prefix, fakeWine);
 
-        RuntimeValidationResult result = await RuntimeValidator.ValidateAsync(profile, prefix);
+        string? oldPath = Environment.GetEnvironmentVariable("PATH");
+        try
+        {
+            Environment.SetEnvironmentVariable("PATH", root);
+            RuntimeValidationResult result = await RuntimeValidator.ValidateAsync(profile, prefix);
 
-        Assert.True(result.IsReady);
-        string log = await File.ReadAllTextAsync(argsLog);
-        Assert.Contains("--version", log);
-        Assert.Contains("wineboot -u", log);
+            Assert.True(result.IsReady);
+            string log = await File.ReadAllTextAsync(argsLog);
+            Assert.Contains("--version", log);
+            Assert.Contains("wineboot -u", log);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("PATH", oldPath);
+        }
+    }
+
+    [Fact]
+    public async Task RuntimeValidatorSkipsWinebootForInitializedPrefix()
+    {
+        if (OperatingSystem.IsWindows())
+            return;
+
+        string root = CreateTempDirectory();
+        string fakeWine = Path.Combine(root, "wine");
+        string argsLog = Path.Combine(root, "args.log");
+        await File.WriteAllTextAsync(
+            fakeWine,
+            $"""
+            #!/bin/sh
+            echo "$@" >> "{argsLog}"
+            if [ "$1" = "--version" ]; then
+              echo "wine-11.0"
+              exit 0
+            fi
+            if [ "$1" = "wineboot" ]; then
+              exit 9
+            fi
+            exit 0
+            """);
+        File.SetUnixFileMode(
+            fakeWine,
+            UnixFileMode.UserRead
+                | UnixFileMode.UserWrite
+                | UnixFileMode.UserExecute
+                | UnixFileMode.GroupRead
+                | UnixFileMode.GroupExecute
+                | UnixFileMode.OtherRead
+                | UnixFileMode.OtherExecute);
+
+        string prefix = Path.Combine(root, "prefix");
+        Directory.CreateDirectory(prefix);
+        await File.WriteAllTextAsync(Path.Combine(prefix, "system.reg"), "system");
+        await File.WriteAllTextAsync(Path.Combine(prefix, "user.reg"), "user");
+        WineRuntimeProfile profile = WineRuntimeProfile.WinePrefix("Fake Wine", prefix, fakeWine);
+
+        string? oldPath = Environment.GetEnvironmentVariable("PATH");
+        try
+        {
+            Environment.SetEnvironmentVariable("PATH", root);
+            RuntimeValidationResult result = await RuntimeValidator.ValidateAsync(profile, prefix);
+
+            Assert.True(result.IsReady);
+            string log = await File.ReadAllTextAsync(argsLog);
+            Assert.Contains("--version", log);
+            Assert.DoesNotContain("wineboot", log);
+
+            string validationLog = await File.ReadAllTextAsync(result.LogPath);
+            Assert.Contains("prefix_already_initialized=", validationLog);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("PATH", oldPath);
+        }
     }
 
     private static string CreateTempDirectory()
