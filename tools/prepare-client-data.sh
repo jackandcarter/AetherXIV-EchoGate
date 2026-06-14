@@ -24,14 +24,34 @@ Client-derived files remain local and excluded from version control.
 EOF
 }
 
+normalize_input_path() {
+  local path="$1"
+  path="${path#"${path%%[![:space:]]*}"}"
+  path="${path%"${path##*[![:space:]]}"}"
+
+  if [[ "$path" == \"*\" && "$path" == *\" ]]; then
+    path="${path:1:${#path}-2}"
+  elif [[ "$path" == \'*\' && "$path" == *\' ]]; then
+    path="${path:1:${#path}-2}"
+  fi
+
+  if [[ "$path" == "~" ]]; then
+    path="$HOME"
+  elif [[ "$path" == "~/"* ]]; then
+    path="$HOME/${path#"~/"}"
+  fi
+
+  printf '%s' "$path"
+}
+
 while [[ "$#" -gt 0 ]]; do
   case "$1" in
     --client-dir)
-      CLIENT_DIR="${2:-}"
+      CLIENT_DIR="$(normalize_input_path "${2:-}")"
       shift 2
       ;;
     --output)
-      OUTPUT_PATH="${2:-}"
+      OUTPUT_PATH="$(normalize_input_path "${2:-}")"
       shift 2
       ;;
     --no-prompt)
@@ -44,7 +64,7 @@ while [[ "$#" -gt 0 ]]; do
       ;;
     *)
       if [[ -z "$CLIENT_DIR" ]]; then
-        CLIENT_DIR="$1"
+        CLIENT_DIR="$(normalize_input_path "$1")"
         shift
       else
         echo "unknown argument: $1" >&2
@@ -57,6 +77,7 @@ done
 
 add_candidate_dir() {
   local dir="$1"
+  dir="$(normalize_input_path "$dir")"
   [[ -n "$dir" ]] || return 0
   CLIENT_DIR_CANDIDATES+=("$dir")
 }
@@ -140,6 +161,10 @@ for profile_path in "${profile_candidates[@]}"; do
 done
 
 add_candidate_dir "$ROOT_DIR/launcher/EchoGate/Client"
+add_candidate_dir "$HOME/.wine/drive_c/Program Files (x86)/SquareEnix/FINAL FANTASY XIV"
+add_candidate_dir "$HOME/.wine/drive_c/Program Files/SquareEnix/FINAL FANTASY XIV"
+add_candidate_dir "$HOME/wine/drive_c/Program Files (x86)/SquareEnix/FINAL FANTASY XIV"
+add_candidate_dir "$HOME/wine/drive_c/Program Files/SquareEnix/FINAL FANTASY XIV"
 add_candidate_dir "$HOME/Desktop/FINAL FANTASY XIV"
 add_candidate_dir "$HOME/Desktop/FFXIV"
 add_candidate_dir "$HOME/FINAL FANTASY XIV"
@@ -156,6 +181,7 @@ done
 if [[ -z "$source_path" && "$PROMPT_CLIENT_DIR" == "1" && -t 0 && -t 1 ]]; then
   echo "Could not find static actor data automatically."
   read -r -p "Path to your FFXIV 1.x client folder: " prompted_client_dir
+  prompted_client_dir="$(normalize_input_path "$prompted_client_dir")"
   if [[ -n "$prompted_client_dir" ]]; then
     if source_path="$(find_staticactors_source "$prompted_client_dir")"; then
       source_client_dir="$prompted_client_dir"
