@@ -66,7 +66,10 @@ public static class RuntimeValidator
                 cancellationToken);
         }
 
-        string normalizedPrefix = Path.GetFullPath(prefixPath);
+        string selectedPrefix = profile.Kind == WineRuntimeKind.WinePrefix && !string.IsNullOrWhiteSpace(profile.PrefixPath)
+            ? profile.PrefixPath
+            : prefixPath;
+        string normalizedPrefix = Path.GetFullPath(selectedPrefix);
         Directory.CreateDirectory(normalizedPrefix);
 
         string logPath = RuntimeLaunchDiagnostics.CreateLogPath("runtime-validate");
@@ -156,7 +159,7 @@ public static class RuntimeValidator
 
         return new RuntimeValidationResult(
             true,
-            "Runtime, managed prefix, and 32-bit client helper are ready.",
+            "Runtime, Wine prefix, and 32-bit client helper are ready.",
             version.Output.Trim(),
             normalizedPrefix,
             logPath);

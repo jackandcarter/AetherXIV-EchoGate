@@ -420,6 +420,46 @@ public sealed class EchoGateCoreTests
     }
 
     [Fact]
+    public void RuntimeDiscoveryFindsCommonLinuxWinePrefixes()
+    {
+        string home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        string dotWine = Path.Combine(home, ".wine");
+        string homeWine = Path.Combine(home, "wine");
+
+        IReadOnlyList<RuntimeCandidate> candidates = RuntimeDiscovery.Discover(
+            _ => false,
+            path => string.Equals(path, dotWine, StringComparison.Ordinal)
+                || string.Equals(path, homeWine, StringComparison.Ordinal));
+
+        Assert.Contains(candidates, candidate =>
+            candidate.Name == "Default Wine prefix"
+            && candidate.Kind == WineRuntimeKind.WinePrefix
+            && candidate.BottleOrPrefix == dotWine);
+        Assert.Contains(candidates, candidate =>
+            candidate.Name == "Home wine prefix"
+            && candidate.Kind == WineRuntimeKind.WinePrefix
+            && candidate.BottleOrPrefix == homeWine);
+    }
+
+    [Fact]
+    public void RuntimeDiscoveryFindsCustomHomeWinePrefix()
+    {
+        string home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        string customPrefix = Path.Combine(home, ".wine_custom");
+
+        IReadOnlyList<RuntimeCandidate> candidates = RuntimeDiscovery.Discover(
+            _ => false,
+            path => string.Equals(path, customPrefix, StringComparison.Ordinal),
+            _ => Array.Empty<string>(),
+            _ => new[] { customPrefix });
+
+        Assert.Contains(candidates, candidate =>
+            candidate.Name == "Wine prefix .wine_custom"
+            && candidate.Kind == WineRuntimeKind.WinePrefix
+            && candidate.BottleOrPrefix == customPrefix);
+    }
+
+    [Fact]
     public void RuntimeDiscoveryParsesWhiskyBottleList()
     {
         string output = """
@@ -698,6 +738,41 @@ public sealed class EchoGateCoreTests
     }
 
     [Fact]
+    public void RuntimeProfileResolverKeepsDetectedWinePrefix()
+    {
+        RuntimeCandidate detected = new(
+            "Default Wine prefix",
+            WineRuntimeKind.WinePrefix,
+            "wine",
+            "/home/devunit/.wine",
+            "WINEPREFIX");
+        WineRuntimeProfile custom = WineRuntimeProfile.Custom("Custom", "/custom/wine");
+
+        WineRuntimeProfile resolved = RuntimeProfileResolver.Resolve(
+            RuntimeSelectionMode.DetectedRuntime,
+            null,
+            new[] { detected },
+            custom,
+            "/managed/prefix");
+
+        Assert.Equal("wine", resolved.Command);
+        Assert.Equal("/home/devunit/.wine", resolved.PrefixPath);
+        Assert.Equal("/home/devunit/.wine", resolved.Environment["WINEPREFIX"]);
+    }
+
+    [Fact]
+    public void RuntimeLaunchDiagnosticsRedactsSessionArgument()
+    {
+        string arguments = "wine-helper.exe --game ffxivgame.exe --session \"sessionId=secret-session\" --server-host 127.0.0.1";
+
+        string redacted = RuntimeLaunchDiagnostics.RedactSensitiveArguments(arguments);
+
+        Assert.DoesNotContain("secret-session", redacted);
+        Assert.Contains("--session <redacted>", redacted, StringComparison.Ordinal);
+        Assert.Contains("--server-host 127.0.0.1", redacted, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task RuntimeValidatorFallsBackToWineBuiltinWineboot()
     {
         if (OperatingSystem.IsWindows())
@@ -807,6 +882,48 @@ public sealed class EchoGateCoreTests
         {
             Environment.SetEnvironmentVariable("PATH", oldPath);
         }
+    }
+
+    [Fact]
+    public async Task RuntimeValidatorUsesProfileWinePrefixOverFallback()
+    {
+        if (OperatingSystem.IsWindows())
+            return;
+
+        string root = CreateTempDirectory();
+        string fakeWine = Path.Combine(root, "wine");
+        await File.WriteAllTextAsync(
+            fakeWine,
+            """
+            #!/bin/sh
+            if [ "$1" = "--version" ]; then
+              echo "wine-11.0"
+              exit 0
+            fi
+            exit 0
+            """);
+        File.SetUnixFileMode(
+            fakeWine,
+            UnixFileMode.UserRead
+                | UnixFileMode.UserWrite
+                | UnixFileMode.UserExecute
+                | UnixFileMode.GroupRead
+                | UnixFileMode.GroupExecute
+                | UnixFileMode.OtherRead
+                | UnixFileMode.OtherExecute);
+
+        string selectedPrefix = Path.Combine(root, ".wine_custom");
+        Directory.CreateDirectory(selectedPrefix);
+        await File.WriteAllTextAsync(Path.Combine(selectedPrefix, "system.reg"), "system");
+        await File.WriteAllTextAsync(Path.Combine(selectedPrefix, "user.reg"), "user");
+        string fallbackPrefix = Path.Combine(root, "managed-prefix");
+        WineRuntimeProfile profile = WineRuntimeProfile.WinePrefix("Custom Wine", selectedPrefix, fakeWine);
+
+        RuntimeValidationResult result = await RuntimeValidator.ValidateAsync(profile, fallbackPrefix);
+
+        Assert.True(result.IsReady);
+        Assert.Equal(selectedPrefix, result.PrefixPath);
+        Assert.False(Directory.Exists(fallbackPrefix));
     }
 
     private static string CreateTempDirectory()

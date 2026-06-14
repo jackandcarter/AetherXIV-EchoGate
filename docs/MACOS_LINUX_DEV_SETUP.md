@@ -38,6 +38,18 @@ build/echo-gate/linux-x64/publish/
 
 Run the shell launcher directly, or open the `.desktop` shortcut from your file manager. There is no macOS-style `.app` bundle on Linux.
 
+If the client is installed through Wine on Linux, the runtime mode normally should be `Detected Runtime` with the same prefix that owns the client install, usually one of:
+
+```text
+~/.wine
+~/wine
+~/.wine_<name>
+~/wine_<name>
+~/.local/share/wineprefixes/<name>
+```
+
+Using Echo Gate's managed prefix with a client installed in another Wine prefix can launch `ffxivgame.exe` and then immediately crash because the managed prefix does not contain the same registry, DirectX, or client-side Wine setup.
+
 Useful options:
 
 ```sh
@@ -233,6 +245,16 @@ For strict validation after `Data/staticactors.bin` is prepared:
 ```sh
 ./tools/smoke-local.sh
 ```
+
+## Launch Crash Logs
+
+If `Log In & Play` opens Wine Debugger or the game closes immediately, collect the newest Echo Gate logs:
+
+```sh
+./tools/collect-echo-gate-logs.sh
+```
+
+The script prints recent launch, runtime-validation, and helper logs with session values redacted. Check the Runtime tab in Echo Gate too: on Linux, select the detected prefix that contains the client, such as `~/.wine` or `~/wine`, then validate the runtime again before launching.
 
 ## Apple Silicon Client Notes
 

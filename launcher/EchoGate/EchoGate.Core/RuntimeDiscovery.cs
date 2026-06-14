@@ -27,11 +27,11 @@ public static class RuntimeDiscovery
     private const string DefaultWhiskyCommand = "/Applications/Whisky.app/Contents/Resources/WhiskyCmd";
 
     public static IReadOnlyList<RuntimeCandidate> Discover() =>
-        Discover(File.Exists, Directory.Exists, TryListWhiskyBottles);
+        Discover(File.Exists, Directory.Exists, TryListWhiskyBottles, TryListHomeWinePrefixes);
 
     public static IReadOnlyList<RuntimeCandidate> Discover(Func<string, bool> fileExists, Func<string, bool> directoryExists)
     {
-        return Discover(fileExists, directoryExists, _ => Array.Empty<string>());
+        return Discover(fileExists, directoryExists, _ => Array.Empty<string>(), _ => Array.Empty<string>());
     }
 
     public static IReadOnlyList<RuntimeCandidate> Discover(
@@ -39,9 +39,19 @@ public static class RuntimeDiscovery
         Func<string, bool> directoryExists,
         Func<string, IReadOnlyList<string>> whiskyBottleLister)
     {
+        return Discover(fileExists, directoryExists, whiskyBottleLister, _ => Array.Empty<string>());
+    }
+
+    public static IReadOnlyList<RuntimeCandidate> Discover(
+        Func<string, bool> fileExists,
+        Func<string, bool> directoryExists,
+        Func<string, IReadOnlyList<string>> whiskyBottleLister,
+        Func<string, IReadOnlyList<string>> homeWinePrefixLister)
+    {
         ArgumentNullException.ThrowIfNull(fileExists);
         ArgumentNullException.ThrowIfNull(directoryExists);
         ArgumentNullException.ThrowIfNull(whiskyBottleLister);
+        ArgumentNullException.ThrowIfNull(homeWinePrefixLister);
 
         string home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
         List<RuntimeCandidate> candidates = new();
@@ -106,18 +116,62 @@ public static class RuntimeDiscovery
             Path.Combine(home, ".wine"),
             "XIV on Mac bundled Wine");
 
-        string defaultPrefix = Path.Combine(home, ".wine");
-        if (directoryExists(defaultPrefix) && candidates.All(candidate => candidate.BottleOrPrefix != defaultPrefix))
+        AddWinePrefixIfDirectoryExists(
+            candidates,
+            directoryExists,
+            "Default Wine prefix",
+            "wine",
+            Path.Combine(home, ".wine"),
+            "WINEPREFIX");
+
+        AddWinePrefixIfDirectoryExists(
+            candidates,
+            directoryExists,
+            "Home wine prefix",
+            "wine",
+            Path.Combine(home, "wine"),
+            "WINEPREFIX");
+
+        foreach (string prefixPath in homeWinePrefixLister(home).OrderBy(path => path, StringComparer.Ordinal))
         {
-            candidates.Add(new RuntimeCandidate(
-                "Default Wine prefix",
-                WineRuntimeKind.WinePrefix,
+            string name = Path.GetFileName(prefixPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+            AddWinePrefixIfDirectoryExists(
+                candidates,
+                directoryExists,
+                string.IsNullOrWhiteSpace(name) ? "Custom Wine prefix" : $"Wine prefix {name}",
                 "wine",
-                defaultPrefix,
-                "WINEPREFIX"));
+                prefixPath,
+                "home Wine prefix");
         }
 
         return candidates;
+    }
+
+    private static void AddWinePrefixIfDirectoryExists(
+        List<RuntimeCandidate> candidates,
+        Func<string, bool> directoryExists,
+        string name,
+        string command,
+        string prefixPath,
+        string source)
+    {
+        if (!directoryExists(prefixPath))
+            return;
+
+        if (candidates.Any(candidate =>
+                candidate.Kind == WineRuntimeKind.WinePrefix
+                && string.Equals(candidate.Command, command, StringComparison.Ordinal)
+                && string.Equals(candidate.BottleOrPrefix, prefixPath, StringComparison.Ordinal)))
+        {
+            return;
+        }
+
+        candidates.Add(new RuntimeCandidate(
+            name,
+            WineRuntimeKind.WinePrefix,
+            command,
+            prefixPath,
+            source));
     }
 
     private static void AddIfFileExists(
@@ -232,6 +286,55 @@ public static class RuntimeDiscovery
         catch
         {
             return Array.Empty<string>();
+        }
+    }
+
+    private static IReadOnlyList<string> TryListHomeWinePrefixes(string home)
+    {
+        if (string.IsNullOrWhiteSpace(home))
+            return Array.Empty<string>();
+
+        List<string> candidates = new();
+        AddMatchingWinePrefixDirectories(candidates, home, ".wine*");
+        AddMatchingWinePrefixDirectories(candidates, home, "wine*");
+
+        string sharedPrefixRoot = Path.Combine(home, ".local", "share", "wineprefixes");
+        AddMatchingWinePrefixDirectories(candidates, sharedPrefixRoot, "*");
+
+        return candidates
+            .Where(IsLikelyWinePrefix)
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+    }
+
+    private static void AddMatchingWinePrefixDirectories(List<string> candidates, string root, string pattern)
+    {
+        try
+        {
+            if (!Directory.Exists(root))
+                return;
+
+            foreach (string directory in Directory.EnumerateDirectories(root, pattern, SearchOption.TopDirectoryOnly))
+                candidates.Add(directory);
+        }
+        catch
+        {
+            // Runtime discovery should never block the launcher because a folder cannot be read.
+        }
+    }
+
+    private static bool IsLikelyWinePrefix(string prefixPath)
+    {
+        try
+        {
+            return Directory.Exists(prefixPath)
+                && (Directory.Exists(Path.Combine(prefixPath, "drive_c"))
+                    || File.Exists(Path.Combine(prefixPath, "system.reg"))
+                    || File.Exists(Path.Combine(prefixPath, "user.reg")));
+        }
+        catch
+        {
+            return false;
         }
     }
 }

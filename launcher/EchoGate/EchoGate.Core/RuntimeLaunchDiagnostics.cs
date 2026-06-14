@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Text.RegularExpressions;
 
 namespace EchoGate.Core;
 
@@ -6,6 +7,10 @@ public sealed record RuntimeLaunchResult(int ProcessId, string LogPath);
 
 public static class RuntimeLaunchDiagnostics
 {
+    private static readonly Regex SensitiveArgumentRegex = new(
+        @"(--session(?:\s+|=))(?:""[^""]*""|'[^']*'|\S+)",
+        RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
     public static string CreateLogPath(string prefix = "launch", string? logsRoot = null)
     {
         string root = logsRoot ?? RuntimeInstallStore.LogsRoot;
@@ -28,7 +33,7 @@ public static class RuntimeLaunchDiagnostics
         StreamWriter writer = new(outputPath, append: false);
         writer.WriteLine($"started_at={DateTimeOffset.Now:O}");
         writer.WriteLine($"file={startInfo.FileName}");
-        writer.WriteLine($"arguments={startInfo.Arguments}");
+        writer.WriteLine($"arguments={RedactSensitiveArguments(startInfo.Arguments)}");
         WriteEnvironmentProbe(startInfo.Environment, writer);
         writer.Flush();
 
@@ -84,6 +89,14 @@ public static class RuntimeLaunchDiagnostics
         }
 
         return new RuntimeLaunchResult(process.Id, outputPath);
+    }
+
+    public static string RedactSensitiveArguments(string arguments)
+    {
+        if (string.IsNullOrWhiteSpace(arguments))
+            return arguments;
+
+        return SensitiveArgumentRegex.Replace(arguments, match => $"{match.Groups[1].Value}<redacted>");
     }
 
     private static void WriteEnvironmentProbe(IDictionary<string, string?> environment, TextWriter writer)

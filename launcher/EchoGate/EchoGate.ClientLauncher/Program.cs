@@ -34,9 +34,6 @@ internal static class Program
             File.AppendAllText(options.LogPath, $"working_directory={options.WorkingDirectory}{Environment.NewLine}");
             File.AppendAllText(options.LogPath, $"server_host={options.ServerHost}{Environment.NewLine}");
             File.AppendAllText(options.LogPath, $"observe_ms={options.ObservationTimeoutMilliseconds}{Environment.NewLine}");
-
-            // TEMP diagnostic logging. Remove or redact before public release.
-            File.AppendAllText(options.LogPath, $"session={options.SessionId}{Environment.NewLine}");
             File.AppendAllText(options.LogPath, $"session_length={options.SessionId.Length}{Environment.NewLine}");
 
             string lobbyHost = ResolveLobbyHost(options.ServerHost);
@@ -56,6 +53,17 @@ internal static class Program
 
             if (launchResult.ExitCode is not null)
                 File.AppendAllText(options.LogPath, $"exit_code={launchResult.ExitCode}{Environment.NewLine}");
+
+            if (launchResult.ExitedDuringObservation)
+            {
+                string message = launchResult.ExitCode is null
+                    ? "Game process exited during launch observation."
+                    : $"Game process exited during launch observation with exit code {launchResult.ExitCode}.";
+                File.AppendAllText(options.LogPath, $"launch_error=game_exited_during_observation{Environment.NewLine}");
+                File.AppendAllText(options.LogPath, $"helper_completed_at={DateTimeOffset.Now:O}{Environment.NewLine}");
+                Console.Error.WriteLine(message);
+                return 1;
+            }
 
             File.AppendAllText(options.LogPath, $"helper_completed_at={DateTimeOffset.Now:O}{Environment.NewLine}");
             return 0;

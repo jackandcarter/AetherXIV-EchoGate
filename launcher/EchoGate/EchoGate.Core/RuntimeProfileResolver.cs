@@ -28,7 +28,12 @@ public static class RuntimeProfileResolver
     public static WineRuntimeProfile CandidateToProfile(RuntimeCandidate candidate, string managedPrefixPath)
     {
         if (candidate.Kind == WineRuntimeKind.WinePrefix)
-            return WineRuntimeProfile.WinePrefix(candidate.Name, managedPrefixPath, candidate.Command);
+        {
+            string prefixPath = string.IsNullOrWhiteSpace(candidate.BottleOrPrefix)
+                ? managedPrefixPath
+                : candidate.BottleOrPrefix;
+            return WineRuntimeProfile.WinePrefix(candidate.Name, prefixPath, candidate.Command);
+        }
 
         if (candidate.Kind == WineRuntimeKind.WhiskyBottle
             && !string.IsNullOrWhiteSpace(candidate.BottleOrPrefix)
