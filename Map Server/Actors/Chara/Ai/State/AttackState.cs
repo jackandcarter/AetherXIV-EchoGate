@@ -40,6 +40,7 @@ namespace MeteorXIV.Core.Map.actors.chara.ai.state
             ChangeTarget(target);
             attackTime = startTime;
             owner.aiContainer.pathFind?.Clear();
+            TraceAutoAttack("start", "");
         }
 
         public override void OnStart()
@@ -68,6 +69,7 @@ namespace MeteorXIV.Core.Map.actors.chara.ai.state
                         // todo: check weapon delay/haste etc and use that
                         if (!interrupt)
                         {
+                            TraceAutoAttack("complete.ready", "");
                             OnComplete();
                         }
                         else
@@ -148,7 +150,12 @@ namespace MeteorXIV.Core.Map.actors.chara.ai.state
             if (owner.CanUse(target, attackCommand))
             {
                 attackCommand.targetFind.FindWithinArea(target, attackCommand.validTarget, attackCommand.aoeTarget);
+                TraceAutoAttack("command", String.Format("targets={0}", attackCommand.targetFind.GetTargets().Count));
                 owner.DoBattleCommand(attackCommand, "autoattack");
+            }
+            else
+            {
+                TraceAutoAttack("blocked", "owner.CanUse returned false");
             }
         }
 
@@ -164,6 +171,7 @@ namespace MeteorXIV.Core.Map.actors.chara.ai.state
                     statusId = list[0].GetStatusId();
                 }
                 interrupt = true;
+                TraceAutoAttack("interrupted", String.Format("status={0}", statusId));
                 return;
             }
 
@@ -180,16 +188,19 @@ namespace MeteorXIV.Core.Map.actors.chara.ai.state
         {
             if (!owner.isAutoAttackEnabled || target.allegiance == owner.allegiance)
             {
+                TraceAutoAttack("blocked", !owner.isAutoAttackEnabled ? "auto attack disabled" : "same allegiance");
                 return false;
             }
 
             if (target == null)
             {
+                TraceAutoAttack("blocked", "target missing");
                 return false;
             }
 
             if (!owner.IsFacing(target))
             {
+                TraceAutoAttack("blocked", "not facing target");
                 return false;
             }
             // todo: shouldnt need to check if owner is dead since all states would be cleared
@@ -199,10 +210,12 @@ namespace MeteorXIV.Core.Map.actors.chara.ai.state
                     ((BattleNpc)owner).hateContainer.ClearHate(target);
 
                 owner.aiContainer.ChangeTarget(null);
+                TraceAutoAttack("blocked", "dead actor");
                 return false;
             }
             else if (!owner.IsValidTarget(target, ValidTarget.Enemy) || !owner.aiContainer.GetTargetFind().CanTarget(target, false, true))
             {
+                TraceAutoAttack("blocked", "invalid target");
                 return false;
             }
             // todo: use a mod for melee range
@@ -213,9 +226,25 @@ namespace MeteorXIV.Core.Map.actors.chara.ai.state
                     //The target is too far away
                     ((Player)owner).SendGameMessage(Server.GetWorldManager().GetActor(), 32537, 0x20);
                 }
+                TraceAutoAttack("blocked", "out of range");
                 return false;
             }
             return true;
+        }
+
+        private void TraceAutoAttack(string state, string reason)
+        {
+            DevDiagnostics.Trace(
+                "battle.autoattack.state",
+                "state", state,
+                "reason", reason,
+                "owner", String.Format("0x{0:X}", owner.actorId),
+                "ownerName", owner.customDisplayName != null ? owner.customDisplayName : owner.actorName,
+                "target", target == null ? "0x0" : String.Format("0x{0:X}", target.actorId),
+                "targetName", target == null ? "" : (target.customDisplayName != null ? target.customDisplayName : target.actorName),
+                "distance", target == null ? 0 : Utils.Distance(owner.positionX, owner.positionY, owner.positionZ, target.positionX, target.positionY, target.positionZ),
+                "attackRange", owner.GetAttackRange(),
+                "autoAttackEnabled", owner.isAutoAttackEnabled);
         }
 
         public override void Cleanup()

@@ -11,6 +11,7 @@ function onEventStarted(player, npc)
 		callClientFunction(player, "delegateEvent", player, man0u1Quest, "processEventMomodiStart");
 		player:SendGameMessage(man0u1Quest, 329, 0x20);
 		player:SendGameMessage(man0u1Quest, 330, 0x20);
+		player:SetNpcLS(0, NPCLS_ALERT);
 	end
 
 	player:ReplaceQuest(110009, 110010);

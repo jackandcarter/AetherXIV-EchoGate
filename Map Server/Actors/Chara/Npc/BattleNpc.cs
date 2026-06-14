@@ -273,6 +273,18 @@ namespace MeteorXIV.Core.Map.Actors
 
         public override void Die(DateTime tick, CommandResultContainer actionContainer = null)
         {
+            DevDiagnostics.Trace(
+                "battle.death.request",
+                "actor", String.Format("0x{0:X}", actorId),
+                "actorName", customDisplayName != null ? customDisplayName : actorName,
+                "actorType", GetType().Name,
+                "hp", GetHP(),
+                "maxHp", GetMaxHP(),
+                "isAlive", IsAlive(),
+                "lastAttacker", lastAttacker == null ? "0x0" : String.Format("0x{0:X}", lastAttacker.actorId),
+                "lastAttackerName", lastAttacker == null ? "" : (lastAttacker.customDisplayName != null ? lastAttacker.customDisplayName : lastAttacker.actorName),
+                "hasActionContainer", actionContainer != null);
+
             if (IsAlive())
             {
                 // todo: does retail 
@@ -316,12 +328,38 @@ namespace MeteorXIV.Core.Map.Actors
                 //this.ResetMoveSpeeds();
                 // todo: reset cooldowns
 
+                DevDiagnostics.Trace(
+                    "battle.death",
+                    "actor", String.Format("0x{0:X}", actorId),
+                    "actorName", customDisplayName != null ? customDisplayName : actorName,
+                    "actorType", GetType().Name,
+                    "uniqueId", GetUniqueId(),
+                    "lastAttacker", lastAttacker == null ? "0x0" : String.Format("0x{0:X}", lastAttacker.actorId),
+                    "lastAttackerName", lastAttacker == null ? "" : (lastAttacker.customDisplayName != null ? lastAttacker.customDisplayName : lastAttacker.actorName),
+                    "despawnTime", despawnTime);
+                DevDiagnostics.Trace(
+                    "battle.mobkill.emit",
+                    "actor", String.Format("0x{0:X}", actorId),
+                    "actorName", customDisplayName != null ? customDisplayName : actorName,
+                    "uniqueId", GetUniqueId(),
+                    "lastAttacker", lastAttacker == null ? "0x0" : String.Format("0x{0:X}", lastAttacker.actorId),
+                    "lastAttackerName", lastAttacker == null ? "" : (lastAttacker.customDisplayName != null ? lastAttacker.customDisplayName : lastAttacker.actorName));
                 lua.LuaEngine.GetInstance().OnSignal("mobkill");
             }
             else
             {
                 var err = String.Format("[{0}][{1}] {2} {3} {4} {5} tried to die ded", actorId, GetUniqueId(), positionX, positionY, positionZ, GetZone().GetName());
                 Program.Log.Error(err);
+                DevDiagnostics.Trace(
+                    "battle.death.skipped",
+                    "reason", "not alive",
+                    "actor", String.Format("0x{0:X}", actorId),
+                    "actorName", customDisplayName != null ? customDisplayName : actorName,
+                    "actorType", GetType().Name,
+                    "hp", GetHP(),
+                    "maxHp", GetMaxHP(),
+                    "lastAttacker", lastAttacker == null ? "0x0" : String.Format("0x{0:X}", lastAttacker.actorId),
+                    "lastAttackerName", lastAttacker == null ? "" : (lastAttacker.customDisplayName != null ? lastAttacker.customDisplayName : lastAttacker.actorName));
                 //throw new Exception(err);
             }
         }

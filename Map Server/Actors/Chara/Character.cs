@@ -493,13 +493,21 @@ namespace MeteorXIV.Core.Map.Actors
 
         public virtual bool Engage(uint targid = 0, ushort newMainState = 0xFFFF)
         {
-            // todo: attack the things
-            /*if (newMainState != 0xFFFF)
+            if (newMainState != 0xFFFF)
             {
-                currentMainState = newMainState;// this.newMainState = newMainState;
-                updateFlags |= ActorUpdateFlags.State;
+                ChangeState(newMainState);
+                DevDiagnostics.Trace(
+                    "battle.engage.state",
+                    "actor", String.Format("0x{0:X}", actorId),
+                    "actorName", customDisplayName != null ? customDisplayName : actorName,
+                    "requestedTarget", String.Format("0x{0:X}", targid),
+                    "newMainState", String.Format("0x{0:X}", newMainState));
+
+                if (targid == 0)
+                    return true;
             }
-            else*/ if (aiContainer.CanChangeState())
+
+            if (aiContainer.CanChangeState())
             {
                 if (targid == 0)
                 {
@@ -508,10 +516,23 @@ namespace MeteorXIV.Core.Map.Actors
                     else if (currentLockedTarget != Actor.INVALID_ACTORID)
                         targid = currentLockedTarget;
                 }
-                //if (targid != 0)
+
+                var target = targid == 0 || zone == null ? null : zone.FindActorInArea<Character>(targid);
+                if (target == null)
                 {
-                    aiContainer.Engage(zone.FindActorInArea<Character>(targid));
+                    DevDiagnostics.Trace(
+                        "battle.engage.blocked",
+                        "reason", "target missing",
+                        "actor", String.Format("0x{0:X}", actorId),
+                        "actorName", customDisplayName != null ? customDisplayName : actorName,
+                        "requestedTarget", String.Format("0x{0:X}", targid),
+                        "currentTarget", String.Format("0x{0:X}", currentTarget),
+                        "currentLockedTarget", String.Format("0x{0:X}", currentLockedTarget));
+                    return false;
                 }
+
+                aiContainer.Engage(target);
+                return true;
             }
 
             return false;
@@ -570,6 +591,15 @@ namespace MeteorXIV.Core.Map.Actors
         public virtual void Die(DateTime tick, CommandResultContainer actionContainer = null)
         {
             // todo: actual despawn timer
+            DevDiagnostics.Trace(
+                "battle.death",
+                "actor", String.Format("0x{0:X}", actorId),
+                "actorName", customDisplayName != null ? customDisplayName : actorName,
+                "actorType", GetType().Name,
+                "hp", GetHP(),
+                "maxHp", GetMaxHP(),
+                "wasAlive", IsAlive(),
+                "despawnTime", 10);
             aiContainer.InternalDie(tick, 10);
             ChangeSpeed(0.0f, 0.0f, 0.0f, 0.0f);
         }
@@ -632,17 +662,32 @@ namespace MeteorXIV.Core.Map.Actors
 
         public void SetHP(uint hp)
         {
+            short before = charaWork.parameterSave.hp[0];
             charaWork.parameterSave.hp[0] = (short)hp;
             if (hp > charaWork.parameterSave.hpMax[0])
                 SetMaxHP(hp);
 
             updateFlags |= ActorUpdateFlags.HpTpMp;
+            DevDiagnostics.Trace(
+                "character.hp.set",
+                "actor", String.Format("0x{0:X}", actorId),
+                "actorName", customDisplayName != null ? customDisplayName : actorName,
+                "before", before,
+                "after", charaWork.parameterSave.hp[0],
+                "max", charaWork.parameterSave.hpMax[0]);
         }
 
         public void SetMaxHP(uint hp)
         {
+            short before = charaWork.parameterSave.hpMax[0];
             charaWork.parameterSave.hpMax[0] = (short)hp;
             updateFlags |= ActorUpdateFlags.HpTpMp;
+            DevDiagnostics.Trace(
+                "character.hp.max",
+                "actor", String.Format("0x{0:X}", actorId),
+                "actorName", customDisplayName != null ? customDisplayName : actorName,
+                "before", before,
+                "after", charaWork.parameterSave.hpMax[0]);
         }
 
         public void SetMP(uint mp)
@@ -666,6 +711,7 @@ namespace MeteorXIV.Core.Map.Actors
             // dont wanna die ded, don't want to send update if hp isn't actually changed
             if (IsAlive() && hp != 0)
             {
+                short before = charaWork.parameterSave.hp[0];
                 // todo: +/- hp and die
                 // todo: battlenpcs probably have way more hp?
                 var addHp = charaWork.parameterSave.hp[0] + hp;
@@ -675,7 +721,30 @@ namespace MeteorXIV.Core.Map.Actors
                 updateFlags |= ActorUpdateFlags.HpTpMp;
 
                 if (charaWork.parameterSave.hp[0] < 1)
+                {
+                    DevDiagnostics.Trace(
+                        "character.hp.deathCheck",
+                        "actor", String.Format("0x{0:X}", actorId),
+                        "actorName", customDisplayName != null ? customDisplayName : actorName,
+                        "actorType", GetType().Name,
+                        "before", before,
+                        "after", charaWork.parameterSave.hp[0],
+                        "max", charaWork.parameterSave.hpMax[0],
+                        "minimumHpLock", GetMod((uint)Modifier.MinimumHpLock),
+                        "aliveBeforeDie", IsAlive(),
+                        "hasActionContainer", resultContainer != null);
                     Die(Program.Tick, resultContainer);
+                }
+
+                DevDiagnostics.Trace(
+                    "character.hp.delta",
+                    "actor", String.Format("0x{0:X}", actorId),
+                    "actorName", customDisplayName != null ? customDisplayName : actorName,
+                    "delta", hp,
+                    "before", before,
+                    "after", charaWork.parameterSave.hp[0],
+                    "max", charaWork.parameterSave.hpMax[0],
+                    "alive", IsAlive());
             }
         }
 
@@ -705,12 +774,20 @@ namespace MeteorXIV.Core.Map.Actors
         {
             if (IsAlive() && tp != 0)
             {
+                short before = charaWork.parameterTemp.tp;
                 var addTp = charaWork.parameterTemp.tp + tp;
                 
                 addTp = addTp.Clamp((int) GetMod(Modifier.MinimumTpLock), 3000);
                 charaWork.parameterTemp.tp = (short) addTp;
                 tpBase = (ushort)charaWork.parameterTemp.tp;
                 updateFlags |= ActorUpdateFlags.HpTpMp;
+                DevDiagnostics.Trace(
+                    "character.tp.delta",
+                    "actor", String.Format("0x{0:X}", actorId),
+                    "actorName", customDisplayName != null ? customDisplayName : actorName,
+                    "delta", tp,
+                    "before", before,
+                    "after", charaWork.parameterTemp.tp);
 
                 if (tpBase >= 1000)
                     lua.LuaEngine.GetInstance().OnSignal("tpOver1000");
@@ -1121,6 +1198,18 @@ namespace MeteorXIV.Core.Map.Actors
 
             var targets = command.targetFind.GetTargets();
             bool hitTarget = false;
+            DevDiagnostics.Trace(
+                "battle.command.start",
+                "actor", String.Format("0x{0:X}", actorId),
+                "actorName", customDisplayName != null ? customDisplayName : actorName,
+                "commandId", command.id,
+                "commandName", command.name,
+                "commandType", command.commandType.ToString(),
+                "folder", folder,
+                "targets", targets.Count,
+                "mpCost", command.CalculateMpCost(this),
+                "tpCost", command.CalculateTpCost(this),
+                "numHits", command.numHits);
 
             if (targets.Count > 0)
             {
@@ -1136,6 +1225,20 @@ namespace MeteorXIV.Core.Map.Actors
                         
                         //uncached script
                         lua.LuaEngine.CallLuaBattleCommandFunction(this, command, folder, "onSkillFinish", this, chara, command, action, actions);
+                        DevDiagnostics.Trace(
+                            "battle.command.action",
+                            "actor", String.Format("0x{0:X}", actorId),
+                            "actorName", customDisplayName != null ? customDisplayName : actorName,
+                            "target", String.Format("0x{0:X}", chara.actorId),
+                            "targetName", chara.customDisplayName != null ? chara.customDisplayName : chara.actorName,
+                            "commandId", command.id,
+                            "commandName", command.name,
+                            "hitNum", hitNum,
+                            "amount", action.amount,
+                            "hitType", action.hitType.ToString(),
+                            "actionType", action.actionType.ToString(),
+                            "worldMasterTextId", action.worldMasterTextId,
+                            "effectId", String.Format("0x{0:X}", action.effectId));
                         //cached script
                         //skill.CallLuaFunction(owner, "onSkillFinish", this, chara, command, action, actions);
                         if (action.ActionLanded())
@@ -1159,6 +1262,12 @@ namespace MeteorXIV.Core.Map.Actors
             }
             else
             {
+                DevDiagnostics.Trace(
+                    "battle.command.noTargets",
+                    "actor", String.Format("0x{0:X}", actorId),
+                    "actorName", customDisplayName != null ? customDisplayName : actorName,
+                    "commandId", command.id,
+                    "commandName", command.name);
                 actions.AddAction(new CommandResult(actorId, 30202, 0));
             }
 
@@ -1177,6 +1286,14 @@ namespace MeteorXIV.Core.Map.Actors
 
 
             actions.CombineLists();
+            DevDiagnostics.Trace(
+                "battle.command.send",
+                "actor", String.Format("0x{0:X}", actorId),
+                "actorName", customDisplayName != null ? customDisplayName : actorName,
+                "commandId", command.id,
+                "commandName", command.name,
+                "results", actions.GetList().Count,
+                "hitTarget", hitTarget);
             DoBattleAction(command.id, command.battleAnimation, actions.GetList());
         }
 

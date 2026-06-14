@@ -261,6 +261,7 @@ namespace MeteorXIV.Core.Map.actors.chara.ai.utils
         {
             if (defender != null)
             {
+                short beforeHp = defender.GetHP();
 
                 //Bugfix, mobs that instantly died were insta disappearing due to lastAttacker == null.
                 if (defender is BattleNpc)
@@ -271,6 +272,21 @@ namespace MeteorXIV.Core.Map.actors.chara.ai.utils
                 }
 
                 defender.DelHP((short)action.amount, actionContainer);
+                DevDiagnostics.Trace(
+                    "battle.damage.apply",
+                    "attacker", String.Format("0x{0:X}", attacker.actorId),
+                    "attackerName", attacker.customDisplayName != null ? attacker.customDisplayName : attacker.actorName,
+                    "defender", String.Format("0x{0:X}", defender.actorId),
+                    "defenderName", defender.customDisplayName != null ? defender.customDisplayName : defender.actorName,
+                    "commandId", skill == null ? 0 : skill.id,
+                    "commandName", skill == null ? "" : skill.name,
+                    "amount", action.amount,
+                    "mitigated", action.amountMitigated,
+                    "hitType", action.hitType.ToString(),
+                    "beforeHp", beforeHp,
+                    "afterHp", defender.GetHP(),
+                    "maxHp", defender.GetMaxHP(),
+                    "defenderAlive", defender.IsAlive());
                 attacker.OnDamageDealt(defender, skill, action, actionContainer);
                 defender.OnDamageTaken(attacker, skill, action, actionContainer);
 
@@ -484,6 +500,20 @@ namespace MeteorXIV.Core.Map.actors.chara.ai.utils
                     actionContainer.AddAction(action);
                     break;
             }
+            DevDiagnostics.Trace(
+                "battle.action.finish",
+                "caster", String.Format("0x{0:X}", caster.actorId),
+                "casterName", caster.customDisplayName != null ? caster.customDisplayName : caster.actorName,
+                "target", target == null ? "0x0" : String.Format("0x{0:X}", target.actorId),
+                "targetName", target == null ? "" : (target.customDisplayName != null ? target.customDisplayName : target.actorName),
+                "commandId", skill == null ? 0 : skill.id,
+                "commandName", skill == null ? "" : skill.name,
+                "amount", action.amount,
+                "mitigated", action.amountMitigated,
+                "hitType", action.hitType.ToString(),
+                "actionType", action.actionType.ToString(),
+                "effectId", String.Format("0x{0:X}", action.effectId),
+                "worldMasterTextId", action.worldMasterTextId);
         }
 
         //Determine the hit type, set the hit effect, modify damage based on stoneskin and hit type, hit target

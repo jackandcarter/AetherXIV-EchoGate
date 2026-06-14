@@ -34,8 +34,11 @@ using MeteorXIV.Core.Map.packets.receive.supportdesk;
 using MeteorXIV.Core.Map.packets.receive.recruitment;
 using MeteorXIV.Core.Map.packets.send.recruitment;
 using MeteorXIV.Core.Map.packets.receive.events;
+using MeteorXIV.Core.Map.packets.send.events;
 using MeteorXIV.Core.Map.lua;
 using MeteorXIV.Core.Map.Actors;
+using MeteorXIV.Core.Map.actors.chara;
+using MeteorXIV.Core.Map.actors.chara.ai.state;
 using MeteorXIV.Core.Map.packets.WorldPackets.Send;
 using MeteorXIV.Core.Map.packets.WorldPackets.Receive;
 using MeteorXIV.Core.Map.actors.director;
@@ -167,25 +170,68 @@ namespace MeteorXIV.Core.Map
                     //Langauge Code (Client safe to send packets to now)
                     case 0x0006:
                         LangaugeCodePacket langCode = new LangaugeCodePacket(subpacket.data);
+                        ushort pendingSpawnType = session.GetActor().destinationSpawnType;
+                        ushort loginSpawnType = (ushort)0x1;
+                        DevDiagnostics.Trace(
+                            "client.login.ready",
+                            "session", session.id,
+                            "player", session.GetActor().customDisplayName,
+                            "languageCode", langCode.languageCode,
+                            "invalidPacket", langCode.invalidPacket,
+                            "zone", session.GetActor().zoneId,
+                            "privateArea", session.GetActor().privateArea ?? "",
+                            "privateAreaType", session.GetActor().privateAreaType,
+                            "destinationSpawnType", pendingSpawnType,
+                            "loginSpawnType", loginSpawnType);
                         LuaEngine.GetInstance().CallLuaFunction(session.GetActor(), session.GetActor(), "onBeginLogin", true);                    
-                        Server.GetWorldManager().DoZoneIn(session.GetActor(), true, 0x1);
+                        Server.GetWorldManager().DoZoneIn(session.GetActor(), true, loginSpawnType);
                         LuaEngine.GetInstance().CallLuaFunction(session.GetActor(), session.GetActor(), "onLogin", true);
                         session.languageCode = langCode.languageCode;
+                        DevDiagnostics.Trace(
+                            "client.login.ready.done",
+                            "session", session.id,
+                            "player", session.GetActor().customDisplayName,
+                            "zone", session.GetActor().zoneId,
+                            "privateArea", session.GetActor().privateArea ?? "",
+                            "privateAreaType", session.GetActor().privateAreaType);
                         break;
                     //Unknown - Happens a lot at login, then once every time player zones
                     case 0x0007:
                         //subpacket.DebugPrintSubPacket();
-                        ZoneInCompletePacket zoneInCompletePacket = new ZoneInCompletePacket(subpacket.data);                        
+                        ZoneInCompletePacket zoneInCompletePacket = new ZoneInCompletePacket(subpacket.data);
+                        DevDiagnostics.Trace(
+                            "client.zoneInComplete",
+                            "session", session.id,
+                            "player", session.GetActor().customDisplayName,
+                            "zone", session.GetActor().zoneId,
+                            "privateArea", session.GetActor().privateArea ?? "",
+                            "privateAreaType", session.GetActor().privateAreaType,
+                            "timestampRaw", zoneInCompletePacket.timestamp,
+                            "unknown", zoneInCompletePacket.unknown,
+                            "invalidPacket", zoneInCompletePacket.invalidPacket);
                         break;
                     //Update Position
                     case 0x00CA:
                         //Update Position
                         UpdatePlayerPositionPacket posUpdate = new UpdatePlayerPositionPacket(subpacket.data);
+                        DevDiagnostics.Trace(
+                            "client.position",
+                            "session", session.id,
+                            "player", session.GetActor().customDisplayName,
+                            "zone", session.GetActor().zoneId,
+                            "privateArea", session.GetActor().privateArea ?? "",
+                            "privateAreaType", session.GetActor().privateAreaType,
+                            "x", posUpdate.x,
+                            "y", posUpdate.y,
+                            "z", posUpdate.z,
+                            "rot", posUpdate.rot,
+                            "moveState", posUpdate.moveState,
+                            "isZoneChanging", session.GetActor().IsInZoneChange());
                         session.UpdatePlayerActorPosition(posUpdate.x, posUpdate.y, posUpdate.z, posUpdate.rot, posUpdate.moveState);
                         session.GetActor().SendInstanceUpdate();
 
                         if (session.GetActor().IsInZoneChange())
-                            session.GetActor().SetZoneChanging(false);
+                            session.GetActor().CompleteZoneChange();
 
                         break;
                     //Set Target 
@@ -194,8 +240,34 @@ namespace MeteorXIV.Core.Map
 
                         SetTargetPacket setTarget = new SetTargetPacket(subpacket.data);
                         ClientInteractionDiagnostics.TraceTarget(session, setTarget);
-                        session.GetActor().currentTarget = setTarget.actorID;
-                        session.GetActor().isAutoAttackEnabled = setTarget.attackTarget != 0xE0000000;
+                        var player = session.GetActor();
+                        var targetActor = player.zone == null ? null : player.zone.FindActorInArea<Character>(setTarget.actorID);
+                        bool autoAttackRequested = setTarget.attackTarget != 0xE0000000;
+                        player.currentTarget = setTarget.actorID;
+
+                        if (autoAttackRequested)
+                        {
+                            player.isAutoAttackEnabled = true;
+                            if (targetActor != null)
+                            {
+                                player.aiContainer.Engage(targetActor);
+                            }
+                            else
+                            {
+                                DevDiagnostics.Trace(
+                                    "battle.engage.blocked",
+                                    "reason", "target packet target missing",
+                                    "actor", String.Format("0x{0:X}", player.actorId),
+                                    "actorName", player.customDisplayName != null ? player.customDisplayName : player.actorName,
+                                    "requestedTarget", String.Format("0x{0:X}", setTarget.actorID),
+                                    "attackTarget", String.Format("0x{0:X}", setTarget.attackTarget));
+                            }
+                        }
+                        else if (player.aiContainer.IsCurrentState<AttackState>())
+                        {
+                            player.aiContainer.ChangeTarget(targetActor);
+                        }
+
                         session.GetActor().BroadcastPacket(SetActorTargetAnimatedPacket.BuildPacket(session.id, setTarget.actorID), true);
                         break;
                     //Lock Target
@@ -223,25 +295,30 @@ namespace MeteorXIV.Core.Map
                         */
 
                         Actor ownerActor = Server.GetStaticActors(eventStart.ownerActorID);
+                        var eventPlayer = session.GetActor();
                             
                         if (ownerActor == null)
                         {
                             //Is it your retainer?
-                            if (session.GetActor().currentSpawnedRetainer != null && session.GetActor().currentSpawnedRetainer.actorId == eventStart.ownerActorID)
-                                ownerActor = session.GetActor().currentSpawnedRetainer;
+                            if (eventPlayer.currentSpawnedRetainer != null && eventPlayer.currentSpawnedRetainer.actorId == eventStart.ownerActorID)
+                                ownerActor = eventPlayer.currentSpawnedRetainer;
                             //Is it a instance actor?
-                            if (ownerActor == null)
-                                ownerActor = session.GetActor().zone.FindActorInArea(eventStart.ownerActorID);
+                            if (ownerActor == null && eventPlayer.zone != null)
+                                ownerActor = eventPlayer.zone.FindActorInArea(eventStart.ownerActorID);
                             if (ownerActor == null)
                             {
                                 //Is it a Director?
-                                Director director = session.GetActor().GetDirector(eventStart.ownerActorID);
+                                Director director = eventPlayer.GetDirector(eventStart.ownerActorID);
                                 if (director != null)
                                     ownerActor = director;
                                 else
                                 {
-                                    Program.Log.Debug("\n===Event START===\nCould not find actor 0x{0:X} for event started by caller: 0x{1:X}\nEvent Starter: {2}\nParams: {3}", eventStart.triggerActorID, eventStart.ownerActorID, eventStart.eventName, LuaUtils.DumpParams(eventStart.luaParams));
+                                    Program.Log.Debug("\n===Event START===\nCould not find owner actor 0x{0:X} for event started by trigger: 0x{1:X}\nEvent Starter: {2}\nParams: {3}", eventStart.ownerActorID, eventStart.triggerActorID, eventStart.eventName, LuaUtils.DumpParams(eventStart.luaParams));
                                     ClientInteractionDiagnostics.TraceEventStartOwnerMissing(session, eventStart);
+                                    ClientInteractionDiagnostics.TraceEventStartOwnerMissingClosed(session, eventStart);
+                                    SubPacket endEvent = EndEventPacket.BuildPacket(eventPlayer.actorId, eventStart.ownerActorID, eventStart.eventName, eventStart.eventType);
+                                    endEvent.DebugPrintSubPacket();
+                                    eventPlayer.QueuePacket(endEvent);
                                     break;
                                 }
                             }                                    
@@ -289,7 +366,16 @@ namespace MeteorXIV.Core.Map
                     case 0x012F:
                         subpacket.DebugPrintSubPacket();
                         ParameterDataRequestPacket paramRequest = new ParameterDataRequestPacket(subpacket.data);
-                        if (paramRequest.paramName.Equals("charaWork/exp"))
+                        bool handledParameterRequest = !paramRequest.invalidPacket && paramRequest.paramName != null && paramRequest.paramName.Equals("charaWork/exp");
+                        DevDiagnostics.Trace(
+                            "client.parameter.request",
+                            "player", session.GetActor().customDisplayName,
+                            "actor", String.Format("0x{0:X}", session.GetActor().actorId),
+                            "requestedActor", String.Format("0x{0:X}", paramRequest.actorID),
+                            "paramName", paramRequest.paramName,
+                            "invalidPacket", paramRequest.invalidPacket,
+                            "handled", handledParameterRequest);
+                        if (handledParameterRequest)
                             session.GetActor().SendCharaExpInfo();
                         break;
                     //Item Package Request

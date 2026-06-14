@@ -589,7 +589,8 @@ namespace MeteorXIV.Core.Map.Actors
 
             QueuePacket(SetMapPacket.BuildPacket(actorId, zone.regionId, zone.actorId));
 
-            QueuePackets(GetSpawnPackets(this, spawnType));
+            List<SubPacket> selfSpawnPackets = GetSpawnPackets(this, spawnType);
+            QueuePackets(selfSpawnPackets);
 
             #region Inventory & Equipment
             QueuePacket(InventoryBeginChangePacket.BuildPacket(actorId, true));
@@ -613,15 +614,24 @@ namespace MeteorXIV.Core.Map.Actors
             playerSession.QueuePacket(debugSpawn);
             playerSession.QueuePacket(worldMasterSpawn);
 
+            int weatherDirectorPackets = 0;
             if (zone.GetWeatherDirector() != null)
             {
-                playerSession.QueuePacket(zone.GetWeatherDirector().GetSpawnPackets());
+                List<SubPacket> weatherDirectorSpawn = zone.GetWeatherDirector().GetSpawnPackets();
+                weatherDirectorPackets = weatherDirectorSpawn.Count;
+                playerSession.QueuePacket(weatherDirectorSpawn);
             }
 
+            int ownedDirectorSpawnPackets = 0;
+            int ownedDirectorInitPackets = 0;
             foreach (Director director in ownedDirectors)
             {
-                QueuePackets(director.GetSpawnPackets());
-                QueuePackets(director.GetInitPackets());
+                List<SubPacket> directorSpawnPackets = director.GetSpawnPackets();
+                List<SubPacket> directorInitPackets = director.GetInitPackets();
+                ownedDirectorSpawnPackets += directorSpawnPackets.Count;
+                ownedDirectorInitPackets += directorInitPackets.Count;
+                QueuePackets(directorSpawnPackets);
+                QueuePackets(directorInitPackets);
             }
 
             if (currentContentGroup != null)
@@ -629,6 +639,26 @@ namespace MeteorXIV.Core.Map.Actors
 
             if (currentParty != null)
                 currentParty.SendGroupPackets(playerSession);
+
+            DevDiagnostics.Trace(
+                "zone.in.packets",
+                "player", customDisplayName,
+                "zone", zoneId,
+                "zoneActor", zone == null ? "0x0" : String.Format("0x{0:X}", zone.actorId),
+                "areaKind", zone == null ? "" : zone.GetType().Name,
+                "privateArea", privateArea ?? "",
+                "privateAreaType", privateAreaType,
+                "spawnType", spawnType,
+                "selfSpawnPackets", selfSpawnPackets.Count,
+                "areaMasterPackets", areaMasterSpawn.Count,
+                "debugPackets", debugSpawn.Count,
+                "worldPackets", worldMasterSpawn.Count,
+                "weatherDirectorPackets", weatherDirectorPackets,
+                "ownedDirectorCount", ownedDirectors.Count,
+                "ownedDirectorSpawnPackets", ownedDirectorSpawnPackets,
+                "ownedDirectorInitPackets", ownedDirectorInitPackets,
+                "hasContentGroup", currentContentGroup != null,
+                "hasParty", currentParty != null);
 
             SendInstanceUpdate();
         }
@@ -767,16 +797,54 @@ namespace MeteorXIV.Core.Map.Actors
             //Remove actor from zone and main server list
             zone.RemoveActorFromZone(this);
 
-            //Set Destination to 0
-            this.destinationZone = 0;
-            this.destinationSpawnType = 0;
+            // Keep pending zone-in state if the client disconnected before confirming position.
+            bool preservePendingZoneChange = IsInZoneChange() && (this.destinationZone != 0 || this.destinationSpawnType != 0);
+            if (preservePendingZoneChange)
+            {
+                DevDiagnostics.Trace(
+                    "zone.change.disconnect.pending",
+                    "player", customDisplayName,
+                    "zone", zoneId,
+                    "privateArea", privateArea ?? "",
+                    "privateAreaType", privateAreaType,
+                    "destinationZone", destinationZone,
+                    "spawnType", destinationSpawnType,
+                    "x", positionX,
+                    "y", positionY,
+                    "z", positionZ,
+                    "rot", rotation);
+            }
+            else
+            {
+                //Set Destination to 0
+                this.destinationZone = 0;
+                this.destinationSpawnType = 0;
+            }
 
             //Clean up parties
             RemoveFromCurrentPartyAndCleanup();
 
             //Save Player
             Database.SavePlayerPlayTime(this);
-            Database.SavePlayerPosition(this);
+            if (preservePendingZoneChange)
+            {
+                DevDiagnostics.Trace(
+                    "zone.change.disconnect.positionSaveSkipped",
+                    "player", customDisplayName,
+                    "zone", zoneId,
+                    "privateArea", privateArea ?? "",
+                    "privateAreaType", privateAreaType,
+                    "destinationZone", destinationZone,
+                    "spawnType", destinationSpawnType,
+                    "x", positionX,
+                    "y", positionY,
+                    "z", positionZ,
+                    "rot", rotation);
+            }
+            else
+            {
+                Database.SavePlayerPosition(this);
+            }
             Database.SavePlayerStatusEffects(this);
         }
 
@@ -921,6 +989,8 @@ namespace MeteorXIV.Core.Map.Actors
 
         public void SendGameMessage(Actor sourceActor, Actor textIdOwner, ushort textId, byte log, params object[] msgParams)
         {
+            TraceGameMessage("source", sourceActor, textIdOwner, textId, log, "", 0, false, msgParams);
+
             if (msgParams == null || msgParams.Length == 0)
             {
                 QueuePacket(GameMessagePacket.BuildPacket(Server.GetWorldManager().GetActor().actorId, sourceActor.actorId, textIdOwner.actorId, textId, log));
@@ -931,6 +1001,8 @@ namespace MeteorXIV.Core.Map.Actors
 
         public void SendGameMessage(Actor textIdOwner, ushort textId, byte log, params object[] msgParams)
         {
+            TraceGameMessage("default", null, textIdOwner, textId, log, "", 0, false, msgParams);
+
             if (msgParams == null || msgParams.Length == 0)
                 QueuePacket(GameMessagePacket.BuildPacket(Server.GetWorldManager().GetActor().actorId, textIdOwner.actorId, textId, log));
             else
@@ -939,6 +1011,8 @@ namespace MeteorXIV.Core.Map.Actors
 
         public void SendGameMessageCustomSender(Actor textIdOwner, ushort textId, byte log, string customSender, params object[] msgParams)
         {
+            TraceGameMessage("customSender", null, textIdOwner, textId, log, customSender, 0, false, msgParams);
+
             if (msgParams == null || msgParams.Length == 0)
                 QueuePacket(GameMessagePacket.BuildPacket(Server.GetWorldManager().GetActor().actorId, textIdOwner.actorId, textId, customSender, log));
             else
@@ -947,10 +1021,54 @@ namespace MeteorXIV.Core.Map.Actors
 
         public void SendGameMessageDisplayIDSender(Actor textIdOwner, ushort textId, byte log, uint displayId, params object[] msgParams)
         {
+            TraceGameMessage("displayIdSender", null, textIdOwner, textId, log, "", displayId, true, msgParams);
+
             if (msgParams == null || msgParams.Length == 0)
                 QueuePacket(GameMessagePacket.BuildPacket(Server.GetWorldManager().GetActor().actorId, textIdOwner.actorId, textId, displayId, log));
             else
                 QueuePacket(GameMessagePacket.BuildPacket(Server.GetWorldManager().GetActor().actorId, textIdOwner.actorId, textId, displayId, log, LuaUtils.CreateLuaParamList(msgParams)));
+        }
+
+        private static string FormatTraceActorId(Actor actor)
+        {
+            return actor == null ? "0x0" : String.Format("0x{0:X}", actor.actorId);
+        }
+
+        private static string FormatTraceActorName(Actor actor)
+        {
+            return actor == null ? "" : actor.actorName;
+        }
+
+        private static string FormatTraceMessageParams(object[] msgParams)
+        {
+            if (msgParams == null || msgParams.Length == 0)
+                return "";
+
+            string[] parts = new string[msgParams.Length];
+            for (int i = 0; i < msgParams.Length; i++)
+                parts[i] = msgParams[i] == null ? "nil" : msgParams[i].ToString();
+
+            return String.Join(", ", parts);
+        }
+
+        private void TraceGameMessage(string mode, Actor sourceActor, Actor textIdOwner, ushort textId, byte log, string customSender, uint displayId, bool hasDisplayId, object[] msgParams)
+        {
+            if (!DevDiagnostics.Enabled)
+                return;
+
+            DevDiagnostics.Trace(
+                "game.message",
+                "player", customDisplayName,
+                "mode", mode,
+                "source", FormatTraceActorId(sourceActor),
+                "sourceName", FormatTraceActorName(sourceActor),
+                "textOwner", FormatTraceActorId(textIdOwner),
+                "textOwnerName", FormatTraceActorName(textIdOwner),
+                "textId", textId,
+                "log", log,
+                "customSender", customSender ?? "",
+                "displayId", hasDisplayId ? displayId.ToString() : "",
+                "params", FormatTraceMessageParams(msgParams));
         }
 
         public void BroadcastWorldMessage(ushort worldMasterId, params object[] msgParams)
@@ -1313,6 +1431,52 @@ namespace MeteorXIV.Core.Map.Actors
             return isZoneChanging;
         }
 
+        public void MarkZoneChangePending(ushort spawnType)
+        {
+            destinationZone = 0;
+            destinationSpawnType = spawnType;
+            SetZoneChanging(true);
+
+            DevDiagnostics.Trace(
+                "zone.change.pending",
+                "player", customDisplayName,
+                "zone", zoneId,
+                "privateArea", privateArea ?? "",
+                "privateAreaType", privateAreaType,
+                "spawnType", spawnType,
+                "x", positionX,
+                "y", positionY,
+                "z", positionZ,
+                "rot", rotation);
+
+            Database.SavePlayerPosition(this);
+        }
+
+        public void CompleteZoneChange()
+        {
+            uint completedDestinationZone = destinationZone;
+            ushort completedSpawnType = destinationSpawnType;
+
+            destinationZone = 0;
+            destinationSpawnType = 0;
+            SetZoneChanging(false);
+
+            DevDiagnostics.Trace(
+                "zone.change.complete",
+                "player", customDisplayName,
+                "zone", zoneId,
+                "privateArea", privateArea ?? "",
+                "privateAreaType", privateAreaType,
+                "destinationZone", completedDestinationZone,
+                "spawnType", completedSpawnType,
+                "x", positionX,
+                "y", positionY,
+                "z", positionZ,
+                "rot", rotation);
+
+            Database.SavePlayerPosition(this);
+        }
+
         public ReferencedItemPackage GetEquipment()
         {
             return equipment;
@@ -1653,21 +1817,30 @@ namespace MeteorXIV.Core.Map.Actors
                 case NPCLS_INACTIVE:
 
                     if (playerWork.npcLinkshellChatExtra[npcLSId] == true && playerWork.npcLinkshellChatCalling[npcLSId] == false)
+                    {
+                        TraceNpcLinkshellState(npcLSId, state, playerWork.npcLinkshellChatCalling[npcLSId], playerWork.npcLinkshellChatExtra[npcLSId], true);
                         return;
+                    }
 
                     isExtra = true;
                     break;
                 case NPCLS_ACTIVE:
 
                     if (playerWork.npcLinkshellChatExtra[npcLSId] == false && playerWork.npcLinkshellChatCalling[npcLSId] == true)
+                    {
+                        TraceNpcLinkshellState(npcLSId, state, playerWork.npcLinkshellChatCalling[npcLSId], playerWork.npcLinkshellChatExtra[npcLSId], true);
                         return;
+                    }
 
                     isCalling = true;
                     break;
                 case NPCLS_ALERT:
 
                     if (playerWork.npcLinkshellChatExtra[npcLSId] == true && playerWork.npcLinkshellChatCalling[npcLSId] == true)
+                    {
+                        TraceNpcLinkshellState(npcLSId, state, playerWork.npcLinkshellChatCalling[npcLSId], playerWork.npcLinkshellChatExtra[npcLSId], true);
                         return;
+                    }
 
                     isExtra = isCalling = true;
                     break;
@@ -1678,10 +1851,27 @@ namespace MeteorXIV.Core.Map.Actors
 
             Database.SaveNpcLS(this, npcLSId, isCalling, isExtra);
 
+            TraceNpcLinkshellState(npcLSId, state, isCalling, isExtra, false);
+
             ActorPropertyPacketUtil propPacketUtil = new ActorPropertyPacketUtil("playerWork/npcLinkshellChat", this);
             propPacketUtil.AddProperty(String.Format("playerWork.npcLinkshellChatExtra[{0}]", npcLSId));
             propPacketUtil.AddProperty(String.Format("playerWork.npcLinkshellChatCalling[{0}]", npcLSId));
             QueuePackets(propPacketUtil.Done());
+        }
+
+        private void TraceNpcLinkshellState(uint npcLSId, uint state, bool isCalling, bool isExtra, bool unchanged)
+        {
+            if (!DevDiagnostics.Enabled)
+                return;
+
+            DevDiagnostics.Trace(
+                "npcLinkshell.state",
+                "player", customDisplayName,
+                "npcLsId", npcLSId,
+                "state", state,
+                "isCalling", isCalling,
+                "isExtra", isExtra,
+                "unchanged", unchanged);
         }
 
         private void SendQuestClientUpdate(int slot)
@@ -1945,7 +2135,26 @@ namespace MeteorXIV.Core.Map.Actors
                 aroundMe.AddRange(zone.GetActorsAroundActor(this, 50));
             if (zone2 != null)
                 aroundMe.AddRange(zone2.GetActorsAroundActor(this, 50));
+
+            DevDiagnostics.Trace(
+                "session.instance.update",
+                "player", customDisplayName,
+                "force", force,
+                "updatesLocked", playerSession.isUpdatesLocked,
+                "zone", zoneId,
+                "zoneActor", zone == null ? "0x0" : String.Format("0x{0:X}", zone.actorId),
+                "areaKind", zone == null ? "" : zone.GetType().Name,
+                "privateArea", privateArea ?? "",
+                "privateAreaType", privateAreaType,
+                "zoneActorCount", zone == null ? 0 : zone.GetActorCount(),
+                "nearbyActorCount", aroundMe.Count,
+                "instanceActorCountBefore", playerSession.actorInstanceList.Count);
             playerSession.UpdateInstance(aroundMe, force);
+            DevDiagnostics.Trace(
+                "session.instance.update.done",
+                "player", customDisplayName,
+                "force", force,
+                "instanceActorCountAfter", playerSession.actorInstanceList.Count);
         }
 
         public bool IsInParty()

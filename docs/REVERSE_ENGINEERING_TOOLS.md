@@ -41,6 +41,21 @@ Current trace categories:
 - `client.target`: target selection request from the client, including resolved actor name when known.
 - `client.lockTarget`: target lock request from the client, including resolved actor name when known.
 - `client.stateMessage`: provisional decode for map opcode `0x00CE`, including tutorial/state tokens such as `MAN0U000` or `man0u005` when present.
+- `client.login.ready`: map opcode `0x0006`; the client says it is ready for login/zone-in packets.
+- `client.login.ready.done`: server-side login/zone-in setup finished after the client ready packet.
+- `client.zoneInComplete`: map opcode `0x0007`; the client reports that zone loading completed.
+- `client.position`: player position update from the client, useful as the first sign that the load screen released.
+- `zone.in.begin`: server begins login/session zone-in resolution for the player.
+- `zone.in.area`: resolved area/private-area selected for the zone-in.
+- `zone.in.packets`: counts for the zone-in packet bundle assembled for the client.
+- `zone.in.end`: server completed zone-in packet assembly and instance update.
+- `zone.in.blocked`: server could not resolve the requested zone/private-area.
+- `session.instance.update`: nearby actors considered for client instancing.
+- `session.instance.update.done`: actor instance list size after an update.
+- `zone.change.request`: script/server requested a zone or private-area transition.
+- `zone.change.handoff`: requested destination is not hosted by the current map route.
+- `zone.change.local.end`: local zone/private-area transition finished.
+- `zone.change.content.begin` / `zone.change.content.end`: transition into a content private area.
 - `actor.questGraphic`: quest marker/icon updates sent for individual actors.
 - `event.condition`: event condition definition sent to the client for talk, notice, emote, push-circle, push-fan, and push-box triggers.
 - `event.condition.status`: enabled/disabled status sent to the client for known event condition names.
@@ -52,6 +67,8 @@ Current trace categories:
 - `event.runFunction`: server-side event function dispatch.
 - `event.end`: active event teardown.
 - `event.data`: event data packets sent to the client.
+- `game.message`: game text packets sent to the client, including text owner, text id, log channel, sender mode, and message parameters.
+- `npcLinkshell.state`: NPC Linkpearl state writes or unchanged writes, including the requested state and saved calling/extra flags.
 - `quest.flags`: server-side quest flag mutation for active quest actors.
 - `quest.save`: active quest data persistence.
 - `quest.phase`: active quest phase transitions.
@@ -62,6 +79,58 @@ Current trace categories:
 - `lua.resumeMissing`: client update with no matching waiting coroutine.
 
 Packet classification labels are evidence markers only. They do not confirm final protocol names and they do not change behavior. Labels should be promoted to protocol implementation only after repeatable captures confirm the client expectation.
+
+## Playtest Bridge
+
+Use the playtest bridge when live testing needs one control point instead of several terminal windows. The bridge lives in its own directory so local Codex sessions or other helper apps can point at it directly; a human playtester does not need to drive these commands during a Codex-assisted run.
+
+```bash
+./playtest-bridge/bridge.py doctor
+./playtest-bridge/bridge.py build
+./playtest-bridge/bridge.py run --fresh --new-session
+```
+
+The bridge wraps the existing server scripts and starts:
+
+- Web launcher service.
+- Lobby server with diagnostics.
+- Map server with diagnostics.
+- World server with diagnostics.
+
+It writes structured traces to `/tmp/meteorxiv-traces` by default and captured server logs to `playtest-bridge/.state/logs/`.
+
+Common bridge commands:
+
+```bash
+./playtest-bridge/bridge.py status
+./playtest-bridge/bridge.py watch --focus battle
+./playtest-bridge/bridge.py watch --focus tutorial
+./playtest-bridge/bridge.py watch --focus loading
+./playtest-bridge/bridge.py watch --focus errors
+./playtest-bridge/bridge.py events --focus battle --limit 80
+./playtest-bridge/bridge.py brief --focus battle
+./playtest-bridge/bridge.py recipe show opening-uldah-battle
+./playtest-bridge/bridge.py assert --recipe opening-uldah-battle
+./playtest-bridge/bridge.py logs --service map
+./playtest-bridge/bridge.py summary --timeline --max-events 200
+./playtest-bridge/bridge.py note "manual observation"
+./playtest-bridge/bridge.py snapshot --recipe opening-uldah-battle --note "captured after reproducing issue"
+./playtest-bridge/bridge.py compare <old-snapshot-or-session> <new-snapshot-or-session> --recipe opening-uldah-battle
+./playtest-bridge/bridge.py reset --character-name "Ian Seven" --town uldah --apply
+./playtest-bridge/bridge.py stop
+```
+
+The bridge can also expose a local JSON control surface for Codex or another local helper:
+
+```bash
+./playtest-bridge/bridge.py serve
+curl http://127.0.0.1:8765/status
+curl "http://127.0.0.1:8765/events?focus=battle&limit=50"
+curl "http://127.0.0.1:8765/brief?focus=battle&limit=40"
+curl "http://127.0.0.1:8765/assertions?recipe=opening-uldah-battle"
+```
+
+Keep the HTTP bridge bound to `127.0.0.1`; it is a local development control surface, not a public API. Full command details are in `playtest-bridge/README.md`.
 
 ## Lua Audit
 
@@ -85,6 +154,64 @@ The audit currently checks for:
 - temporary debug print markers
 
 The audit is intentionally narrow. Add checks only when they correspond to a confirmed recurring failure pattern.
+
+## Client Evidence Scan
+
+Use the client evidence scanner when a quest, cutscene, or loading transition stalls and the server traces alone do not prove the next client expectation.
+
+```bash
+./tools/client-evidence.sh "/Volumes/Dev2/SquareEnix/FINAL FANTASY XIV" man0u
+```
+
+The second argument is a cut bundle prefix. Useful opening-flow examples:
+
+```bash
+./tools/client-evidence.sh "/Volumes/Dev2/SquareEnix/FINAL FANTASY XIV" man0u
+./tools/client-evidence.sh "/Volumes/Dev2/SquareEnix/FINAL FANTASY XIV" man0g
+./tools/client-evidence.sh "/Volumes/Dev2/SquareEnix/FINAL FANTASY XIV" man0l
+```
+
+The scan reports:
+
+- matching `client/cut` bundles
+- visible actor, quest, path, UI, and clip-class strings inside those bundles
+- direct string hits in packed `client/script` containers, when present
+- version/hash context for the local client executable and `game.ver`
+
+This is an evidence indexer, not a decompiler. A cut bundle containing `RaptureQuestInfoClip`, `Rapture2DMapClip`, or `RaptureMesClip` proves that the client has those sequence pieces in that bundle; it does not prove the server should trigger the bundle at the current quest state. Promote behavior only when client evidence lines up with live traces, actor state, and existing script/database data.
+
+## GM Debug Commands
+
+These are in-game chat commands for local playtests. They are diagnostics or explicit test controls; they should not replace normal scenario logic.
+
+```text
+!queststate
+```
+
+Prints the current position, private-area state, pending destination, active scenario quests with phase/flags, and active NPC Linkpearl states.
+
+```text
+!setnpcls <id> <gone|inactive|active|alert>
+```
+
+Sets an NPC Linkpearl state directly. NPC Linkpearl `0` is the Adventurers' Guild linkpearl used by the opening city flows.
+
+```text
+!openinguldah status
+!openinguldah linkpearl
+```
+
+Shows the current Ul'dah `Man0u1` state, or sets the Adventurers' Guild NPC Linkpearl to `alert` only when `Man0u1` is active. This is a narrow rescue command for characters that passed the Momodi handoff before the script activated the linkpearl.
+
+```text
+!questevent <questNameOrId> <eventName>
+```
+
+Kicks a quest-owned `noticeEvent`, calls a named client event on an active quest actor, and logs the before/after quest phase and flags. This is for evidence gathering only: it does not advance phases, complete quests, replace quests, teleport, or change NPC Linkpearl state. Example probe for the current Ul'dah opening investigation:
+
+```text
+!questevent Man0u1 processEvent020
+```
 
 ## Opening Tutorial Reset
 

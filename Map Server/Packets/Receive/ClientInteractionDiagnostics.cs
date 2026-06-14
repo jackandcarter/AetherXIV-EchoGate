@@ -81,6 +81,20 @@ namespace MeteorXIV.Core.Map.packets.receive
                 "params", LuaUtils.DumpParams(packet.luaParams));
         }
 
+        public static void TraceEventStartOwnerMissingClosed(Session session, EventStartPacket packet)
+        {
+            if (!DevDiagnostics.Enabled || packet == null)
+                return;
+
+            DevDiagnostics.Trace(
+                "event.start.ownerMissing.closed",
+                "player", PlayerName(session),
+                "triggerActor", Hex(packet.triggerActorID),
+                "ownerActor", Hex(packet.ownerActorID),
+                "eventName", packet.eventName,
+                "eventType", packet.eventType);
+        }
+
         public static void TraceStateMessage(Session session, SubPacket subpacket)
         {
             if (!DevDiagnostics.Enabled || subpacket == null)

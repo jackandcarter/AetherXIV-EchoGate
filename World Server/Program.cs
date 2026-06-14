@@ -23,6 +23,7 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Threading;
 
 using NLog;
 using MeteorXIV.Core.Common;
@@ -63,6 +64,7 @@ namespace MeteorXIV.Core.World
 #endif
 
             bool smoke = HasFlag(args, "smoke");
+            bool noConsole = HasFlag(args, "no-console");
             DevDiagnostics.Configure("World", args);
 
             try
@@ -108,9 +110,21 @@ namespace MeteorXIV.Core.World
                 if (smoke)
                     return SmokeOk("World", GetEndpoint());
 
+                if (noConsole)
+                {
+                    Log.Info("Console input disabled; server running until process exit.");
+                    while (true) Thread.Sleep(10000);
+                }
+
                 while (true)
                 {
                     String input = Console.ReadLine();
+                    if (input == null)
+                    {
+                        Thread.Sleep(1000);
+                        continue;
+                    }
+
                     Log.Info("[Console Input] " + input);
                     //cp.DoCommand(input, null);
                 }
@@ -164,11 +178,18 @@ namespace MeteorXIV.Core.World
             List<string> filtered = new List<string>();
             foreach (string arg in args)
             {
-                if (!arg.Trim().TrimStart('-').Equals("smoke", StringComparison.OrdinalIgnoreCase) && !DevDiagnostics.IsFlag(arg))
+                if (!IsRuntimeFlag(arg) && !DevDiagnostics.IsFlag(arg))
                     filtered.Add(arg);
             }
 
             return filtered.ToArray();
+        }
+
+        private static bool IsRuntimeFlag(string arg)
+        {
+            string name = arg.Trim().TrimStart('-');
+            return name.Equals("smoke", StringComparison.OrdinalIgnoreCase)
+                || name.Equals("no-console", StringComparison.OrdinalIgnoreCase);
         }
 
         private static string GetEndpoint()

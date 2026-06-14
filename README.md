@@ -58,6 +58,8 @@ The solution targets .NET Framework 4.7.2 and uses `packages.config` for NuGet r
 
 For macOS/Linux details, see `docs/MACOS_LINUX_DEV_SETUP.md`. For the current audit and missing-work map, see `docs/PROJECT_AUDIT_2026-06-07.md`. For the modern .NET porting plan, see `docs/PORTING_STRATEGY.md`. For dev-only reverse-engineering workflow support, see `docs/REVERSE_ENGINEERING_TOOLS.md`. For Echo Gate launcher design and services, see `docs/LAUNCHER_DESIGN.md`, `docs/LAUNCHER_SERVICES.md`, and `docs/WINE_RUNTIME_STRATEGY.md`.
 
+For one-terminal playtest control, live diagnostics, evidence snapshots, and a localhost Codex bridge, see `playtest-bridge/README.md`.
+
 Local server readiness:
 
 ```sh

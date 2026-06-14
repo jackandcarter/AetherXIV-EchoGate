@@ -78,6 +78,13 @@ namespace MeteorXIV.Core.Map.lua
         {
             ulong time = Utils.MilisUnixTimeStampUTC() + (ulong)(seconds * 1000);
             mSleepingOnTime.Add(coroutine, time);
+            DevDiagnostics.Trace(
+                "lua.wait.register",
+                "waitType", "_WAIT_TIME",
+                "seconds", seconds,
+                "wakeTime", time,
+                "coroutine", coroutine.GetHashCode(),
+                "timeWaiters", mSleepingOnTime.Count);
         }
 
         public void AddWaitSignalCoroutine(Coroutine coroutine, string signal)
@@ -85,12 +92,25 @@ namespace MeteorXIV.Core.Map.lua
             if (!mSleepingOnSignal.ContainsKey(signal))
                 mSleepingOnSignal.Add(signal, new List<Coroutine>());
             mSleepingOnSignal[signal].Add(coroutine);
+            DevDiagnostics.Trace(
+                "lua.wait.register",
+                "waitType", "_WAIT_SIGNAL",
+                "signal", signal,
+                "coroutine", coroutine.GetHashCode(),
+                "signalWaiters", mSleepingOnSignal[signal].Count);
         }
 
         public void AddWaitEventCoroutine(Player player, Coroutine coroutine)
         {
             if (!mSleepingOnPlayerEvent.ContainsKey(player.actorId))
                 mSleepingOnPlayerEvent.Add(player.actorId, coroutine);
+            DevDiagnostics.Trace(
+                "lua.wait.register",
+                "player", player.customDisplayName,
+                "actor", String.Format("0x{0:X}", player.actorId),
+                "waitType", "_WAIT_EVENT",
+                "coroutine", coroutine.GetHashCode(),
+                "eventWaiters", mSleepingOnPlayerEvent.Count);
         }
 
         public void PulseSleepingOnTime(object state)
@@ -107,6 +127,10 @@ namespace MeteorXIV.Core.Map.lua
             foreach (Coroutine key in mToAwake)
             {
                 mSleepingOnTime.Remove(key);
+                DevDiagnostics.Trace(
+                    "lua.time.resume",
+                    "coroutine", key.GetHashCode(),
+                    "remainingTimeWaiters", mSleepingOnTime.Count);
                 DynValue value = key.Resume();
                 ResolveResume(null, key, value);
             }
@@ -115,6 +139,12 @@ namespace MeteorXIV.Core.Map.lua
         public void OnSignal(string signal, params object[] args)
         {
             List<Coroutine> mToAwake = new List<Coroutine>();
+            int waiterCount = mSleepingOnSignal.ContainsKey(signal) ? mSleepingOnSignal[signal].Count : 0;
+            DevDiagnostics.Trace(
+                "lua.signal.emit",
+                "signal", signal,
+                "args", args == null ? 0 : args.Length,
+                "waiters", waiterCount);
 
             if (mSleepingOnSignal.ContainsKey(signal))
             {
@@ -124,6 +154,10 @@ namespace MeteorXIV.Core.Map.lua
 
             foreach (Coroutine key in mToAwake)
             {
+                DevDiagnostics.Trace(
+                    "lua.signal.resume",
+                    "signal", signal,
+                    "coroutine", key.GetHashCode());
                 DynValue value = key.Resume(args);
                 ResolveResume(null, key, value);
             }
@@ -243,9 +277,21 @@ namespace MeteorXIV.Core.Map.lua
         public static int CallLuaBattleCommandFunction(Character actor, BattleCommand command, string folder, string functionName, params object[] args)
         {
             string path = $"./scripts/commands/{folder}/{command.name}.lua";
+            string requestedPath = path;
 
             if (File.Exists(path))
             {
+                DevDiagnostics.Trace(
+                    "lua.commandScript.resolve",
+                    "actor", actor == null ? "0x0" : String.Format("0x{0:X}", actor.actorId),
+                    "actorName", actor == null ? "" : (actor.customDisplayName != null ? actor.customDisplayName : actor.actorName),
+                    "commandId", command.id,
+                    "commandName", command.name,
+                    "folder", folder,
+                    "function", functionName,
+                    "path", path,
+                    "defaultUsed", false,
+                    "resolved", true);
                 var script = LoadGlobals();
 
                 try
@@ -268,6 +314,18 @@ namespace MeteorXIV.Core.Map.lua
             else
             {
                 path = $"./scripts/commands/{folder}/default.lua";
+                DevDiagnostics.Trace(
+                    "lua.commandScript.resolve",
+                    "actor", actor == null ? "0x0" : String.Format("0x{0:X}", actor.actorId),
+                    "actorName", actor == null ? "" : (actor.customDisplayName != null ? actor.customDisplayName : actor.actorName),
+                    "commandId", command.id,
+                    "commandName", command.name,
+                    "folder", folder,
+                    "function", functionName,
+                    "path", path,
+                    "requestedPath", requestedPath,
+                    "defaultUsed", true,
+                    "resolved", File.Exists(path));
                 //Program.Log.Error($"LuaEngine.CallLuaBattleCommandFunction [{command.name}] Unable to find script {path}");
                 var script = LoadGlobals();
 
@@ -417,21 +475,39 @@ namespace MeteorXIV.Core.Map.lua
                 args2[0] = target;
 
             LuaScript parent = null, child = null;
+            string parentPath = "./scripts/base/" + target.classPath + ".lua";
+            string childPath = null;
 
-            if (File.Exists("./scripts/base/" + target.classPath + ".lua"))
-                parent = LuaEngine.LoadScript("./scripts/base/" + target.classPath + ".lua");
+            if (File.Exists(parentPath))
+                parent = LuaEngine.LoadScript(parentPath);
 
             Area area = target.zone;
             if (area is PrivateArea)
             {
-                if (File.Exists(String.Format("./scripts/unique/{0}/PrivateArea/{1}_{2}/{3}/{4}.lua", area.zoneName, ((PrivateArea)area).GetPrivateAreaName(), ((PrivateArea)area).GetPrivateAreaType(), target.className, target.GetUniqueId())))
-                    child = LuaEngine.LoadScript(String.Format("./scripts/unique/{0}/PrivateArea/{1}_{2}/{3}/{4}.lua", area.zoneName, ((PrivateArea)area).GetPrivateAreaName(), ((PrivateArea)area).GetPrivateAreaType(), target.className, target.GetUniqueId()));
+                childPath = String.Format("./scripts/unique/{0}/PrivateArea/{1}_{2}/{3}/{4}.lua", area.zoneName, ((PrivateArea)area).GetPrivateAreaName(), ((PrivateArea)area).GetPrivateAreaType(), target.className, target.GetUniqueId());
+                if (File.Exists(childPath))
+                    child = LuaEngine.LoadScript(childPath);
             }
             else
             {
-                if (File.Exists(String.Format("./scripts/unique/{0}/{1}/{2}.lua", area.zoneName, target.className, target.GetUniqueId())))
-                    child = LuaEngine.LoadScript(String.Format("./scripts/unique/{0}/{1}/{2}.lua", area.zoneName, target.className, target.GetUniqueId()));
+                childPath = String.Format("./scripts/unique/{0}/{1}/{2}.lua", area.zoneName, target.className, target.GetUniqueId());
+                if (File.Exists(childPath))
+                    child = LuaEngine.LoadScript(childPath);
             }
+
+            DevDiagnostics.Trace(
+                "lua.script.resolve",
+                "player", player == null ? "(none)" : player.customDisplayName,
+                "actor", target.GetName(),
+                "uniqueId", target.GetUniqueId(),
+                "className", target.className,
+                "classPath", target.classPath,
+                "function", funcName,
+                "parentPath", parentPath,
+                "parentExists", parent != null,
+                "childPath", childPath,
+                "childExists", child != null,
+                "resolved", parent != null || child != null);
 
             if (parent == null && child == null)
             {
@@ -484,6 +560,20 @@ namespace MeteorXIV.Core.Map.lua
                 if (File.Exists(childPath))
                     child = LuaEngine.LoadScript(childPath);
             }
+
+            DevDiagnostics.Trace(
+                "lua.script.resolve",
+                "player", player == null ? "(none)" : player.customDisplayName,
+                "actor", target.GetName(),
+                "uniqueId", target.GetUniqueId(),
+                "className", target.className,
+                "classPath", target.classPath,
+                "function", funcName,
+                "parentPath", parentPath,
+                "parentExists", parent != null,
+                "childPath", childPath,
+                "childExists", child != null,
+                "resolved", parent != null || child != null);
 
             if (parent == null && child == null)
             {
@@ -654,6 +744,13 @@ namespace MeteorXIV.Core.Map.lua
 
                 try
                 {
+                    DevDiagnostics.Trace(
+                        "lua.resume",
+                        "player", player.customDisplayName,
+                        "actor", String.Format("0x{0:X}", player.actorId),
+                        "source", "event.start",
+                        "eventName", eventStart.eventName,
+                        "coroutine", coroutine.GetHashCode());
                     DynValue value = coroutine.Resume();
                     ResolveResume(null, coroutine, value);
                 }

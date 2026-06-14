@@ -21,6 +21,7 @@ along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
 
 using System;
 using System.Collections.Generic;
+using MeteorXIV.Core.Common;
 using MeteorXIV.Core.Map.Actors;
 using MeteorXIV.Core.Map.actors.chara.ai.state;
 using MeteorXIV.Core.Map.actors.chara.ai.controllers;
@@ -313,11 +314,27 @@ namespace MeteorXIV.Core.Map.actors.chara.ai
 
         public bool InternalEngage(Character target)
         {
-            if (IsEngaged())
+            if (target == null)
+            {
+                DevDiagnostics.Trace(
+                    "battle.engage.blocked",
+                    "reason", "target missing",
+                    "actor", String.Format("0x{0:X}", owner.actorId),
+                    "actorName", owner.customDisplayName != null ? owner.customDisplayName : owner.actorName,
+                    "currentTarget", String.Format("0x{0:X}", owner.currentTarget),
+                    "currentLockedTarget", String.Format("0x{0:X}", owner.currentLockedTarget),
+                    "currentState", GetCurrentState() == null ? "" : GetCurrentState().GetType().Name,
+                    "mainState", String.Format("0x{0:X}", owner.currentMainState));
+                return false;
+            }
+
+            var currentAttackState = GetCurrentState() as AttackState;
+            if (currentAttackState != null)
             {
                 if (this.owner.target != target)
                 {
                     ChangeTarget(target);
+                    currentAttackState.ChangeTarget(target);
                     return true;
                 }
                 return false;

@@ -23,6 +23,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Threading;
 using MeteorXIV.Core.Common;
 using MySql.Data.MySqlClient;
 using NLog;
@@ -53,6 +54,7 @@ namespace MeteorXIV.Core.Map
             Debug.Listeners.Add(myWriter);
 #endif
             bool smoke = HasFlag(args, "smoke");
+            bool noConsole = HasFlag(args, "no-console");
             DevDiagnostics.Configure("Map", args);
 
             Log.Info("==================================");
@@ -98,9 +100,21 @@ namespace MeteorXIV.Core.Map
                 if (smoke)
                     return SmokeOk("Map", GetEndpoint());
 
+                if (noConsole)
+                {
+                    Log.Info("Console input disabled; server running until process exit.");
+                    while (true) Thread.Sleep(10000);
+                }
+
                 while (true)
                 {
                     String input = Console.ReadLine();
+                    if (input == null)
+                    {
+                        Thread.Sleep(1000);
+                        continue;
+                    }
+
                     Log.Info("[Console Input] " + input);
                     Server.GetCommandProcessor().DoCommand(input, null);
                 }
@@ -139,11 +153,18 @@ namespace MeteorXIV.Core.Map
             List<string> filtered = new List<string>();
             foreach (string arg in args)
             {
-                if (!arg.Trim().TrimStart('-').Equals("smoke", StringComparison.OrdinalIgnoreCase) && !DevDiagnostics.IsFlag(arg))
+                if (!IsRuntimeFlag(arg) && !DevDiagnostics.IsFlag(arg))
                     filtered.Add(arg);
             }
 
             return filtered.ToArray();
+        }
+
+        private static bool IsRuntimeFlag(string arg)
+        {
+            string name = arg.Trim().TrimStart('-');
+            return name.Equals("smoke", StringComparison.OrdinalIgnoreCase)
+                || name.Equals("no-console", StringComparison.OrdinalIgnoreCase);
         }
 
         private static string GetEndpoint()

@@ -27,6 +27,9 @@ launcher/EchoGate/**/*.torrent
 launcher/EchoGate/**/*.patch
 *.suo
 *.cache
+__pycache__/
+*.pyc
+*.resources
 *.log
 *.pid
 .env

@@ -11,10 +11,25 @@ to hit some ID, add "nils".
 --]]
 
 
+local function sendQuestLinkpearlMessage(player, questId, questName, textId, senderDisplayId)
+	if (player:HasQuest(questId) == true) then
+		local quest = player:GetQuest(questName);
+		if (quest ~= nil) then
+			player:SendGameMessage(quest, textId, 39, senderDisplayId, nil);
+			return true;
+		end
+	end
+
+	return false;
+end
+
 local function handleAdventurersGuild(player)
-	if (player:HasQuest(110006) == true) then
-		local man0g1Quest = player:GetQuest("Man0g1");		
-		player:SendGameMessage(man0g1Quest, 330, 39, 1300018, nil);
+	if (sendQuestLinkpearlMessage(player, 110010, "Man0u1", 330, 1500014) == true) then
+		return;
+	end
+
+	if (sendQuestLinkpearlMessage(player, 110006, "Man0g1", 330, 1300018) == true) then
+		return;
 	end
 end
 

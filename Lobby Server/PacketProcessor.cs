@@ -207,6 +207,21 @@ namespace MeteorXIV.Core.Lobby
             if (worldId == 0)
                 worldId = client.newCharaWorldId;
 
+            if (charaReq.command == CharaCreatorPacket.MAKE && (worldId == 0 || client.newCharaCid == 0 || String.IsNullOrEmpty(client.newCharaName)))
+            {
+                Character reservedChara = Database.GetReservedCharacter(client.currentUserId);
+                if (reservedChara != null)
+                {
+                    client.newCharaCid = reservedChara.id;
+                    client.newCharaSlot = reservedChara.slot;
+                    client.newCharaWorldId = reservedChara.serverId;
+                    client.newCharaName = reservedChara.name;
+                    worldId = reservedChara.serverId;
+                    name = reservedChara.name;
+                    Program.Log.Info("User {0} => Recovered reserved character \"{1}\" cid={2} world={3}", client.currentUserId, reservedChara.name, reservedChara.id, reservedChara.serverId);
+                }
+            }
+
             //Check if this character exists, Get world from there
             if (worldId == 0 && charaReq.characterId != 0)
             {
@@ -305,6 +320,18 @@ namespace MeteorXIV.Core.Lobby
                             info.z = 133.6561f;
                             info.rot = -2.849384f;
                             break;
+                    }
+
+                    if (client.newCharaCid == 0 || String.IsNullOrEmpty(client.newCharaName))
+                    {
+                        ErrorPacket errorPacket = new ErrorPacket(charaReq.sequence, 0, 0, 13001, "Character reservation was not found, please create the character again.");
+                        SubPacket subpacket = errorPacket.BuildPacket();
+                        BasePacket basePacket = BasePacket.CreatePacket(subpacket, true, false);
+                        BasePacket.EncryptPacket(client.blowfish, basePacket);
+                        client.QueuePacket(basePacket);
+
+                        Program.Log.Info("User {0} => Error; missing reserved character for make request.", client.currentUserId);
+                        return;
                     }
 
                     Database.MakeCharacter(client.currentUserId, client.newCharaCid, info);

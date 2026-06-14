@@ -911,6 +911,20 @@ namespace MeteorXIV.Core.Map
                 spawnY,
                 spawnZ,
                 spawnRotation);
+            DevDiagnostics.Trace(
+                "zone.change.request",
+                "player", player.customDisplayName,
+                "fromZone", currentZoneId,
+                "fromPrivateArea", currentPrivateArea,
+                "fromPrivateAreaType", player.privateAreaType,
+                "toZone", destinationZoneId,
+                "toPrivateArea", destinationPrivateArea ?? "",
+                "toPrivateAreaType", destinationPrivateAreaType,
+                "spawnType", spawnType,
+                "x", spawnX,
+                "y", spawnY,
+                "z", spawnZ,
+                "rot", spawnRotation);
 
             //Add player to new zone and update
             Area newArea;
@@ -927,6 +941,13 @@ namespace MeteorXIV.Core.Map
                     player.customDisplayName,
                     destinationZoneId,
                     destinationPrivateArea ?? "");
+                DevDiagnostics.Trace(
+                    "zone.change.handoff",
+                    "player", player.customDisplayName,
+                    "destinationZone", destinationZoneId,
+                    "destinationPrivateArea", destinationPrivateArea ?? "",
+                    "destinationPrivateAreaType", destinationPrivateAreaType,
+                    "spawnType", spawnType);
                 RequestWorldServerZoneChange(player, destinationZoneId, spawnType, spawnX, spawnY, spawnZ, spawnRotation);
                 return;
             }
@@ -951,6 +972,7 @@ namespace MeteorXIV.Core.Map
             player.positionY = spawnY;
             player.positionZ = spawnZ;
             player.rotation = spawnRotation;
+            player.MarkZoneChangePending(spawnType);
 
             //Delete any GL directors
             GuildleveDirector glDirector = player.GetGuildleveDirector();
@@ -975,6 +997,14 @@ namespace MeteorXIV.Core.Map
             player.SendInstanceUpdate();
 
             player.playerSession.LockUpdates(false);
+            DevDiagnostics.Trace(
+                "zone.change.local.end",
+                "player", player.customDisplayName,
+                "zone", player.zoneId,
+                "privateArea", player.privateArea ?? "",
+                "privateAreaType", player.privateAreaType,
+                "areaActorCount", player.zone == null ? 0 : player.zone.GetActorCount(),
+                "instanceActorCount", player.playerSession.actorInstanceList.Count);
 
             //Send "You have entered an instance" if it's a Private Area
             if (newArea is PrivateArea)
@@ -1032,6 +1062,7 @@ namespace MeteorXIV.Core.Map
                 player.positionY = spawnY;
                 player.positionZ = spawnZ;
                 player.rotation = spawnRotation;
+                player.MarkZoneChangePending(spawnType);
 
                 //Send packets
                 player.playerSession.QueuePacket(_0xE2Packet.BuildPacket(player.actorId, 0x10));
@@ -1049,8 +1080,27 @@ namespace MeteorXIV.Core.Map
             if (contentArea == null)
             {
                 Program.Log.Debug("Request to change to content area not on this server by: {0}.", player.customDisplayName);
+                DevDiagnostics.Trace(
+                    "zone.change.content.blocked",
+                    "player", player.customDisplayName,
+                    "reason", "content area missing");
                 return;
             }
+
+            DevDiagnostics.Trace(
+                "zone.change.content.begin",
+                "player", player.customDisplayName,
+                "fromZone", player.zoneId,
+                "fromPrivateArea", player.privateArea ?? "",
+                "fromPrivateAreaType", player.privateAreaType,
+                "toZone", contentArea.GetParentZone().actorId,
+                "toPrivateArea", contentArea.GetPrivateAreaName(),
+                "toPrivateAreaType", contentArea.GetPrivateAreaType(),
+                "spawnType", spawnType,
+                "x", spawnX,
+                "y", spawnY,
+                "z", spawnZ,
+                "rot", spawnRotation);
 
             player.playerSession.LockUpdates(true);
 
@@ -1073,6 +1123,7 @@ namespace MeteorXIV.Core.Map
             player.positionY = spawnY;
             player.positionZ = spawnZ;
             player.rotation = spawnRotation;
+            player.MarkZoneChangePending(spawnType);
 
             //Send "You have entered an instance" if it's a Private Area
             player.SendGameMessage(GetActor(), 34108, 0x20);
@@ -1085,6 +1136,14 @@ namespace MeteorXIV.Core.Map
             player.SendInstanceUpdate(true);
 
             player.playerSession.LockUpdates(false);
+            DevDiagnostics.Trace(
+                "zone.change.content.end",
+                "player", player.customDisplayName,
+                "zone", player.zoneId,
+                "privateArea", player.privateArea ?? "",
+                "privateAreaType", player.privateAreaType,
+                "areaActorCount", player.zone == null ? 0 : player.zone.GetActorCount(),
+                "instanceActorCount", player.playerSession.actorInstanceList.Count);
         
             LuaEngine.GetInstance().CallLuaFunction(player, contentArea, "onZoneIn", true);
         }
@@ -1092,6 +1151,20 @@ namespace MeteorXIV.Core.Map
         //Session started, zone into world
         public void DoZoneIn(Player player, bool isLogin, ushort spawnType)
         {
+            DevDiagnostics.Trace(
+                "zone.in.begin",
+                "player", player.customDisplayName,
+                "isLogin", isLogin,
+                "requestedZone", player.zoneId,
+                "requestedPrivateArea", player.privateArea ?? "",
+                "requestedPrivateAreaType", player.privateAreaType,
+                "spawnType", spawnType,
+                "x", player.positionX,
+                "y", player.positionY,
+                "z", player.positionZ,
+                "rot", player.rotation);
+            player.SetZoneChanging(true);
+
             //Add player to new zone and update
             Area playerArea;
             if (player.privateArea != null)
@@ -1101,7 +1174,24 @@ namespace MeteorXIV.Core.Map
 
             //This server does not contain that zoneId
             if (playerArea == null)
+            {
+                DevDiagnostics.Trace(
+                    "zone.in.blocked",
+                    "player", player.customDisplayName,
+                    "reason", "area missing",
+                    "requestedZone", player.zoneId,
+                    "requestedPrivateArea", player.privateArea ?? "",
+                    "requestedPrivateAreaType", player.privateAreaType);
                 return;
+            }
+
+            DevDiagnostics.Trace(
+                "zone.in.area",
+                "player", player.customDisplayName,
+                "areaActor", String.Format("0x{0:X}", playerArea.actorId),
+                "areaName", playerArea.zoneName,
+                "areaKind", playerArea.GetType().Name,
+                "areaActorCountBefore", playerArea.GetActorCount());
 
             //Set the current zone and add player
             player.zone = playerArea;
@@ -1116,15 +1206,21 @@ namespace MeteorXIV.Core.Map
             }
 
             player.SendZoneInPackets(this, spawnType);
-
-            player.destinationZone = 0;
-            player.destinationSpawnType = 0;
             Database.SavePlayerPosition(player);
 
             player.playerSession.ClearInstance();
             player.SendInstanceUpdate(true);
 
             player.playerSession.LockUpdates(false);
+            DevDiagnostics.Trace(
+                "zone.in.end",
+                "player", player.customDisplayName,
+                "isLogin", isLogin,
+                "zone", player.zoneId,
+                "privateArea", player.privateArea ?? "",
+                "privateAreaType", player.privateAreaType,
+                "areaActorCount", player.zone == null ? 0 : player.zone.GetActorCount(),
+                "instanceActorCount", player.playerSession.actorInstanceList.Count);
 
             LuaEngine.GetInstance().CallLuaFunction(player, playerArea, "onZoneIn", true);
         }
