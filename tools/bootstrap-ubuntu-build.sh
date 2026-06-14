@@ -2,6 +2,10 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+LOCAL_TOOLS_DIR="$ROOT_DIR/.tools/bin"
+LOCAL_NUGET_EXE="$ROOT_DIR/.tools/nuget/nuget.exe"
+NUGET_EXE_URL="${NUGET_EXE_URL:-https://dist.nuget.org/win-x86-commandline/latest/nuget.exe}"
+export PATH="$LOCAL_TOOLS_DIR:$PATH"
 CONFIGURATION="${CONFIGURATION:-Release}"
 INSTALL_MISSING=1
 ASSUME_YES=0
@@ -172,17 +176,20 @@ apt_update_once() {
   APT_UPDATED=1
 }
 
-apt_package_available() {
+apt_package_installable() {
   local package="$1"
-  apt-cache show "$package" >/dev/null 2>&1
+  local candidate
+  command -v apt-cache >/dev/null 2>&1 || return 1
+  candidate="$(apt-cache policy "$package" 2>/dev/null | awk '/Candidate:/ {print $2; exit}')"
+  [[ -n "$candidate" && "$candidate" != "(none)" ]]
 }
 
 add_available_package() {
   local package="$1"
-  if apt_package_available "$package"; then
+  if apt_package_installable "$package"; then
     add_package "$package"
   else
-    PACKAGE_WARNINGS+=("$package is not available from the current apt sources")
+    PACKAGE_WARNINGS+=("$package has no install candidate from the current apt sources")
   fi
 }
 
@@ -224,7 +231,7 @@ dotnet_has_10_sdk() {
 prepare_dotnet_package_source() {
   [[ "$INSTALL_MISSING" -eq 1 ]] || return 0
   apt_update_once
-  apt_package_available dotnet-sdk-10.0 && return 0
+  apt_package_installable dotnet-sdk-10.0 && return 0
 
   if [[ "$OS_ID" == "ubuntu" ]]; then
     warn "dotnet-sdk-10.0 is not visible; adding Ubuntu .NET backports PPA"
@@ -419,6 +426,36 @@ install_packages() {
   sudo apt-get install -y "${PACKAGES[@]}"
 }
 
+ensure_nuget_cli() {
+  [[ "$BUILD_LEGACY" -eq 1 ]] || return 0
+  command_exists nuget && return 0
+
+  if [[ "$INSTALL_MISSING" -eq 0 ]]; then
+    die "nuget is missing; rerun without --no-install or install NuGet manually"
+  fi
+
+  command_exists mono || die "mono is required for the local NuGet fallback"
+  command_exists curl || die "curl is required for the local NuGet fallback"
+
+  mkdir -p "$(dirname "$LOCAL_NUGET_EXE")" "$LOCAL_TOOLS_DIR"
+
+  if [[ ! -f "$LOCAL_NUGET_EXE" ]]; then
+    log "Downloading NuGet CLI fallback..."
+    curl -fsSL "$NUGET_EXE_URL" -o "$LOCAL_NUGET_EXE"
+  else
+    log "ok: local NuGet CLI fallback exists"
+  fi
+
+  cat > "$LOCAL_TOOLS_DIR/nuget" <<EOF
+#!/usr/bin/env bash
+exec mono "$LOCAL_NUGET_EXE" "\$@"
+EOF
+  chmod +x "$LOCAL_TOOLS_DIR/nuget"
+
+  command_exists nuget || die "failed to create local NuGet wrapper"
+  log "ok: nuget ($(command -v nuget))"
+}
+
 validate_build_dependencies() {
   command_exists git || die "git is still missing"
 
@@ -508,6 +545,7 @@ prepare_client_runtime() {
 
 collect_dependencies
 install_packages
+ensure_nuget_cli
 validate_build_dependencies
 
 log "Running environment audit..."

@@ -10,6 +10,7 @@ Debug/
 Release/
 build/
 packages/
+.tools/
 TestResult*/
 *.user
 *.DS_Store

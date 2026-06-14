@@ -42,6 +42,8 @@ Useful options:
 
 `--with-wine` installs basic distro Wine and Winetricks packages for local client testing. It does not replace Echo Gate runtime validation, and it does not install a project-owned Wine runtime archive.
 
+Some newer Ubuntu releases list `nuget` in package metadata but do not provide an install candidate. When that happens, the bootstrap helper downloads the official NuGet command-line executable into the ignored local `.tools/` folder and creates a `nuget` wrapper that runs through Mono.
+
 `--with-client-runtime` additionally prepares the default Echo Gate Wine prefix:
 
 ```text
