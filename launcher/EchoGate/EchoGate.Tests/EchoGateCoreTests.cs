@@ -41,6 +41,21 @@ public sealed class EchoGateCoreTests
     }
 
     [Fact]
+    public void StaticActorsLocatorFindsNestedPreparedStaticActorsFile()
+    {
+        string root = CreateTempDirectory();
+        string scriptPath = Path.Combine(root, "client", "nested", "script");
+        Directory.CreateDirectory(scriptPath);
+        string sourcePath = Path.Combine(scriptPath, StaticActorsLocator.PreparedStaticActorsFileName);
+        File.WriteAllText(sourcePath, "fixture");
+
+        bool found = StaticActorsLocator.TryFindSource(root, out string result);
+
+        Assert.True(found);
+        Assert.Equal(sourcePath, result);
+    }
+
+    [Fact]
     public void LaunchPlanCarriesServerAndRuntimeEnvironment()
     {
         string root = CreateTempDirectory();

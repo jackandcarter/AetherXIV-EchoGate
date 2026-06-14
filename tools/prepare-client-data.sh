@@ -80,6 +80,7 @@ read_echo_gate_client_dir() {
 find_staticactors_source() {
   local client_dir="$1"
   local candidate
+  local recursive_candidate
   local candidates=(
     "$client_dir/client/script/rq9q1797qvs.san"
     "$client_dir/script/rq9q1797qvs.san"
@@ -89,12 +90,31 @@ find_staticactors_source() {
     "$client_dir/staticactors.bin"
   )
 
+  if [[ -f "$client_dir" ]]; then
+    case "$(basename "$client_dir" | tr '[:upper:]' '[:lower:]')" in
+      rq9q1797qvs.san|staticactors.bin)
+        printf '%s' "$client_dir"
+        return 0
+        ;;
+    esac
+  fi
+
   for candidate in "${candidates[@]}"; do
     if [[ -f "$candidate" ]]; then
       printf '%s' "$candidate"
       return 0
     fi
   done
+
+  if [[ -d "$client_dir" ]]; then
+    recursive_candidate="$(
+      find "$client_dir" -type f \( -iname 'rq9q1797qvs.san' -o -iname 'staticactors.bin' \) -print -quit 2>/dev/null || true
+    )"
+    if [[ -n "$recursive_candidate" ]]; then
+      printf '%s' "$recursive_candidate"
+      return 0
+    fi
+  fi
 
   return 1
 }
@@ -148,6 +168,7 @@ if [[ -z "$source_path" ]]; then
   echo "Expected one of these files under the client folder:" >&2
   echo "  client/script/rq9q1797qvs.san" >&2
   echo "  client/script/staticactors.bin" >&2
+  echo "The script also searches recursively by those filenames." >&2
   echo >&2
   echo "Tried client folders:" >&2
   for candidate_dir in "${CLIENT_DIR_CANDIDATES[@]}"; do
@@ -155,6 +176,7 @@ if [[ -z "$source_path" ]]; then
   done
   echo >&2
   echo "Run with: CLIENT_DIR=\"/path/to/FINAL FANTASY XIV\" ./tools/prepare-client-data.sh" >&2
+  echo "Or pass the source file directly if you find it manually." >&2
   exit 1
 fi
 
