@@ -74,7 +74,13 @@ Run the environment audit:
 ./tools/build-legacy.sh
 ```
 
-The helper restores NuGet packages, then uses `msbuild` when present or `xbuild` when Homebrew Mono only exposes that older entry point. If NuGet creates `packages/`, leave it uncommitted.
+The helper restores NuGet packages, then uses `msbuild` when present or `xbuild` when Homebrew Mono only exposes that older entry point. By default it suppresses known legacy C# warning noise from unused fields and variables so Linux setup output is easier to read. To inspect every compiler warning, run:
+
+```sh
+SHOW_LEGACY_WARNINGS=1 ./tools/build-legacy.sh
+```
+
+If Linux falls back to `xbuild`, it may still print a toolset warning that `.NET Framework 4.7.2` is not officially supported by that older tool. That warning is expected for the legacy server projects; the important line is whether the build ends with `Build succeeded` or exits with an error. If NuGet creates `packages/`, leave it uncommitted.
 
 ## Database Bootstrap
 

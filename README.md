@@ -84,6 +84,7 @@ AVALONIA_TELEMETRY_OPTOUT=1 dotnet test launcher/EchoGate/EchoGate.sln -m:1 /nr:
    ```
    ./tools/build-legacy.sh
    ```
+   The helper suppresses known legacy unused-code warnings by default. Use `SHOW_LEGACY_WARNINGS=1 ./tools/build-legacy.sh` when you want the full warning list.
 4. Copy or verify the config files are in each output directory (they are marked to copy during build):
    - `Lobby Server/bin/Release/lobby_config.ini`
    - `World Server/bin/Release/world_config.ini`
