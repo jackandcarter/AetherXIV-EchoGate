@@ -24,6 +24,7 @@ For a quick project overview:
 - [MeteorXIV server features](docs/METEORXIV_FEATURES.md)
 - [Current status matrix](docs/STATUS.md)
 - [Supported platforms](docs/SUPPORTED_PLATFORMS.md)
+- [Release builds](docs/RELEASES.md)
 - [Future development](docs/FUTURE_DEVELOPMENT.md)
 - [Reverse-engineering tools](docs/REVERSE_ENGINEERING_TOOLS.md)
 
