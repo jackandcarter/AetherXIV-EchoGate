@@ -1,30 +1,34 @@
 # Echo Gate
 
-This folder contains Echo Gate, the cross-platform launcher/client runner for Meteor.
+This folder contains Echo Gate, the cross-platform launcher/client runner for MeteorXIV Core.
 
-Initial launcher goals:
+Current launcher features:
 
 - validate a local 1.23b client folder
-- classify base, patched, and unknown client version states
-- validate a user-provided 1.x patch library by path, expected size, and CRC32 metadata
+- validate and apply user-provided 1.x patch metadata/payloads
 - prepare local client-derived runtime data for the server
 - manage local/private server profiles
-- configure Seventh Umbral Launcher compatibility files
-- detect available Wine/Whisky runtime tools
-- launch through CrossOver/Wine on macOS and Linux
+- call launcher services for status, news, login, and account creation
+- detect Wine-compatible runtimes on macOS and Linux
+- support custom runtime paths and prefixes
+- launch through Wine-compatible runtimes on macOS and Linux
 - launch directly on Windows
-- collect client launch logs and server test notes
+- collect client launch and runtime validation logs
 
-Current project:
+Current project folders:
 
 - `EchoGate/EchoGate.sln`
 - `EchoGate/EchoGate.Core`
 - `EchoGate/EchoGate.App`
 - `EchoGate/EchoGate.Tests`
 
-Design docs:
+Docs:
 
-- `../docs/LAUNCHER_DESIGN.md`
-- `../docs/WINE_RUNTIME_STRATEGY.md`
+- `../docs/ECHO_GATE_FEATURES.md`
+- `../docs/SUPPORTED_PLATFORMS.md`
+- `../docs/guides/MACOS_APPLE_SILICON.md`
+- `../docs/guides/LINUX_ARM_X86.md`
+- `../docs/guides/WINDOWS_ARM_X86.md`
+- `../docs/guides/STEAM_DECK_EXPERIMENTAL.md`
 
 Repository policy: client files, patch files, and patch torrent/metainfo files are excluded from version control. Echo Gate treats patch payload acquisition as a user-selected local input, not a bundled launcher asset.

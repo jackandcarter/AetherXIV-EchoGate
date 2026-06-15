@@ -32,6 +32,8 @@ POST /launcher/create-account
 
 `/launcher/news` returns published news items ordered by `sort_order`, then `published_at`.
 
+For backend publishing examples, see [Launcher News Guide](guides/LAUNCHER_NEWS.md).
+
 `/launcher/patch-manifest` returns individual patch files with relative paths, byte sizes, CRC32 values, and optional SHA256 values. Echo Gate downloads each file into the same local folder structure used by manual patching and validates every file before applying patches.
 
 `/launcher/runtime-catalog?platform=<rid>` returns active managed runtime archives for the requested platform RID. Echo Gate selects the default active row first, downloads the referenced archive from static hosting, validates byte size and SHA256, extracts it under app data, and creates a managed Wine prefix.
