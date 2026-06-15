@@ -4,8 +4,8 @@ This file tracks forward-looking work only. Finished design notes and older plan
 
 ## Setup And Packaging
 
-- Create downloadable release packages for Echo Gate on each supported platform.
-- Add a clearer release checklist for macOS signing/notarization, Linux archives, and Windows publish artifacts.
+- Validate the GitHub release workflow on every target artifact after the first public run.
+- Add a clearer release checklist for macOS Developer ID signing/notarization, Linux archives, and Windows publish artifacts.
 - Host runtime catalog artifacts outside Git with immutable size and SHA256 metadata.
 - Add better first-run checks for missing MariaDB, PHP, Wine, Winetricks, .NET SDK, and Mono tooling.
 - Keep README screenshots current as Echo Gate UI changes.

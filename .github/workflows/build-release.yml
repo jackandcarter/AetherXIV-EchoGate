@@ -1,0 +1,305 @@
+name: Build and release artifacts
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_label:
+        description: Version label used in artifact filenames.
+        required: true
+        default: v1.1.0
+      publish_release:
+        description: Create or update a GitHub Release after building.
+        type: boolean
+        required: true
+        default: false
+      release_tag:
+        description: Release tag to create or update when publish_release is enabled.
+        required: true
+        default: release-v1.1.0
+      include_server_core:
+        description: Build the server core package.
+        type: boolean
+        required: true
+        default: true
+  push:
+    tags:
+      - "release-*"
+      - "v*"
+
+permissions:
+  contents: write
+
+env:
+  CONFIGURATION: Release
+  DOTNET_VERSION: 10.0.x
+
+jobs:
+  echo-gate-linux:
+    name: Echo Gate Linux ${{ matrix.rid }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        rid:
+          - linux-x64
+          - linux-arm64
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Build launcher
+        env:
+          RELEASE_LABEL: ${{ github.event_name == 'push' && github.ref_name || inputs.version_label }}
+        run: |
+          set -euo pipefail
+          ./tools/bootstrap-ubuntu-build.sh --no-install --launcher-only --no-wine --rid "${{ matrix.rid }}"
+          label="${RELEASE_LABEL:-manual-build}"
+          label="${label#release-}"
+          label="${label//\//-}"
+          mkdir -p artifacts
+          tar --exclude='.DS_Store' -czf "artifacts/EchoGate-${{ matrix.rid }}-${label}.tar.gz" -C build/echo-gate "${{ matrix.rid }}"
+
+      - name: Upload launcher artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-EchoGate-${{ matrix.rid }}
+          path: artifacts/*
+          if-no-files-found: error
+
+  echo-gate-macos:
+    name: Echo Gate macOS ${{ matrix.rid }}
+    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        rid:
+          - osx-arm64
+          - osx-x64
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Build app bundle
+        env:
+          RELEASE_LABEL: ${{ github.event_name == 'push' && github.ref_name || inputs.version_label }}
+        run: |
+          set -euo pipefail
+          label="${RELEASE_LABEL:-manual-build}"
+          label="${label#release-}"
+          label="${label//\//-}"
+          VERSION="${label#v}" RUNTIME_IDENTIFIER="${{ matrix.rid }}" ./tools/build-echo-gate-macos.sh
+          mkdir -p artifacts
+          build_root="build/echo-gate/macos-${{ matrix.rid }}"
+          ditto -c -k --sequesterRsrc --keepParent "$build_root/Echo Gate.app" "artifacts/EchoGate-${{ matrix.rid }}-${label}.zip"
+
+      - name: Upload launcher artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-EchoGate-${{ matrix.rid }}
+          path: artifacts/*
+          if-no-files-found: error
+
+  echo-gate-windows:
+    name: Echo Gate Windows ${{ matrix.rid }}
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        rid:
+          - win-x86
+          - win-x64
+          - win-arm64
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Build launcher
+        shell: pwsh
+        env:
+          RELEASE_LABEL: ${{ github.event_name == 'push' && github.ref_name || inputs.version_label }}
+        run: |
+          $ErrorActionPreference = "Stop"
+          $rid = "${{ matrix.rid }}"
+          $label = $env:RELEASE_LABEL
+          if ([string]::IsNullOrWhiteSpace($label)) { $label = "manual-build" }
+          if ($label.StartsWith("release-")) { $label = $label.Substring(8) }
+          $label = $label.Replace("/", "-")
+
+          $project = "launcher/EchoGate/EchoGate.App/EchoGate.App.csproj"
+          $helperProject = "launcher/EchoGate/EchoGate.ClientLauncher/EchoGate.ClientLauncher.csproj"
+          $bundle = "build/echo-gate/$rid"
+          $output = "$bundle/publish"
+
+          dotnet publish $project --configuration $env:CONFIGURATION --runtime $rid --self-contained true --output $output /p:PublishSingleFile=false /p:UseAppHost=true
+
+          if ($rid -eq "win-x86") {
+            $helperRids = @("win-x86")
+          } elseif ($rid -eq "win-x64") {
+            $helperRids = @("win-x64", "win-x86")
+          } else {
+            $helperRids = @("win-arm64", "win-x64", "win-x86")
+          }
+
+          foreach ($helperRid in $helperRids) {
+            dotnet publish $helperProject --configuration $env:CONFIGURATION --runtime $helperRid --self-contained true --output "$output/Helpers/$helperRid" /p:PublishSingleFile=false /p:UseAppHost=true
+          }
+
+          New-Item -ItemType Directory -Force -Path artifacts | Out-Null
+          Compress-Archive -Path "$bundle/publish" -DestinationPath "artifacts/EchoGate-$rid-$label.zip" -Force
+
+      - name: Upload launcher artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-EchoGate-${{ matrix.rid }}
+          path: artifacts/*
+          if-no-files-found: error
+
+  server-core:
+    name: MeteorXIV Server Core
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'push' || inputs.include_server_core }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Build legacy servers
+        env:
+          AUTO_PREPARE_STATICACTORS: "0"
+        run: |
+          set -euo pipefail
+          ./tools/bootstrap-ubuntu-build.sh --yes --legacy-only --no-wine
+
+      - name: Package server core
+        env:
+          RELEASE_LABEL: ${{ github.event_name == 'push' && github.ref_name || inputs.version_label }}
+        run: |
+          set -euo pipefail
+          label="${RELEASE_LABEL:-manual-build}"
+          label="${label#release-}"
+          label="${label//\//-}"
+
+          package_root="dist/server-core"
+          mkdir -p "$package_root"
+
+          cp -R "Lobby Server/bin/Release" "$package_root/Lobby Server"
+          cp -R "Map Server/bin/Release" "$package_root/Map Server"
+          cp -R "World Server/bin/Release" "$package_root/World Server"
+
+          mkdir -p "$package_root/Data"
+          cp -R Data/sql "$package_root/Data/sql"
+          cp -R Data/www "$package_root/Data/www"
+          cp -R Data/scripts "$package_root/Data/scripts"
+          cp Data/lobby_config.ini Data/world_config.ini Data/map_config.ini "$package_root/Data/"
+
+          mkdir -p "$package_root/tools"
+          cp tools/load-local-env.sh \
+             tools/setup-local-db.sh \
+             tools/import-db.sh \
+             tools/create-db-user.sh \
+             tools/copy-runtime-data.sh \
+             tools/prepare-client-data.sh \
+             tools/run-web.sh \
+             tools/run-lobby.sh \
+             tools/run-map.sh \
+             tools/run-world.sh \
+             tools/smoke-local.sh \
+             tools/audit-env.sh \
+             "$package_root/tools/"
+
+          cp README.md CHANGELOG.md .env.defaults "$package_root/"
+          cp -R docs "$package_root/docs"
+
+          cat > "$package_root/README_RELEASE.txt" <<'EOF'
+          MeteorXIV Server Core release package
+
+          This package contains the built Lobby, Map, and World server outputs plus the SQL, PHP launcher services, configs, scripts, setup helpers, and documentation needed for self-hosting.
+
+          It does not include client files, patch files, patch torrents, Wine runtimes, or Data/staticactors.bin. Prepare staticactors.bin locally from your own FFXIV 1.x client folder before running Map Server for real playtests.
+
+          Start with docs/RELEASES.md, then follow the platform guide for your host OS.
+          EOF
+
+          find "$package_root" -name '.DS_Store' -delete
+          find "$package_root" -name 'staticactors.bin' -delete
+          find "$package_root/Data/www" -name '*.local.php' -delete
+
+          mkdir -p artifacts
+          tar -czf "artifacts/MeteorXIV-Server-Core-${label}.tar.gz" -C dist server-core
+
+      - name: Upload server artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-MeteorXIV-Server-Core
+          path: artifacts/*
+          if-no-files-found: error
+
+  publish-release:
+    name: Publish GitHub Release
+    runs-on: ubuntu-latest
+    needs:
+      - echo-gate-linux
+      - echo-gate-macos
+      - echo-gate-windows
+      - server-core
+    if: ${{ always() && !cancelled() && !contains(needs.*.result, 'failure') && (github.event_name == 'push' || inputs.publish_release) }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Download release assets
+        uses: actions/download-artifact@v4
+        with:
+          pattern: release-*
+          path: release-assets
+          merge-multiple: true
+
+      - name: Create or update release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          INPUT_RELEASE_TAG: ${{ inputs.release_tag }}
+          EVENT_NAME: ${{ github.event_name }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          release_tag="$REF_NAME"
+          if [[ "$EVENT_NAME" != "push" ]]; then
+            release_tag="${INPUT_RELEASE_TAG:-release-v1.1.0}"
+          fi
+
+          release_label="${release_tag#release-}"
+          notes_file="docs/releases/${release_label}.md"
+          if [[ ! -f "$notes_file" ]]; then
+            notes_file="docs/RELEASES.md"
+          fi
+
+          title="MeteorXIV Core + Echo Gate ${release_label}"
+          mapfile -t assets < <(find release-assets -type f | sort)
+          if [[ "${#assets[@]}" -eq 0 ]]; then
+            echo "No release assets were downloaded." >&2
+            exit 1
+          fi
+
+          if gh release view "$release_tag" >/dev/null 2>&1; then
+            gh release upload "$release_tag" "${assets[@]}" --clobber
+          else
+            if git ls-remote --tags origin "refs/tags/$release_tag" | grep -q "refs/tags/$release_tag"; then
+              gh release create "$release_tag" "${assets[@]}" --title "$title" --notes-file "$notes_file"
+            else
+              gh release create "$release_tag" "${assets[@]}" --target "$GITHUB_SHA" --title "$title" --notes-file "$notes_file"
+            fi
+          fi
