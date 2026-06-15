@@ -8,6 +8,8 @@ public sealed record LauncherProfile(
     ServerProfile ServerProfile,
     WineRuntimeProfile RuntimeProfile,
     RuntimeSelectionMode RuntimeMode = RuntimeSelectionMode.AutomaticManaged,
+    ClientLaunchHelperMode LaunchHelperMode = ClientLaunchHelperMode.Automatic,
+    ClientGraphicsTarget GraphicsTarget = ClientGraphicsTarget.OpenGLCompatibility,
     string SavedUsername = "",
     bool RememberUsername = false)
 {
@@ -26,6 +28,8 @@ public sealed record LauncherProfile(
         LauncherPlatform.Current.RequiresCompatibilityRuntime
             ? RuntimeSelectionMode.AutomaticManaged
             : RuntimeSelectionMode.CustomRuntime,
+        ClientLaunchHelperMode.Automatic,
+        ClientGraphicsTarget.OpenGLCompatibility,
         "",
         false);
 }

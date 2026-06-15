@@ -100,21 +100,29 @@ public sealed class EchoGateCoreTests
     }
 
     [Fact]
-    public void ClientLaunchHelperLocatorUsesX86ForProbeAndX64ForLaunch()
+    public void ClientLaunchHelperLocatorHonorsLaunchHelperMode()
     {
         string root = CreateTempDirectory();
         string x86Directory = Path.Combine(root, "Helpers", "win-x86");
         string x64Directory = Path.Combine(root, "Helpers", "win-x64");
+        string arm64Directory = Path.Combine(root, "Helpers", "win-arm64");
         Directory.CreateDirectory(x86Directory);
         Directory.CreateDirectory(x64Directory);
+        Directory.CreateDirectory(arm64Directory);
 
         string x86Helper = Path.Combine(x86Directory, "EchoGate.ClientLauncher.exe");
         string x64Helper = Path.Combine(x64Directory, "EchoGate.ClientLauncher.exe");
+        string arm64Helper = Path.Combine(arm64Directory, "EchoGate.ClientLauncher.exe");
         File.WriteAllText(x86Helper, "");
         File.WriteAllText(x64Helper, "");
+        File.WriteAllText(arm64Helper, "");
 
         Assert.Equal(x86Helper, ClientLaunchHelperLocator.Find(root));
         Assert.Equal(x64Helper, ClientLaunchHelperLocator.FindLaunchHelper(root));
+        Assert.Equal(x64Helper, ClientLaunchHelperLocator.FindLaunchHelper(ClientLaunchHelperMode.Automatic, root));
+        Assert.Equal(x86Helper, ClientLaunchHelperLocator.FindLaunchHelper(ClientLaunchHelperMode.X86, root));
+        Assert.Equal(x64Helper, ClientLaunchHelperLocator.FindLaunchHelper(ClientLaunchHelperMode.X64, root));
+        Assert.Equal(arm64Helper, ClientLaunchHelperLocator.FindLaunchHelper(ClientLaunchHelperMode.Arm64, root));
     }
 
     [Fact]
@@ -156,6 +164,23 @@ public sealed class EchoGateCoreTests
             });
 
         Assert.Equal("renderer=vulkan", runtime.Environment["WINE_D3D_CONFIG"]);
+    }
+
+    [Fact]
+    public void WineRuntimeProfileAppliesGraphicsTargets()
+    {
+        WineRuntimeProfile runtime = WineRuntimeProfile.WinePrefix("Wine", "/tmp/echo-gate-prefix");
+
+        Assert.Equal(
+            WineRuntimeProfile.DefaultDirect3DConfig,
+            runtime.WithGraphicsTarget(ClientGraphicsTarget.OpenGLCompatibility).Environment["WINE_D3D_CONFIG"]);
+        Assert.Equal(
+            WineRuntimeProfile.OpenGLThreadedDirect3DConfig,
+            runtime.WithGraphicsTarget(ClientGraphicsTarget.OpenGLThreaded).Environment["WINE_D3D_CONFIG"]);
+        Assert.Equal(
+            WineRuntimeProfile.VulkanDirect3DConfig,
+            runtime.WithGraphicsTarget(ClientGraphicsTarget.WineD3DVulkan).Environment["WINE_D3D_CONFIG"]);
+        Assert.False(runtime.WithGraphicsTarget(ClientGraphicsTarget.WineDefault).Environment.ContainsKey("WINE_D3D_CONFIG"));
     }
 
     [Fact]
@@ -515,7 +540,10 @@ public sealed class EchoGateCoreTests
             "https://launcher.example.test/launcher",
             "https://cdn.example.test/ffxiv_patches",
             ServerProfile.LocalDefault(),
-            WineRuntimeProfile.CrossOverBottle("CrossOver", "EchoGate"));
+            WineRuntimeProfile.CrossOverBottle("CrossOver", "EchoGate"),
+            RuntimeSelectionMode.CustomRuntime,
+            ClientLaunchHelperMode.X86,
+            ClientGraphicsTarget.WineD3DVulkan);
 
         ProfileStore.Save(path, profile);
         LauncherProfile loaded = ProfileStore.Load(path);
@@ -527,6 +555,9 @@ public sealed class EchoGateCoreTests
         Assert.Equal(profile.ServerProfile, loaded.ServerProfile);
         Assert.Equal(profile.RuntimeProfile.Name, loaded.RuntimeProfile.Name);
         Assert.Equal(profile.RuntimeProfile.Kind, loaded.RuntimeProfile.Kind);
+        Assert.Equal(profile.RuntimeMode, loaded.RuntimeMode);
+        Assert.Equal(profile.LaunchHelperMode, loaded.LaunchHelperMode);
+        Assert.Equal(profile.GraphicsTarget, loaded.GraphicsTarget);
     }
 
     [Fact]
