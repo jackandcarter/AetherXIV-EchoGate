@@ -66,17 +66,44 @@ public static class RuntimeValidator
                 cancellationToken);
         }
 
-        string selectedPrefix = profile.Kind == WineRuntimeKind.WinePrefix && !string.IsNullOrWhiteSpace(profile.PrefixPath)
-            ? profile.PrefixPath
-            : prefixPath;
-        string normalizedPrefix = Path.GetFullPath(selectedPrefix);
-        Directory.CreateDirectory(normalizedPrefix);
-
         string logPath = RuntimeLaunchDiagnostics.CreateLogPath("runtime-validate");
-        Dictionary<string, string> environment = new(profile.Environment)
+        Dictionary<string, string> environment = new(profile.Environment);
+        string runtimeTarget = profile.Name;
+        string? normalizedPrefix = null;
+        if (profile.Kind == WineRuntimeKind.WinePrefix)
         {
-            ["WINEPREFIX"] = normalizedPrefix
-        };
+            string selectedPrefix = !string.IsNullOrWhiteSpace(profile.PrefixPath)
+                ? profile.PrefixPath
+                : prefixPath;
+            normalizedPrefix = Path.GetFullPath(selectedPrefix);
+            Directory.CreateDirectory(normalizedPrefix);
+            environment["WINEPREFIX"] = normalizedPrefix;
+            runtimeTarget = normalizedPrefix;
+        }
+        else if (profile.Kind == WineRuntimeKind.CrossOverBottle)
+        {
+            if (string.IsNullOrWhiteSpace(profile.BottleName))
+            {
+                return new RuntimeValidationResult(
+                    false,
+                    "CrossOver bottle name is required.",
+                    null,
+                    "CrossOver",
+                    logPath);
+            }
+
+            environment["CX_BOTTLE"] = profile.BottleName;
+            environment.Remove("WINEPREFIX");
+            runtimeTarget = $"CrossOver bottle {profile.BottleName}";
+        }
+        else if (environment.TryGetValue("WINEPREFIX", out string? explicitPrefix)
+                 && !string.IsNullOrWhiteSpace(explicitPrefix))
+        {
+            normalizedPrefix = Path.GetFullPath(explicitPrefix);
+            Directory.CreateDirectory(normalizedPrefix);
+            environment["WINEPREFIX"] = normalizedPrefix;
+            runtimeTarget = normalizedPrefix;
+        }
 
         ProcessRunResult version = await RunAndLogAsync(
             profile.Command,
@@ -91,11 +118,18 @@ public static class RuntimeValidator
                 false,
                 $"Runtime version check failed with exit code {version.ExitCode}.",
                 version.Output.Trim(),
-                normalizedPrefix,
+                runtimeTarget,
                 logPath);
         }
 
-        if (IsPrefixInitialized(normalizedPrefix))
+        if (normalizedPrefix is null)
+        {
+            await File.AppendAllTextAsync(
+                logPath,
+                $"prefix_managed_by_runtime={runtimeTarget}{Environment.NewLine}",
+                cancellationToken);
+        }
+        else if (IsPrefixInitialized(normalizedPrefix))
         {
             await File.AppendAllTextAsync(
                 logPath,
@@ -118,7 +152,7 @@ public static class RuntimeValidator
                     false,
                     $"Prefix setup failed with exit code {winebootResult.ExitCode}.",
                     version.Output.Trim(),
-                    normalizedPrefix,
+                    runtimeTarget,
                     logPath);
             }
 
@@ -152,7 +186,7 @@ public static class RuntimeValidator
                     false,
                     "Runtime cannot start the 32-bit FFXIV 1.x launch helper. Select a Wine/CrossOver runtime with 32-bit WoW64 support.",
                     version.Output.Trim(),
-                    normalizedPrefix,
+                    runtimeTarget,
                     logPath);
             }
         }
@@ -161,7 +195,7 @@ public static class RuntimeValidator
             true,
             "Runtime, Wine prefix, and 32-bit client helper are ready.",
             version.Output.Trim(),
-            normalizedPrefix,
+            runtimeTarget,
             logPath);
     }
 

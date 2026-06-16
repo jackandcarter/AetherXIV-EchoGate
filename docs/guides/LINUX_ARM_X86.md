@@ -12,10 +12,14 @@ On Ubuntu/Debian x64, the easiest path is:
 
 This installs expected build tools, MariaDB/PHP dependencies, Wine/Winetricks when needed, i386 graphics packages, prepares the runtime prefix, builds the legacy servers, tests Echo Gate, and publishes the Linux launcher.
 
+Without `--yes`, the bootstrap asks whether to use the default Echo Gate Wine setup or a custom Wine executable/prefix. Custom mode lists detected Wine executables, lets you choose one, then prepares the selected prefix with the same Wine command used by `wineboot`, `winetricks`, registry setup, and validation.
+
 Useful options:
 
 ```sh
 ./tools/bootstrap-ubuntu-build.sh --yes --wine-source winehq
+./tools/bootstrap-ubuntu-build.sh --client-runtime-mode custom
+./tools/bootstrap-ubuntu-build.sh --yes --client-runtime-mode custom --wine-command /opt/wine-stable/bin/wine --client-prefix "$HOME/.wine-ffxiv"
 ./tools/bootstrap-ubuntu-build.sh --yes --no-client-runtime
 ./tools/bootstrap-ubuntu-build.sh --yes --no-wine
 ./tools/bootstrap-ubuntu-build.sh --yes --launcher-only
@@ -108,7 +112,7 @@ Common Linux issues:
 - Client folder selected one level too high or too low.
 - A custom prefix path exists but the selected Wine executable is from a different runtime.
 
-The bootstrap script tries to cover the common Ubuntu/Debian cases, but custom Wine setups may still need manual runtime selection.
+The bootstrap validates that the selected prefix has Wine registry files, `drive_c`, and `d3dx9_41.dll`. Echo Gate's Runtime tab should then point at the same Wine executable and prefix used during bootstrap.
 
 ## Linux ARM64 Note
 

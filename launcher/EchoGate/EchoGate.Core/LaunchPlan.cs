@@ -47,6 +47,9 @@ public sealed record LaunchPlan(
         string helperExecutablePath,
         string sessionId,
         bool mapClientPathsForWine,
+        ClientWindowMode windowMode = ClientWindowMode.WineVirtualDesktop,
+        int windowWidth = ClientWindowDefaults.DefaultWidth,
+        int windowHeight = ClientWindowDefaults.DefaultHeight,
         string? logPath = null)
     {
         ArgumentNullException.ThrowIfNull(clientInstall);
@@ -97,9 +100,31 @@ public sealed record LaunchPlan(
         foreach (KeyValuePair<string, string> pair in runtimeProfile.Environment)
             environment[pair.Key] = pair.Value;
 
-        string arguments = runtimeProfile.Kind == WineRuntimeKind.NativeWindows
-            ? helperArguments
-            : runtimeProfile.BuildArguments(helperExecutablePath, helperArguments);
+        string arguments;
+        if (runtimeProfile.Kind == WineRuntimeKind.NativeWindows)
+        {
+            arguments = helperArguments;
+        }
+        else if (windowMode == ClientWindowMode.WineVirtualDesktop)
+        {
+            int desktopWidth = Math.Clamp(windowWidth, ClientWindowDefaults.MinimumWidth, ClientWindowDefaults.MaximumWidth);
+            int desktopHeight = Math.Clamp(windowHeight, ClientWindowDefaults.MinimumHeight, ClientWindowDefaults.MaximumHeight);
+            string desktopName = ClientWindowDefaults.BuildDesktopName(desktopWidth, desktopHeight);
+            string helperLaunchPath = mapClientPathsForWine
+                ? WinePathMapper.ToWindowsPath(helperExecutablePath)
+                : helperExecutablePath;
+            string desktopArguments = string.Join(" ", new[]
+            {
+                $"/desktop={desktopName},{desktopWidth}x{desktopHeight}",
+                CommandLineArguments.Quote(helperLaunchPath),
+                helperArguments
+            });
+            arguments = runtimeProfile.BuildArguments("explorer", desktopArguments);
+        }
+        else
+        {
+            arguments = runtimeProfile.BuildArguments(helperExecutablePath, helperArguments);
+        }
 
         return new LaunchPlan(
             clientInstall,

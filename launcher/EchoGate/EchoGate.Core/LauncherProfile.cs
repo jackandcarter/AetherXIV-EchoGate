@@ -11,7 +11,10 @@ public sealed record LauncherProfile(
     ClientLaunchHelperMode LaunchHelperMode = ClientLaunchHelperMode.Automatic,
     ClientGraphicsTarget GraphicsTarget = ClientGraphicsTarget.OpenGLCompatibility,
     string SavedUsername = "",
-    bool RememberUsername = false)
+    bool RememberUsername = false,
+    ClientWindowMode WindowMode = ClientWindowMode.WineVirtualDesktop,
+    int WindowWidth = ClientWindowDefaults.DefaultWidth,
+    int WindowHeight = ClientWindowDefaults.DefaultHeight)
 {
     public static LauncherProfile LocalDefault() => new(
         "",
@@ -31,5 +34,8 @@ public sealed record LauncherProfile(
         ClientLaunchHelperMode.Automatic,
         ClientGraphicsTarget.OpenGLCompatibility,
         "",
-        false);
+        false,
+        ClientWindowMode.WineVirtualDesktop,
+        ClientWindowDefaults.DefaultWidth,
+        ClientWindowDefaults.DefaultHeight);
 }

@@ -16,6 +16,8 @@ RUN_SMOKE=0
 WITH_WINE=1
 PREPARE_CLIENT_RUNTIME=1
 WINE_SOURCE="${WINE_SOURCE:-distro}"
+WINE_COMMAND="${WINE_COMMAND:-wine}"
+CLIENT_RUNTIME_MODE="${CLIENT_RUNTIME_MODE:-default}"
 CLIENT_PREFIX="${WINEPREFIX:-$HOME/.local/share/Demi Dev Unit/Echo Gate/Prefixes/ffxiv-1x}"
 LAUNCHER_RID="${RUNTIME_IDENTIFIER:-linux-x64}"
 
@@ -38,7 +40,10 @@ Options:
   --no-wine             Skip Wine/Winetricks package installation and prefix setup.
   --with-client-runtime Install Wine/Winetricks and prepare the Echo Gate Wine prefix. Default.
   --no-client-runtime   Install Wine packages, but skip Echo Gate Wine prefix setup.
+  --client-runtime-mode MODE
+                        Runtime setup mode: default or custom. Default: default.
   --wine-source SOURCE  Wine package source: distro or winehq. Default: distro.
+  --wine-command PATH   Wine executable to use when preparing the client prefix. Default: wine.
   --client-prefix PATH  Wine prefix to prepare. Default: ~/.local/share/Demi Dev Unit/Echo Gate/Prefixes/ffxiv-1x
   --smoke               Run smoke-local after building.
   --help                Show this help.
@@ -107,9 +112,19 @@ while [[ $# -gt 0 ]]; do
     --no-client-runtime)
       PREPARE_CLIENT_RUNTIME=0
       ;;
+    --client-runtime-mode)
+      [[ $# -ge 2 ]] || die "--client-runtime-mode requires a value"
+      CLIENT_RUNTIME_MODE="$2"
+      shift
+      ;;
     --wine-source)
       [[ $# -ge 2 ]] || die "--wine-source requires a value"
       WINE_SOURCE="$2"
+      shift
+      ;;
+    --wine-command)
+      [[ $# -ge 2 ]] || die "--wine-command requires a value"
+      WINE_COMMAND="$2"
       shift
       ;;
     --client-prefix)
@@ -140,6 +155,14 @@ case "$WINE_SOURCE" in
     ;;
   *)
     die "--wine-source must be distro or winehq"
+    ;;
+esac
+
+case "$CLIENT_RUNTIME_MODE" in
+  default|custom)
+    ;;
+  *)
+    die "--client-runtime-mode must be default or custom"
     ;;
 esac
 
@@ -204,6 +227,136 @@ add_available_package() {
 
 command_exists() {
   command -v "$1" >/dev/null 2>&1
+}
+
+command_available() {
+  local command_name="$1"
+  if [[ "$command_name" == */* ]]; then
+    [[ -x "$command_name" || -f "$command_name" ]]
+  else
+    command_exists "$command_name"
+  fi
+}
+
+resolve_command_path() {
+  local command_name="$1"
+  if [[ "$command_name" == */* ]]; then
+    printf '%s\n' "$command_name"
+  else
+    command -v "$command_name" 2>/dev/null || printf '%s\n' "$command_name"
+  fi
+}
+
+expand_user_path() {
+  local value="$1"
+  if [[ "$value" == "~" ]]; then
+    printf '%s\n' "$HOME"
+  elif [[ "$value" == "~/"* ]]; then
+    printf '%s\n' "$HOME/${value#~/}"
+  else
+    printf '%s\n' "$value"
+  fi
+}
+
+add_wine_command_candidate() {
+  local candidate="$1"
+  [[ -n "$candidate" ]] || return 0
+  [[ -f "$candidate" || -x "$candidate" ]] || return 0
+  printf '%s\n' "$candidate"
+}
+
+detect_wine_commands() {
+  {
+    command -v wine 2>/dev/null || true
+    command -v wine64 2>/dev/null || true
+
+    local pattern
+    for pattern in \
+      "/usr/bin/wine" \
+      "/usr/bin/wine64" \
+      "/usr/local/bin/wine" \
+      "/usr/local/bin/wine64" \
+      "/opt/wine*/bin/wine" \
+      "/opt/wine*/bin/wine64" \
+      "$HOME/.local/bin/wine" \
+      "$HOME/.local/bin/wine64" \
+      "$HOME/.local/share/lutris/runners/wine"/*/bin/wine \
+      "$HOME/.local/share/lutris/runners/wine"/*/bin/wine64; do
+      for candidate in $pattern; do
+        add_wine_command_candidate "$candidate"
+      done
+    done
+  } | awk 'NF && !seen[$0]++'
+}
+
+select_custom_wine_command() {
+  local choices=()
+  local candidate
+  while IFS= read -r candidate; do
+    choices+=("$candidate")
+  done < <(detect_wine_commands)
+
+  if [[ "${#choices[@]}" -eq 0 ]]; then
+    warn "No Wine executables were detected automatically."
+    read -r -p "Enter the Wine executable path to use: " WINE_COMMAND
+    WINE_COMMAND="$(expand_user_path "$WINE_COMMAND")"
+    return 0
+  fi
+
+  log "Detected Wine executables:"
+  local index
+  for index in "${!choices[@]}"; do
+    printf '  %d) %s\n' "$((index + 1))" "${choices[$index]}"
+  done
+
+  local reply
+  read -r -p "Choose Wine executable [1], or enter a path: " reply
+  if [[ -z "$reply" ]]; then
+    WINE_COMMAND="${choices[0]}"
+  elif [[ "$reply" =~ ^[0-9]+$ && "$reply" -ge 1 && "$reply" -le "${#choices[@]}" ]]; then
+    WINE_COMMAND="${choices[$((reply - 1))]}"
+  else
+    WINE_COMMAND="$(expand_user_path "$reply")"
+  fi
+}
+
+select_client_runtime_setup() {
+  [[ "$WITH_WINE" -eq 1 && "$PREPARE_CLIENT_RUNTIME" -eq 1 ]] || return 0
+
+  if [[ "$ASSUME_YES" -eq 1 ]]; then
+    log "Client runtime mode: $CLIENT_RUNTIME_MODE"
+    log "Wine command: $WINE_COMMAND"
+    log "Client prefix: $CLIENT_PREFIX"
+    return 0
+  fi
+
+  local reply
+  read -r -p "Use default Echo Gate Wine prefix, or a custom Wine executable/prefix? [default/custom] " reply
+  if [[ -n "$reply" ]]; then
+    case "$reply" in
+      d|D|default|DEFAULT)
+        CLIENT_RUNTIME_MODE="default"
+        ;;
+      c|C|custom|CUSTOM)
+        CLIENT_RUNTIME_MODE="custom"
+        ;;
+      *)
+        warn "Unknown runtime setup choice; keeping $CLIENT_RUNTIME_MODE"
+        ;;
+    esac
+  fi
+
+  if [[ "$CLIENT_RUNTIME_MODE" == "custom" ]]; then
+    select_custom_wine_command
+    read -r -p "Wine prefix to prepare [$CLIENT_PREFIX]: " reply
+    if [[ -n "$reply" ]]; then
+      CLIENT_PREFIX="$(expand_user_path "$reply")"
+    fi
+  fi
+
+  log "Client runtime mode: $CLIENT_RUNTIME_MODE"
+  log "Wine command: $WINE_COMMAND"
+  log "Client prefix: $CLIENT_PREFIX"
 }
 
 package_installed() {
@@ -385,9 +538,11 @@ collect_dependencies() {
 
   if [[ "$WITH_WINE" -eq 1 ]]; then
     enable_i386_architecture
-    if command_exists wine; then
-      log "ok: wine ($(command -v wine))"
+    if command_available "$WINE_COMMAND"; then
+      log "ok: wine ($(resolve_command_path "$WINE_COMMAND"))"
       log "Keeping detected Wine; no Wine package will be requested."
+    elif [[ "$WINE_COMMAND" != "wine" ]]; then
+      log "missing: selected Wine command -> $WINE_COMMAND"
     elif [[ "$WINE_SOURCE" == "winehq" ]]; then
       prepare_winehq_package_source
       log "missing: wine -> winehq-stable"
@@ -487,7 +642,7 @@ validate_build_dependencies() {
   fi
 
   if [[ "$WITH_WINE" -eq 1 ]]; then
-    command_exists wine || die "wine is still missing"
+    command_available "$WINE_COMMAND" || die "selected Wine command is still missing: $WINE_COMMAND"
     command_exists winetricks || die "winetricks is still missing"
   fi
 }
@@ -588,27 +743,85 @@ build_launcher() {
   fi
 }
 
+resolve_wine_tool() {
+  local tool_name="$1"
+  local wine_path
+  wine_path="$(resolve_command_path "$WINE_COMMAND")"
+
+  local wine_dir
+  wine_dir="$(dirname "$wine_path")"
+  if [[ -x "$wine_dir/$tool_name" || -f "$wine_dir/$tool_name" ]]; then
+    printf '%s\n' "$wine_dir/$tool_name"
+    return 0
+  fi
+
+  if command_exists "$tool_name"; then
+    command -v "$tool_name"
+    return 0
+  fi
+
+  printf '%s\n' "$tool_name"
+}
+
+validate_client_runtime_prefix() {
+  log "Validating selected Wine runtime and prefix..."
+  command_available "$WINE_COMMAND" || die "Wine executable is missing: $WINE_COMMAND"
+  command_exists winetricks || die "winetricks is missing"
+
+  local wine_version
+  wine_version="$("$WINE_COMMAND" --version 2>/dev/null || true)"
+  if [[ -n "$wine_version" ]]; then
+    log "ok: $wine_version"
+  else
+    warn "Wine version check did not return text"
+  fi
+
+  [[ -f "$CLIENT_PREFIX/system.reg" ]] || die "prefix is missing system.reg: $CLIENT_PREFIX"
+  [[ -f "$CLIENT_PREFIX/user.reg" ]] || die "prefix is missing user.reg: $CLIENT_PREFIX"
+  [[ -d "$CLIENT_PREFIX/drive_c" ]] || die "prefix is missing drive_c: $CLIENT_PREFIX"
+
+  local d3dx_dll
+  d3dx_dll="$(find "$CLIENT_PREFIX/drive_c/windows" -iname 'd3dx9_41.dll' -print -quit 2>/dev/null || true)"
+  if [[ -z "$d3dx_dll" ]]; then
+    die "d3dx9_41.dll was not found in the selected prefix; rerun prefix setup with the correct Wine and winetricks"
+  fi
+  log "ok: d3dx9_41 installed at $d3dx_dll"
+
+  if WINEPREFIX="$CLIENT_PREFIX" "$WINE_COMMAND" reg query 'HKCU\Software\Wine\Direct3D' /v renderer >/dev/null 2>&1; then
+    log "ok: WineD3D renderer registry value exists"
+  else
+    warn "WineD3D renderer registry value was not readable"
+  fi
+}
+
 prepare_client_runtime() {
   log "Preparing Echo Gate Wine prefix: $CLIENT_PREFIX"
   mkdir -p "$(dirname "$CLIENT_PREFIX")"
 
+  local wineboot_command
+  local wineserver_command
+  wineboot_command="$(resolve_wine_tool wineboot)"
+  wineserver_command="$(resolve_wine_tool wineserver)"
+
   log "Initializing Wine prefix..."
-  WINEPREFIX="$CLIENT_PREFIX" WINE_D3D_CONFIG="renderer=gl,csmt=0" wineboot -u
+  WINEPREFIX="$CLIENT_PREFIX" WINE_D3D_CONFIG="renderer=gl,csmt=0" "$wineboot_command" -u
 
   log "Installing Windows 7 mode and d3dx9_41 into the prefix..."
-  WINEPREFIX="$CLIENT_PREFIX" WINE_D3D_CONFIG="renderer=gl,csmt=0" winetricks -q win7 d3dx9_41
+  WINE="$WINE_COMMAND" WINEPREFIX="$CLIENT_PREFIX" WINE_D3D_CONFIG="renderer=gl,csmt=0" winetricks -q win7 d3dx9_41
 
   log "Recording WineD3D Direct3D settings in the prefix..."
-  WINEPREFIX="$CLIENT_PREFIX" wine reg add 'HKCU\Software\Wine\Direct3D' /v renderer /t REG_SZ /d gl /f >/dev/null
-  WINEPREFIX="$CLIENT_PREFIX" wine reg add 'HKCU\Software\Wine\Direct3D' /v csmt /t REG_SZ /d 0 /f >/dev/null
+  WINEPREFIX="$CLIENT_PREFIX" "$WINE_COMMAND" reg add 'HKCU\Software\Wine\Direct3D' /v renderer /t REG_SZ /d gl /f >/dev/null
+  WINEPREFIX="$CLIENT_PREFIX" "$WINE_COMMAND" reg add 'HKCU\Software\Wine\Direct3D' /v csmt /t REG_SZ /d 0 /f >/dev/null
 
-  if command_exists wineserver; then
-    WINEPREFIX="$CLIENT_PREFIX" wineserver -w
+  if command_available "$wineserver_command"; then
+    WINEPREFIX="$CLIENT_PREFIX" "$wineserver_command" -w
   fi
 
+  validate_client_runtime_prefix
   log "Client runtime prefix is ready: $CLIENT_PREFIX"
 }
 
+select_client_runtime_setup
 collect_dependencies
 install_packages
 ensure_nuget_cli

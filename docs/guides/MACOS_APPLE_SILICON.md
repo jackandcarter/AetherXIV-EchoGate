@@ -85,7 +85,7 @@ map server: 1989
 The Apple Silicon app is published under:
 
 ```text
-build/echo-gate/macos-osx-arm64/Echo Gate.app
+build/echo-gate/macos-osx-arm64/EchoGate.app
 ```
 
 GitHub release builds are ad-hoc signed but not Apple-notarized. If macOS Gatekeeper blocks a downloaded app, use Control-click > Open, approve it from System Settings, or build Echo Gate locally on your Mac.
