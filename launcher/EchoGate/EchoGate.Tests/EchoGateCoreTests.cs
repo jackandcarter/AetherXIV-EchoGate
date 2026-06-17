@@ -145,23 +145,24 @@ public sealed class EchoGateCoreTests
             logPath: Path.Combine(root, "launch.log"));
 
         Assert.Equal(helper, plan.WindowsExecutablePath);
-        Assert.Contains("explorer", plan.Arguments);
-        Assert.Contains("/desktop=EchoGateXIV-1600x900,1600x900", plan.Arguments);
-        Assert.Contains("--session", plan.Arguments);
+        Assert.DoesNotContain("explorer", plan.Arguments);
+        Assert.DoesNotContain("/desktop=", plan.Arguments);
         Assert.Contains("Z:", plan.Arguments);
+        Assert.Contains("EchoGate.ClientLauncher.exe", plan.Arguments);
+        Assert.Contains("--session", plan.Arguments);
         Assert.Contains("127.0.0.1", plan.Arguments);
         Assert.Equal("/tmp/echo-gate-prefix", plan.Environment["WINEPREFIX"]);
         Assert.Equal(WineRuntimeProfile.DefaultDirect3DConfig, plan.Environment["WINE_D3D_CONFIG"]);
     }
 
     [Fact]
-    public void LaunchPlanWithHelperCanUseCustomVirtualDesktopResolution()
+    public void LaunchPlanWithHelperKeepsWindowsNativeArgumentsDirect()
     {
         string root = CreateTempDirectory();
         File.WriteAllText(Path.Combine(root, "ffxivgame.exe"), "");
         ClientInstall client = ClientInstall.FromPath(root);
         ServerProfile server = ServerProfile.LocalDefault();
-        WineRuntimeProfile runtime = WineRuntimeProfile.WinePrefix("Wine", "/tmp/echo-gate-prefix");
+        WineRuntimeProfile runtime = WineRuntimeProfile.NativeWindows();
         string helper = Path.Combine(root, "EchoGate.ClientLauncher.exe");
 
         LaunchPlan plan = LaunchPlan.CreateWithHelper(
@@ -170,51 +171,22 @@ public sealed class EchoGateCoreTests
             runtime,
             helper,
             new string('b', 56),
-            mapClientPathsForWine: true,
-            windowMode: ClientWindowMode.WineVirtualDesktop,
-            windowWidth: 1920,
-            windowHeight: 1080);
+            mapClientPathsForWine: false);
 
-        Assert.Contains("/desktop=EchoGateXIV-1920x1080,1920x1080", plan.Arguments);
-    }
-
-    [Fact]
-    public void LaunchPlanWithHelperCanUseNormalWineWindow()
-    {
-        string root = CreateTempDirectory();
-        File.WriteAllText(Path.Combine(root, "ffxivgame.exe"), "");
-        ClientInstall client = ClientInstall.FromPath(root);
-        ServerProfile server = ServerProfile.LocalDefault();
-        WineRuntimeProfile runtime = WineRuntimeProfile.WinePrefix("Wine", "/tmp/echo-gate-prefix");
-        string helper = Path.Combine(root, "EchoGate.ClientLauncher.exe");
-
-        LaunchPlan plan = LaunchPlan.CreateWithHelper(
-            client,
-            server,
-            runtime,
-            helper,
-            new string('b', 56),
-            mapClientPathsForWine: true,
-            windowMode: ClientWindowMode.NormalWindow);
-
-        Assert.DoesNotContain("/desktop=EchoGateXIV", plan.Arguments);
-        Assert.Contains(helper, plan.Arguments);
+        Assert.DoesNotContain("wine", plan.Arguments, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("/desktop=", plan.Arguments);
+        Assert.Equal(helper, plan.WindowsExecutablePath);
+        Assert.DoesNotContain("Z:", plan.Arguments);
+        Assert.Contains("--session", plan.Arguments);
     }
 
     [Fact]
     public void WineRuntimeConfiguratorBuildsMacRegistrySettings()
     {
         IReadOnlyList<WineRegistrySetting> settings = WineRuntimeConfigurator.BuildRegistrySettings(
-            new WineRuntimeConfigurationSettings(
-                ClientWindowMode.WineVirtualDesktop,
-                1920,
-                1080,
-                LauncherOperatingSystem.MacOS));
+            new WineRuntimeConfigurationSettings(LauncherOperatingSystem.MacOS));
 
-        Assert.Contains(settings, setting =>
-            setting.Key == @"HKCU\Software\Wine\Explorer\Desktops"
-            && setting.ValueName == "EchoGateXIV-1920x1080"
-            && setting.Data == "1920x1080");
+        Assert.DoesNotContain(settings, setting => setting.Key == @"HKCU\Software\Wine\Explorer\Desktops");
         Assert.Contains(settings, setting =>
             setting.Key == @"HKCU\Software\Wine\DirectInput"
             && setting.ValueName == "MouseWarpOverride"
@@ -229,12 +201,9 @@ public sealed class EchoGateCoreTests
     public void WineRuntimeConfiguratorBuildsLinuxRegistrySettings()
     {
         IReadOnlyList<WineRegistrySetting> settings = WineRuntimeConfigurator.BuildRegistrySettings(
-            new WineRuntimeConfigurationSettings(
-                ClientWindowMode.WineVirtualDesktop,
-                1280,
-                720,
-                LauncherOperatingSystem.Linux));
+            new WineRuntimeConfigurationSettings(LauncherOperatingSystem.Linux));
 
+        Assert.DoesNotContain(settings, setting => setting.Key == @"HKCU\Software\Wine\Explorer\Desktops");
         Assert.Contains(settings, setting =>
             setting.Key == @"HKCU\Software\Wine\X11 Driver"
             && setting.ValueName == "GrabFullscreen"
@@ -242,33 +211,20 @@ public sealed class EchoGateCoreTests
     }
 
     [Fact]
-    public void WineRuntimeConfiguratorOmitsDesktopSizeForNormalWindow()
-    {
-        IReadOnlyList<WineRegistrySetting> settings = WineRuntimeConfigurator.BuildRegistrySettings(
-            new WineRuntimeConfigurationSettings(
-                ClientWindowMode.NormalWindow,
-                1920,
-                1080,
-                LauncherOperatingSystem.Linux));
-
-        Assert.DoesNotContain(settings, setting => setting.Key == @"HKCU\Software\Wine\Explorer\Desktops");
-    }
-
-    [Fact]
     public void WineRuntimeConfiguratorQuotesRegistryArguments()
     {
         WineRegistrySetting setting = new(
-            @"HKCU\Software\Wine\Explorer\Desktops",
-            "EchoGateXIV-1920x1080",
+            @"HKCU\Software\Wine\DirectInput",
+            "MouseWarpOverride",
             "REG_SZ",
-            "1920x1080");
+            "force");
 
         string arguments = WineRuntimeConfigurator.BuildRegAddArguments(setting);
 
         Assert.Contains("reg add", arguments);
-        Assert.Contains(@"HKCU\Software\Wine\Explorer\Desktops", arguments);
-        Assert.Contains("/v EchoGateXIV-1920x1080", arguments);
-        Assert.Contains("/d 1920x1080", arguments);
+        Assert.Contains(@"HKCU\Software\Wine\DirectInput", arguments);
+        Assert.Contains("/v MouseWarpOverride", arguments);
+        Assert.Contains("/d force", arguments);
     }
 
     [Fact]

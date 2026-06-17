@@ -3,9 +3,6 @@ using System.Diagnostics;
 namespace EchoGate.Core;
 
 public sealed record WineRuntimeConfigurationSettings(
-    ClientWindowMode WindowMode,
-    int WindowWidth,
-    int WindowHeight,
     LauncherOperatingSystem OperatingSystem);
 
 public sealed record WineRuntimeConfigurationResult(
@@ -26,8 +23,6 @@ public static class WineRuntimeConfigurator
     {
         ArgumentNullException.ThrowIfNull(settings);
 
-        int width = Math.Clamp(settings.WindowWidth, ClientWindowDefaults.MinimumWidth, ClientWindowDefaults.MaximumWidth);
-        int height = Math.Clamp(settings.WindowHeight, ClientWindowDefaults.MinimumHeight, ClientWindowDefaults.MaximumHeight);
         List<WineRegistrySetting> registrySettings = new()
         {
             new WineRegistrySetting(
@@ -36,15 +31,6 @@ public static class WineRuntimeConfigurator
                 "REG_SZ",
                 "force")
         };
-
-        if (settings.WindowMode == ClientWindowMode.WineVirtualDesktop)
-        {
-            registrySettings.Add(new WineRegistrySetting(
-                @"HKCU\Software\Wine\Explorer\Desktops",
-                ClientWindowDefaults.BuildDesktopName(width, height),
-                "REG_SZ",
-                $"{width}x{height}"));
-        }
 
         if (settings.OperatingSystem == LauncherOperatingSystem.MacOS)
         {
@@ -165,7 +151,7 @@ public static class WineRuntimeConfigurator
 
         return new WineRuntimeConfigurationResult(
             true,
-            "Wine desktop and input settings were applied.",
+            "Wine input and fullscreen capture settings were applied.",
             runtimeTarget,
             logPath);
     }

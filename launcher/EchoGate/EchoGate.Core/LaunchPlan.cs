@@ -47,9 +47,6 @@ public sealed record LaunchPlan(
         string helperExecutablePath,
         string sessionId,
         bool mapClientPathsForWine,
-        ClientWindowMode windowMode = ClientWindowMode.WineVirtualDesktop,
-        int windowWidth = ClientWindowDefaults.DefaultWidth,
-        int windowHeight = ClientWindowDefaults.DefaultHeight,
         string? logPath = null)
     {
         ArgumentNullException.ThrowIfNull(clientInstall);
@@ -105,25 +102,12 @@ public sealed record LaunchPlan(
         {
             arguments = helperArguments;
         }
-        else if (windowMode == ClientWindowMode.WineVirtualDesktop)
+        else
         {
-            int desktopWidth = Math.Clamp(windowWidth, ClientWindowDefaults.MinimumWidth, ClientWindowDefaults.MaximumWidth);
-            int desktopHeight = Math.Clamp(windowHeight, ClientWindowDefaults.MinimumHeight, ClientWindowDefaults.MaximumHeight);
-            string desktopName = ClientWindowDefaults.BuildDesktopName(desktopWidth, desktopHeight);
             string helperLaunchPath = mapClientPathsForWine
                 ? WinePathMapper.ToWindowsPath(helperExecutablePath)
                 : helperExecutablePath;
-            string desktopArguments = string.Join(" ", new[]
-            {
-                $"/desktop={desktopName},{desktopWidth}x{desktopHeight}",
-                CommandLineArguments.Quote(helperLaunchPath),
-                helperArguments
-            });
-            arguments = runtimeProfile.BuildArguments("explorer", desktopArguments);
-        }
-        else
-        {
-            arguments = runtimeProfile.BuildArguments(helperExecutablePath, helperArguments);
+            arguments = runtimeProfile.BuildArguments(helperLaunchPath, helperArguments);
         }
 
         return new LaunchPlan(

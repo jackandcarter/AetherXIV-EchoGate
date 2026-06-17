@@ -87,11 +87,7 @@ public sealed partial class MainWindow : Window
                 WineRuntimeConfigurationResult configuration = await WineRuntimeConfigurator.ConfigureAsync(
                     runtimeProfile,
                     RuntimeInstallStore.ManagedPrefixPath,
-                    new WineRuntimeConfigurationSettings(
-                        ReadWindowMode(),
-                        ReadDesktopWidth(),
-                        ReadDesktopHeight(),
-                        platform.OperatingSystem));
+                    new WineRuntimeConfigurationSettings(platform.OperatingSystem));
                 AppendLog($"Runtime config: {configuration.Message}");
                 AppendLog($"Runtime config target: {configuration.RuntimeTarget}");
                 AppendLog($"Runtime config log: {configuration.LogPath}");
@@ -817,20 +813,13 @@ public sealed partial class MainWindow : Window
             SetLaunchInProgress("Launching game...", "Launching game...");
             ClientLaunchHelperMode helperMode = ReadLaunchHelperMode();
             ClientGraphicsTarget graphicsTarget = ReadGraphicsTarget();
-            ClientWindowMode windowMode = ReadWindowMode();
-            int windowWidth = ReadDesktopWidth();
-            int windowHeight = ReadDesktopHeight();
             if (platform.RequiresCompatibilityRuntime)
             {
                 SetLaunchInProgress("Configuring Wine...", "Configuring Wine runtime...");
                 WineRuntimeConfigurationResult configuration = await WineRuntimeConfigurator.ConfigureAsync(
                     runtimeProfile,
                     RuntimeInstallStore.ManagedPrefixPath,
-                    new WineRuntimeConfigurationSettings(
-                        windowMode,
-                        windowWidth,
-                        windowHeight,
-                        platform.OperatingSystem));
+                    new WineRuntimeConfigurationSettings(platform.OperatingSystem));
                 AppendLog($"Runtime config: {configuration.Message}");
                 AppendLog($"Runtime config target: {configuration.RuntimeTarget}");
                 AppendLog($"Runtime config log: {configuration.LogPath}");
@@ -852,15 +841,11 @@ public sealed partial class MainWindow : Window
                 runtimeProfile,
                 helperPath,
                 sessionId,
-                platform.RequiresCompatibilityRuntime,
-                windowMode,
-                windowWidth,
-                windowHeight);
+                platform.RequiresCompatibilityRuntime);
             ProcessStartInfo startInfo = BuildProcessStartInfo(plan);
             RuntimeLaunchResult result = RuntimeLaunchDiagnostics.StartWithLogging(startInfo, plan.LogPath);
             AppendLog($"Launch helper: {FormatLaunchHelperMode(helperMode)} ({helperPath})");
             AppendLog($"Graphics target: {FormatGraphicsTarget(graphicsTarget)}");
-            AppendLog($"Window mode: {FormatWindowMode(windowMode)} ({windowWidth}x{windowHeight})");
             AppendLog($"Launch started: pid {result.ProcessId}");
             AppendLog($"Launch log: {result.LogPath}");
             HomeLoginStatus.Text = "Launch sent to Wine. Watch for the game window.";
@@ -1248,8 +1233,6 @@ public sealed partial class MainWindow : Window
             LoginUserBox.Text = profile.RememberUsername ? profile.SavedUsername : "";
             ApplyLaunchHelperMode(profile.LaunchHelperMode);
             ApplyGraphicsTarget(profile.GraphicsTarget);
-            ApplyWindowMode(profile.WindowMode);
-            ApplyDesktopSize(profile.WindowWidth, profile.WindowHeight);
             ApplyRuntimeMode(profile.RuntimeMode);
             ApplyRuntimeProfile(profile.RuntimeProfile);
         }
@@ -1258,8 +1241,6 @@ public sealed partial class MainWindow : Window
             AppendLog($"Profile load failed: {ex.Message}");
             ApplyLaunchHelperMode(LauncherProfile.LocalDefault().LaunchHelperMode);
             ApplyGraphicsTarget(LauncherProfile.LocalDefault().GraphicsTarget);
-            ApplyWindowMode(LauncherProfile.LocalDefault().WindowMode);
-            ApplyDesktopSize(LauncherProfile.LocalDefault().WindowWidth, LauncherProfile.LocalDefault().WindowHeight);
             ApplyRuntimeMode(LauncherProfile.LocalDefault().RuntimeMode);
             ApplyRuntimeProfile(LauncherProfile.LocalDefault().RuntimeProfile);
         }
@@ -1317,27 +1298,6 @@ public sealed partial class MainWindow : Window
         };
     }
 
-    private void ApplyWindowMode(ClientWindowMode windowMode)
-    {
-        WindowModeBox.SelectedIndex = windowMode switch
-        {
-            ClientWindowMode.NormalWindow => 1,
-            _ => 0
-        };
-    }
-
-    private void ApplyDesktopSize(int width, int height)
-    {
-        DesktopWidthBox.Value = Math.Clamp(
-            width,
-            ClientWindowDefaults.MinimumWidth,
-            ClientWindowDefaults.MaximumWidth);
-        DesktopHeightBox.Value = Math.Clamp(
-            height,
-            ClientWindowDefaults.MinimumHeight,
-            ClientWindowDefaults.MaximumHeight);
-    }
-
     private void SaveCurrentProfile()
     {
         try
@@ -1353,10 +1313,7 @@ public sealed partial class MainWindow : Window
                 ReadLaunchHelperMode(),
                 ReadGraphicsTarget(),
                 RememberUsernameBox.IsChecked == true ? (LoginUserBox.Text ?? "").Trim() : "",
-                RememberUsernameBox.IsChecked == true,
-                ReadWindowMode(),
-                ReadDesktopWidth(),
-                ReadDesktopHeight());
+                RememberUsernameBox.IsChecked == true);
             ProfileStore.SaveDefault(profile);
         }
         catch (Exception ex)
@@ -1519,9 +1476,6 @@ public sealed partial class MainWindow : Window
         RuntimeNameBox.IsEnabled = !isBusy;
         RuntimeCommandBox.IsEnabled = !isBusy;
         RuntimeValueBox.IsEnabled = !isBusy;
-        WindowModeBox.IsEnabled = !isBusy && platform.RequiresCompatibilityRuntime;
-        DesktopWidthBox.IsEnabled = !isBusy && platform.RequiresCompatibilityRuntime && ReadWindowMode() == ClientWindowMode.WineVirtualDesktop;
-        DesktopHeightBox.IsEnabled = !isBusy && platform.RequiresCompatibilityRuntime && ReadWindowMode() == ClientWindowMode.WineVirtualDesktop;
     }
 
     private void UpdateRuntimeUiState()
@@ -1530,9 +1484,6 @@ public sealed partial class MainWindow : Window
         {
             LaunchHelperModeBox.IsEnabled = false;
             GraphicsTargetBox.IsEnabled = false;
-            WindowModeBox.IsEnabled = false;
-            DesktopWidthBox.IsEnabled = false;
-            DesktopHeightBox.IsEnabled = false;
             return;
         }
 
@@ -1547,9 +1498,6 @@ public sealed partial class MainWindow : Window
         ResetPrefixButton.IsEnabled = !isBusy;
         LaunchHelperModeBox.IsEnabled = !isBusy && platform.RequiresCompatibilityRuntime;
         GraphicsTargetBox.IsEnabled = !isBusy && platform.RequiresCompatibilityRuntime;
-        WindowModeBox.IsEnabled = !isBusy && platform.RequiresCompatibilityRuntime;
-        DesktopWidthBox.IsEnabled = !isBusy && platform.RequiresCompatibilityRuntime && ReadWindowMode() == ClientWindowMode.WineVirtualDesktop;
-        DesktopHeightBox.IsEnabled = !isBusy && platform.RequiresCompatibilityRuntime && ReadWindowMode() == ClientWindowMode.WineVirtualDesktop;
         DetectedRuntimeBox.IsEnabled = !isBusy && detected;
         CustomRuntimeKindBox.IsEnabled = !isBusy && custom;
         RuntimeNameBox.IsEnabled = !isBusy && custom;
@@ -1606,31 +1554,6 @@ public sealed partial class MainWindow : Window
         };
     }
 
-    private ClientWindowMode ReadWindowMode()
-    {
-        return WindowModeBox.SelectedIndex switch
-        {
-            1 => ClientWindowMode.NormalWindow,
-            _ => ClientWindowMode.WineVirtualDesktop
-        };
-    }
-
-    private int ReadDesktopWidth()
-    {
-        return Math.Clamp(
-            Convert.ToInt32(DesktopWidthBox.Value ?? ClientWindowDefaults.DefaultWidth),
-            ClientWindowDefaults.MinimumWidth,
-            ClientWindowDefaults.MaximumWidth);
-    }
-
-    private int ReadDesktopHeight()
-    {
-        return Math.Clamp(
-            Convert.ToInt32(DesktopHeightBox.Value ?? ClientWindowDefaults.DefaultHeight),
-            ClientWindowDefaults.MinimumHeight,
-            ClientWindowDefaults.MaximumHeight);
-    }
-
     private static string FormatLaunchHelperMode(ClientLaunchHelperMode mode)
     {
         return mode switch
@@ -1650,15 +1573,6 @@ public sealed partial class MainWindow : Window
             ClientGraphicsTarget.OpenGLThreaded => "OpenGL threaded",
             ClientGraphicsTarget.WineD3DVulkan => "WineD3D Vulkan",
             _ => "OpenGL compatibility"
-        };
-    }
-
-    private static string FormatWindowMode(ClientWindowMode mode)
-    {
-        return mode switch
-        {
-            ClientWindowMode.NormalWindow => "Normal Wine window",
-            _ => "Wine virtual desktop"
         };
     }
 
