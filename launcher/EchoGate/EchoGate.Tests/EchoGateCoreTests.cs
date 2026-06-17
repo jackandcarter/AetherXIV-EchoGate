@@ -181,6 +181,46 @@ public sealed class EchoGateCoreTests
     }
 
     [Fact]
+    public void ClientConfigLaunchPlanUsesIsolatedWineDesktop()
+    {
+        string root = CreateTempDirectory();
+        File.WriteAllText(Path.Combine(root, "ffxivconfig.exe"), "");
+        ClientInstall client = ClientInstall.FromPath(root);
+        WineRuntimeProfile runtime = WineRuntimeProfile.WinePrefix("Wine", "/tmp/echo-gate-prefix");
+
+        ClientConfigLaunchPlan plan = ClientConfigLaunchPlan.Create(
+            client,
+            runtime,
+            mapClientPathsForWine: true);
+
+        Assert.Equal("wine", plan.FileName);
+        Assert.Contains("explorer", plan.Arguments);
+        Assert.Contains("/desktop=EchoGateConfig,900x700", plan.Arguments);
+        Assert.Contains("Z:", plan.Arguments);
+        Assert.Contains("ffxivconfig.exe", plan.Arguments);
+        Assert.Equal(ClientConfigLaunchPlan.WineDebugChannels, plan.Environment["WINEDEBUG"]);
+        Assert.Equal("/tmp/echo-gate-prefix", plan.Environment["WINEPREFIX"]);
+    }
+
+    [Fact]
+    public void ClientConfigLaunchPlanKeepsNativeWindowsDirect()
+    {
+        string root = CreateTempDirectory();
+        string configPath = Path.Combine(root, "ffxivconfig.exe");
+        File.WriteAllText(configPath, "");
+        ClientInstall client = ClientInstall.FromPath(root);
+
+        ClientConfigLaunchPlan plan = ClientConfigLaunchPlan.Create(
+            client,
+            WineRuntimeProfile.NativeWindows(),
+            mapClientPathsForWine: false);
+
+        Assert.Equal(configPath, plan.FileName);
+        Assert.Equal("", plan.Arguments);
+        Assert.False(plan.Environment.ContainsKey("WINEDEBUG"));
+    }
+
+    [Fact]
     public void WineRuntimeConfiguratorBuildsMacRegistrySettings()
     {
         IReadOnlyList<WineRegistrySetting> settings = WineRuntimeConfigurator.BuildRegistrySettings(

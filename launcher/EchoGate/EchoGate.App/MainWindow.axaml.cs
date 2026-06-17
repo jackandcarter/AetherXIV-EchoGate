@@ -1428,18 +1428,28 @@ public sealed partial class MainWindow : Window
         }
         else
         {
-            string configPath = WinePathMapper.ToWindowsPath(clientInstall.ConfigExecutablePath);
+            ClientConfigLaunchPlan configPlan = ClientConfigLaunchPlan.Create(
+                clientInstall,
+                runtimeProfile,
+                mapClientPathsForWine: true);
             info = new ProcessStartInfo
             {
-                FileName = runtimeProfile.Command,
-                Arguments = runtimeProfile.BuildArguments(configPath),
+                FileName = configPlan.FileName,
+                Arguments = configPlan.Arguments,
                 WorkingDirectory = clientInstall.RootPath,
                 UseShellExecute = false
             };
+
+            foreach (KeyValuePair<string, string> pair in configPlan.Environment)
+                info.Environment[pair.Key] = pair.Value;
         }
 
-        foreach (KeyValuePair<string, string> pair in runtimeProfile.Environment)
-            info.Environment[pair.Key] = pair.Value;
+        if (platform.UsesNativeWindowsClient || runtimeProfile.Kind == WineRuntimeKind.NativeWindows)
+        {
+            foreach (KeyValuePair<string, string> pair in runtimeProfile.Environment)
+                info.Environment[pair.Key] = pair.Value;
+        }
+
         info.Environment["ECHO_GATE_LAUNCH_LOG"] = logPath;
 
         return info;
