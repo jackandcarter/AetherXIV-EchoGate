@@ -3,7 +3,8 @@ using System.Diagnostics;
 namespace EchoGate.Core;
 
 public sealed record WineRuntimeConfigurationSettings(
-    LauncherOperatingSystem OperatingSystem);
+    LauncherOperatingSystem OperatingSystem,
+    bool UsePrefixLocalDocuments = true);
 
 public sealed record WineRuntimeConfigurationResult(
     bool IsReady,
@@ -17,9 +18,16 @@ public sealed record WineRegistrySetting(
     string Type,
     string Data);
 
+public sealed record WineUserDocumentsTarget(
+    string HostDocumentsPath,
+    string WindowsDocumentsPath,
+    string HostFfxivConfigPath);
+
 public static class WineRuntimeConfigurator
 {
-    public static IReadOnlyList<WineRegistrySetting> BuildRegistrySettings(WineRuntimeConfigurationSettings settings)
+    public static IReadOnlyList<WineRegistrySetting> BuildRegistrySettings(
+        WineRuntimeConfigurationSettings settings,
+        string? windowsDocumentsPath = null)
     {
         ArgumentNullException.ThrowIfNull(settings);
 
@@ -31,6 +39,20 @@ public static class WineRuntimeConfigurator
                 "REG_SZ",
                 "force")
         };
+
+        if (!string.IsNullOrWhiteSpace(windowsDocumentsPath))
+        {
+            registrySettings.Add(new WineRegistrySetting(
+                @"HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders",
+                "Personal",
+                "REG_SZ",
+                windowsDocumentsPath));
+            registrySettings.Add(new WineRegistrySetting(
+                @"HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders",
+                "Personal",
+                "REG_EXPAND_SZ",
+                windowsDocumentsPath));
+        }
 
         if (settings.OperatingSystem == LauncherOperatingSystem.MacOS)
         {
@@ -50,6 +72,36 @@ public static class WineRuntimeConfigurator
         }
 
         return registrySettings;
+    }
+
+    public static bool TryCreatePrefixLocalDocuments(
+        string prefixPath,
+        out WineUserDocumentsTarget target,
+        out string error)
+    {
+        target = new WineUserDocumentsTarget("", "", "");
+        error = "";
+
+        if (string.IsNullOrWhiteSpace(prefixPath))
+        {
+            error = "Wine prefix path is required before configuring FFXIV settings storage.";
+            return false;
+        }
+
+        string normalizedPrefix = Path.GetFullPath(prefixPath);
+        string usersRoot = Path.Combine(normalizedPrefix, "drive_c", "users");
+        string userName = ResolveWineUserName(usersRoot);
+        string userRoot = Path.Combine(usersRoot, userName);
+        string documentsPath = Path.Combine(userRoot, "EchoGate Documents");
+        string ffxivConfigPath = Path.Combine(documentsPath, "My Games", "FINAL FANTASY XIV");
+
+        Directory.CreateDirectory(ffxivConfigPath);
+
+        target = new WineUserDocumentsTarget(
+            documentsPath,
+            $@"C:\users\{userName}\EchoGate Documents",
+            ffxivConfigPath);
+        return true;
     }
 
     public static string BuildRegAddArguments(WineRegistrySetting setting)
@@ -116,7 +168,13 @@ public static class WineRuntimeConfigurator
                 RuntimeLaunchDiagnostics.CreateLogPath("runtime-config"));
         }
 
-        if (!TryCreateRuntimeEnvironment(profile, managedPrefixPath, out Dictionary<string, string> environment, out string runtimeTarget, out string error))
+        if (!TryCreateRuntimeEnvironment(
+                profile,
+                managedPrefixPath,
+                out Dictionary<string, string> environment,
+                out string runtimeTarget,
+                out string? normalizedPrefix,
+                out string error))
         {
             return new WineRuntimeConfigurationResult(
                 false,
@@ -126,7 +184,35 @@ public static class WineRuntimeConfigurator
         }
 
         string logPath = RuntimeLaunchDiagnostics.CreateLogPath("runtime-config");
-        foreach (WineRegistrySetting setting in BuildRegistrySettings(settings))
+        string? windowsDocumentsPath = null;
+        string configurationStorageDetail = "";
+        if (settings.UsePrefixLocalDocuments && !string.IsNullOrWhiteSpace(normalizedPrefix))
+        {
+            if (!TryCreatePrefixLocalDocuments(
+                    normalizedPrefix,
+                    out WineUserDocumentsTarget documentsTarget,
+                    out string documentsError))
+            {
+                return new WineRuntimeConfigurationResult(
+                    false,
+                    documentsError,
+                    runtimeTarget,
+                    logPath);
+            }
+
+            windowsDocumentsPath = documentsTarget.WindowsDocumentsPath;
+            configurationStorageDetail = $"ffxiv_config_storage={documentsTarget.HostFfxivConfigPath}{Environment.NewLine}";
+            await File.AppendAllTextAsync(logPath, configurationStorageDetail, cancellationToken);
+        }
+        else if (settings.UsePrefixLocalDocuments)
+        {
+            await File.AppendAllTextAsync(
+                logPath,
+                $"ffxiv_config_storage=runtime-managed prefix path unavailable for {runtimeTarget}{Environment.NewLine}",
+                cancellationToken);
+        }
+
+        foreach (WineRegistrySetting setting in BuildRegistrySettings(settings, windowsDocumentsPath))
         {
             ProcessRunResult result = await RunAndLogAsync(
                 profile.Command,
@@ -151,7 +237,9 @@ public static class WineRuntimeConfigurator
 
         return new WineRuntimeConfigurationResult(
             true,
-            "Wine input and fullscreen capture settings were applied.",
+            string.IsNullOrWhiteSpace(configurationStorageDetail)
+                ? "Wine input and fullscreen capture settings were applied."
+                : "Wine input, fullscreen capture, and prefix-local FFXIV config storage were applied.",
             runtimeTarget,
             logPath);
     }
@@ -161,10 +249,12 @@ public static class WineRuntimeConfigurator
         string managedPrefixPath,
         out Dictionary<string, string> environment,
         out string runtimeTarget,
+        out string? normalizedPrefix,
         out string error)
     {
         environment = new Dictionary<string, string>(profile.Environment);
         runtimeTarget = profile.Name;
+        normalizedPrefix = null;
         error = "";
 
         if (profile.Kind == WineRuntimeKind.WinePrefix)
@@ -178,7 +268,7 @@ public static class WineRuntimeConfigurator
                 return false;
             }
 
-            string normalizedPrefix = Path.GetFullPath(prefix);
+            normalizedPrefix = Path.GetFullPath(prefix);
             Directory.CreateDirectory(normalizedPrefix);
             environment["WINEPREFIX"] = normalizedPrefix;
             runtimeTarget = normalizedPrefix;
@@ -202,7 +292,7 @@ public static class WineRuntimeConfigurator
         if (environment.TryGetValue("WINEPREFIX", out string? explicitPrefix)
             && !string.IsNullOrWhiteSpace(explicitPrefix))
         {
-            string normalizedPrefix = Path.GetFullPath(explicitPrefix);
+            normalizedPrefix = Path.GetFullPath(explicitPrefix);
             Directory.CreateDirectory(normalizedPrefix);
             environment["WINEPREFIX"] = normalizedPrefix;
             runtimeTarget = normalizedPrefix;
@@ -211,6 +301,30 @@ public static class WineRuntimeConfigurator
 
         error = "Custom runtime has no explicit Wine prefix or bottle. Select Wine prefix mode or provide a runtime that exports WINEPREFIX.";
         return false;
+    }
+
+    private static string ResolveWineUserName(string usersRoot)
+    {
+        string environmentUser = Environment.UserName;
+        if (!string.IsNullOrWhiteSpace(environmentUser)
+            && Directory.Exists(Path.Combine(usersRoot, environmentUser)))
+        {
+            return environmentUser;
+        }
+
+        if (Directory.Exists(usersRoot))
+        {
+            string? existingUser = Directory.EnumerateDirectories(usersRoot)
+                .Select(Path.GetFileName)
+                .Where(name => !string.IsNullOrWhiteSpace(name))
+                .FirstOrDefault(name => !string.Equals(name, "Public", StringComparison.OrdinalIgnoreCase));
+            if (!string.IsNullOrWhiteSpace(existingUser))
+                return existingUser;
+        }
+
+        return string.IsNullOrWhiteSpace(environmentUser)
+            ? "echo-gate"
+            : RuntimeInstallStore.SanitizePathSegment(environmentUser);
     }
 
     private static async Task<ProcessRunResult> RunAndLogAsync(

@@ -211,6 +211,47 @@ public sealed class EchoGateCoreTests
     }
 
     [Fact]
+    public void WineRuntimeConfiguratorBuildsPrefixLocalDocumentsRegistrySettings()
+    {
+        IReadOnlyList<WineRegistrySetting> settings = WineRuntimeConfigurator.BuildRegistrySettings(
+            new WineRuntimeConfigurationSettings(LauncherOperatingSystem.MacOS),
+            @"C:\users\imac\EchoGate Documents");
+
+        Assert.Contains(settings, setting =>
+            setting.Key == @"HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders"
+            && setting.ValueName == "Personal"
+            && setting.Type == "REG_SZ"
+            && setting.Data == @"C:\users\imac\EchoGate Documents");
+        Assert.Contains(settings, setting =>
+            setting.Key == @"HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders"
+            && setting.ValueName == "Personal"
+            && setting.Type == "REG_EXPAND_SZ"
+            && setting.Data == @"C:\users\imac\EchoGate Documents");
+    }
+
+    [Fact]
+    public void WineRuntimeConfiguratorCreatesPrefixLocalFfxivConfigStorage()
+    {
+        string prefix = CreateTempDirectory();
+        string userRoot = Path.Combine(prefix, "drive_c", "users", "testuser");
+        Directory.CreateDirectory(userRoot);
+
+        bool created = WineRuntimeConfigurator.TryCreatePrefixLocalDocuments(
+            prefix,
+            out WineUserDocumentsTarget target,
+            out string error);
+
+        Assert.True(created, error);
+        Assert.Equal(Path.Combine(userRoot, "EchoGate Documents"), target.HostDocumentsPath);
+        Assert.Equal(@"C:\users\testuser\EchoGate Documents", target.WindowsDocumentsPath);
+        Assert.True(Directory.Exists(target.HostFfxivConfigPath));
+        Assert.EndsWith(
+            Path.Combine("EchoGate Documents", "My Games", "FINAL FANTASY XIV"),
+            target.HostFfxivConfigPath,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void WineRuntimeConfiguratorQuotesRegistryArguments()
     {
         WineRegistrySetting setting = new(
