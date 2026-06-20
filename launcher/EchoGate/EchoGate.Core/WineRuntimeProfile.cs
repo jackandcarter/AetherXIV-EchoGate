@@ -25,6 +25,8 @@ public sealed record WineRuntimeProfile(
     Dictionary<string, string> Environment)
 {
     public const string DefaultDirect3DConfig = "renderer=gl,csmt=0";
+    public const string OpenGLThreadedDirect3DConfig = "renderer=gl,csmt=1";
+    public const string VulkanDirect3DConfig = "renderer=vulkan,csmt=0";
 
     public static WineRuntimeProfile NativeWindows()
     {
@@ -86,6 +88,28 @@ public sealed record WineRuntimeProfile(
             null,
             null,
             new Dictionary<string, string>());
+    }
+
+    public WineRuntimeProfile WithGraphicsTarget(ClientGraphicsTarget graphicsTarget)
+    {
+        Dictionary<string, string> variables = new(Environment);
+        switch (graphicsTarget)
+        {
+            case ClientGraphicsTarget.WineDefault:
+                variables.Remove("WINE_D3D_CONFIG");
+                break;
+            case ClientGraphicsTarget.OpenGLThreaded:
+                variables["WINE_D3D_CONFIG"] = OpenGLThreadedDirect3DConfig;
+                break;
+            case ClientGraphicsTarget.WineD3DVulkan:
+                variables["WINE_D3D_CONFIG"] = VulkanDirect3DConfig;
+                break;
+            default:
+                variables["WINE_D3D_CONFIG"] = DefaultDirect3DConfig;
+                break;
+        }
+
+        return this with { Environment = variables };
     }
 
     public string BuildArguments(string windowsExecutablePath, string? applicationArguments = null)

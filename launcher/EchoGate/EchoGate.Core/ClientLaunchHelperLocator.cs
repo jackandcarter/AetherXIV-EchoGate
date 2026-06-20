@@ -28,6 +28,11 @@ public static class ClientLaunchHelperLocator
         return FindFirstExisting(LaunchCandidateRelativePaths, baseDirectory);
     }
 
+    public static string? FindLaunchHelper(ClientLaunchHelperMode mode, string? baseDirectory = null)
+    {
+        return FindFirstExisting(GetLaunchCandidateRelativePaths(mode), baseDirectory);
+    }
+
     public static string FindRequired(string? baseDirectory = null)
     {
         return Find(baseDirectory)
@@ -38,6 +43,23 @@ public static class ClientLaunchHelperLocator
     {
         return FindLaunchHelper(baseDirectory)
             ?? throw new FileNotFoundException("Echo Gate client launch helper is missing from the application bundle.");
+    }
+
+    public static string FindLaunchHelperRequired(ClientLaunchHelperMode mode, string? baseDirectory = null)
+    {
+        return FindLaunchHelper(mode, baseDirectory)
+            ?? throw new FileNotFoundException("Echo Gate client launch helper is missing from the application bundle.");
+    }
+
+    private static IEnumerable<string> GetLaunchCandidateRelativePaths(ClientLaunchHelperMode mode)
+    {
+        return mode switch
+        {
+            ClientLaunchHelperMode.X86 => new[] { Path.Combine("Helpers", "win-x86", "EchoGate.ClientLauncher.exe") },
+            ClientLaunchHelperMode.X64 => new[] { Path.Combine("Helpers", "win-x64", "EchoGate.ClientLauncher.exe") },
+            ClientLaunchHelperMode.Arm64 => new[] { Path.Combine("Helpers", "win-arm64", "EchoGate.ClientLauncher.exe") },
+            _ => LaunchCandidateRelativePaths
+        };
     }
 
     private static string? FindFirstExisting(IEnumerable<string> relativePaths, string? baseDirectory)

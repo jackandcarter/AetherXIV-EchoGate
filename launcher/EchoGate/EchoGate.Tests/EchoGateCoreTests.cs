@@ -100,21 +100,29 @@ public sealed class EchoGateCoreTests
     }
 
     [Fact]
-    public void ClientLaunchHelperLocatorUsesX86ForProbeAndX64ForLaunch()
+    public void ClientLaunchHelperLocatorHonorsLaunchHelperMode()
     {
         string root = CreateTempDirectory();
         string x86Directory = Path.Combine(root, "Helpers", "win-x86");
         string x64Directory = Path.Combine(root, "Helpers", "win-x64");
+        string arm64Directory = Path.Combine(root, "Helpers", "win-arm64");
         Directory.CreateDirectory(x86Directory);
         Directory.CreateDirectory(x64Directory);
+        Directory.CreateDirectory(arm64Directory);
 
         string x86Helper = Path.Combine(x86Directory, "EchoGate.ClientLauncher.exe");
         string x64Helper = Path.Combine(x64Directory, "EchoGate.ClientLauncher.exe");
+        string arm64Helper = Path.Combine(arm64Directory, "EchoGate.ClientLauncher.exe");
         File.WriteAllText(x86Helper, "");
         File.WriteAllText(x64Helper, "");
+        File.WriteAllText(arm64Helper, "");
 
         Assert.Equal(x86Helper, ClientLaunchHelperLocator.Find(root));
         Assert.Equal(x64Helper, ClientLaunchHelperLocator.FindLaunchHelper(root));
+        Assert.Equal(x64Helper, ClientLaunchHelperLocator.FindLaunchHelper(ClientLaunchHelperMode.Automatic, root));
+        Assert.Equal(x86Helper, ClientLaunchHelperLocator.FindLaunchHelper(ClientLaunchHelperMode.X86, root));
+        Assert.Equal(x64Helper, ClientLaunchHelperLocator.FindLaunchHelper(ClientLaunchHelperMode.X64, root));
+        Assert.Equal(arm64Helper, ClientLaunchHelperLocator.FindLaunchHelper(ClientLaunchHelperMode.Arm64, root));
     }
 
     [Fact]
@@ -137,11 +145,167 @@ public sealed class EchoGateCoreTests
             logPath: Path.Combine(root, "launch.log"));
 
         Assert.Equal(helper, plan.WindowsExecutablePath);
-        Assert.Contains("--session", plan.Arguments);
+        Assert.DoesNotContain("explorer", plan.Arguments);
+        Assert.DoesNotContain("/desktop=", plan.Arguments);
         Assert.Contains("Z:", plan.Arguments);
+        Assert.Contains("EchoGate.ClientLauncher.exe", plan.Arguments);
+        Assert.Contains("--session", plan.Arguments);
         Assert.Contains("127.0.0.1", plan.Arguments);
         Assert.Equal("/tmp/echo-gate-prefix", plan.Environment["WINEPREFIX"]);
         Assert.Equal(WineRuntimeProfile.DefaultDirect3DConfig, plan.Environment["WINE_D3D_CONFIG"]);
+    }
+
+    [Fact]
+    public void LaunchPlanWithHelperKeepsWindowsNativeArgumentsDirect()
+    {
+        string root = CreateTempDirectory();
+        File.WriteAllText(Path.Combine(root, "ffxivgame.exe"), "");
+        ClientInstall client = ClientInstall.FromPath(root);
+        ServerProfile server = ServerProfile.LocalDefault();
+        WineRuntimeProfile runtime = WineRuntimeProfile.NativeWindows();
+        string helper = Path.Combine(root, "EchoGate.ClientLauncher.exe");
+
+        LaunchPlan plan = LaunchPlan.CreateWithHelper(
+            client,
+            server,
+            runtime,
+            helper,
+            new string('b', 56),
+            mapClientPathsForWine: false);
+
+        Assert.DoesNotContain("wine", plan.Arguments, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("/desktop=", plan.Arguments);
+        Assert.Equal(helper, plan.WindowsExecutablePath);
+        Assert.DoesNotContain("Z:", plan.Arguments);
+        Assert.Contains("--session", plan.Arguments);
+    }
+
+    [Fact]
+    public void ClientConfigLaunchPlanUsesIsolatedWineDesktop()
+    {
+        string root = CreateTempDirectory();
+        File.WriteAllText(Path.Combine(root, "ffxivconfig.exe"), "");
+        ClientInstall client = ClientInstall.FromPath(root);
+        WineRuntimeProfile runtime = WineRuntimeProfile.WinePrefix("Wine", "/tmp/echo-gate-prefix");
+
+        ClientConfigLaunchPlan plan = ClientConfigLaunchPlan.Create(
+            client,
+            runtime,
+            mapClientPathsForWine: true);
+
+        Assert.Equal("wine", plan.FileName);
+        Assert.Contains("explorer", plan.Arguments);
+        Assert.Contains("/desktop=EchoGateConfig,900x700", plan.Arguments);
+        Assert.Contains("Z:", plan.Arguments);
+        Assert.Contains("ffxivconfig.exe", plan.Arguments);
+        Assert.Equal(ClientConfigLaunchPlan.WineDebugChannels, plan.Environment["WINEDEBUG"]);
+        Assert.Equal("/tmp/echo-gate-prefix", plan.Environment["WINEPREFIX"]);
+    }
+
+    [Fact]
+    public void ClientConfigLaunchPlanKeepsNativeWindowsDirect()
+    {
+        string root = CreateTempDirectory();
+        string configPath = Path.Combine(root, "ffxivconfig.exe");
+        File.WriteAllText(configPath, "");
+        ClientInstall client = ClientInstall.FromPath(root);
+
+        ClientConfigLaunchPlan plan = ClientConfigLaunchPlan.Create(
+            client,
+            WineRuntimeProfile.NativeWindows(),
+            mapClientPathsForWine: false);
+
+        Assert.Equal(configPath, plan.FileName);
+        Assert.Equal("", plan.Arguments);
+        Assert.False(plan.Environment.ContainsKey("WINEDEBUG"));
+    }
+
+    [Fact]
+    public void WineRuntimeConfiguratorBuildsMacRegistrySettings()
+    {
+        IReadOnlyList<WineRegistrySetting> settings = WineRuntimeConfigurator.BuildRegistrySettings(
+            new WineRuntimeConfigurationSettings(LauncherOperatingSystem.MacOS));
+
+        Assert.DoesNotContain(settings, setting => setting.Key == @"HKCU\Software\Wine\Explorer\Desktops");
+        Assert.Contains(settings, setting =>
+            setting.Key == @"HKCU\Software\Wine\DirectInput"
+            && setting.ValueName == "MouseWarpOverride"
+            && setting.Data == "force");
+        Assert.Contains(settings, setting =>
+            setting.Key == @"HKCU\Software\Wine\Mac Driver"
+            && setting.ValueName == "CaptureDisplaysForFullscreen"
+            && setting.Data == "y");
+    }
+
+    [Fact]
+    public void WineRuntimeConfiguratorBuildsLinuxRegistrySettings()
+    {
+        IReadOnlyList<WineRegistrySetting> settings = WineRuntimeConfigurator.BuildRegistrySettings(
+            new WineRuntimeConfigurationSettings(LauncherOperatingSystem.Linux));
+
+        Assert.DoesNotContain(settings, setting => setting.Key == @"HKCU\Software\Wine\Explorer\Desktops");
+        Assert.Contains(settings, setting =>
+            setting.Key == @"HKCU\Software\Wine\X11 Driver"
+            && setting.ValueName == "GrabFullscreen"
+            && setting.Data == "Y");
+    }
+
+    [Fact]
+    public void WineRuntimeConfiguratorBuildsPrefixLocalDocumentsRegistrySettings()
+    {
+        IReadOnlyList<WineRegistrySetting> settings = WineRuntimeConfigurator.BuildRegistrySettings(
+            new WineRuntimeConfigurationSettings(LauncherOperatingSystem.MacOS),
+            @"C:\users\imac\EchoGate Documents");
+
+        Assert.Contains(settings, setting =>
+            setting.Key == @"HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders"
+            && setting.ValueName == "Personal"
+            && setting.Type == "REG_SZ"
+            && setting.Data == @"C:\users\imac\EchoGate Documents");
+        Assert.Contains(settings, setting =>
+            setting.Key == @"HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders"
+            && setting.ValueName == "Personal"
+            && setting.Type == "REG_EXPAND_SZ"
+            && setting.Data == @"C:\users\imac\EchoGate Documents");
+    }
+
+    [Fact]
+    public void WineRuntimeConfiguratorCreatesPrefixLocalFfxivConfigStorage()
+    {
+        string prefix = CreateTempDirectory();
+        string userRoot = Path.Combine(prefix, "drive_c", "users", "testuser");
+        Directory.CreateDirectory(userRoot);
+
+        bool created = WineRuntimeConfigurator.TryCreatePrefixLocalDocuments(
+            prefix,
+            out WineUserDocumentsTarget target,
+            out string error);
+
+        Assert.True(created, error);
+        Assert.Equal(Path.Combine(userRoot, "EchoGate Documents"), target.HostDocumentsPath);
+        Assert.Equal(@"C:\users\testuser\EchoGate Documents", target.WindowsDocumentsPath);
+        Assert.True(Directory.Exists(target.HostFfxivConfigPath));
+        Assert.EndsWith(
+            Path.Combine("EchoGate Documents", "My Games", "FINAL FANTASY XIV"),
+            target.HostFfxivConfigPath,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void WineRuntimeConfiguratorQuotesRegistryArguments()
+    {
+        WineRegistrySetting setting = new(
+            @"HKCU\Software\Wine\DirectInput",
+            "MouseWarpOverride",
+            "REG_SZ",
+            "force");
+
+        string arguments = WineRuntimeConfigurator.BuildRegAddArguments(setting);
+
+        Assert.Contains("reg add", arguments);
+        Assert.Contains(@"HKCU\Software\Wine\DirectInput", arguments);
+        Assert.Contains("/v MouseWarpOverride", arguments);
+        Assert.Contains("/d force", arguments);
     }
 
     [Fact]
@@ -156,6 +320,23 @@ public sealed class EchoGateCoreTests
             });
 
         Assert.Equal("renderer=vulkan", runtime.Environment["WINE_D3D_CONFIG"]);
+    }
+
+    [Fact]
+    public void WineRuntimeProfileAppliesGraphicsTargets()
+    {
+        WineRuntimeProfile runtime = WineRuntimeProfile.WinePrefix("Wine", "/tmp/echo-gate-prefix");
+
+        Assert.Equal(
+            WineRuntimeProfile.DefaultDirect3DConfig,
+            runtime.WithGraphicsTarget(ClientGraphicsTarget.OpenGLCompatibility).Environment["WINE_D3D_CONFIG"]);
+        Assert.Equal(
+            WineRuntimeProfile.OpenGLThreadedDirect3DConfig,
+            runtime.WithGraphicsTarget(ClientGraphicsTarget.OpenGLThreaded).Environment["WINE_D3D_CONFIG"]);
+        Assert.Equal(
+            WineRuntimeProfile.VulkanDirect3DConfig,
+            runtime.WithGraphicsTarget(ClientGraphicsTarget.WineD3DVulkan).Environment["WINE_D3D_CONFIG"]);
+        Assert.False(runtime.WithGraphicsTarget(ClientGraphicsTarget.WineDefault).Environment.ContainsKey("WINE_D3D_CONFIG"));
     }
 
     [Fact]
@@ -515,7 +696,10 @@ public sealed class EchoGateCoreTests
             "https://launcher.example.test/launcher",
             "https://cdn.example.test/ffxiv_patches",
             ServerProfile.LocalDefault(),
-            WineRuntimeProfile.CrossOverBottle("CrossOver", "EchoGate"));
+            WineRuntimeProfile.CrossOverBottle("CrossOver", "EchoGate"),
+            RuntimeSelectionMode.CustomRuntime,
+            ClientLaunchHelperMode.X86,
+            ClientGraphicsTarget.WineD3DVulkan);
 
         ProfileStore.Save(path, profile);
         LauncherProfile loaded = ProfileStore.Load(path);
@@ -527,6 +711,9 @@ public sealed class EchoGateCoreTests
         Assert.Equal(profile.ServerProfile, loaded.ServerProfile);
         Assert.Equal(profile.RuntimeProfile.Name, loaded.RuntimeProfile.Name);
         Assert.Equal(profile.RuntimeProfile.Kind, loaded.RuntimeProfile.Kind);
+        Assert.Equal(profile.RuntimeMode, loaded.RuntimeMode);
+        Assert.Equal(profile.LaunchHelperMode, loaded.LaunchHelperMode);
+        Assert.Equal(profile.GraphicsTarget, loaded.GraphicsTarget);
     }
 
     [Fact]

@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CONFIGURATION="${CONFIGURATION:-Release}"
 RUNTIME_IDENTIFIER="${RUNTIME_IDENTIFIER:-osx-arm64}"
-APP_NAME="${APP_NAME:-Echo Gate}"
+APP_NAME="${APP_NAME:-EchoGate}"
 BUNDLE_IDENTIFIER="${BUNDLE_IDENTIFIER:-org.meteor.echogate}"
 VERSION="${VERSION:-0.1.0}"
 
@@ -24,7 +24,7 @@ if [[ "$(uname -s)" != "Darwin" ]]; then
   exit 40
 fi
 
-echo "Publishing Echo Gate for $RUNTIME_IDENTIFIER..."
+echo "Publishing EchoGate for $RUNTIME_IDENTIFIER..."
 AVALONIA_TELEMETRY_OPTOUT=1 dotnet publish "$PROJECT_PATH" \
   --configuration "$CONFIGURATION" \
   --runtime "$RUNTIME_IDENTIFIER" \
@@ -35,7 +35,7 @@ AVALONIA_TELEMETRY_OPTOUT=1 dotnet publish "$PROJECT_PATH" \
 
 for helper_rid in win-x64 win-x86; do
   helper_output="$PUBLISH_DIR/Helpers/$helper_rid"
-  echo "Publishing Echo Gate client launch helper for $helper_rid..."
+  echo "Publishing EchoGate client launch helper for $helper_rid..."
   AVALONIA_TELEMETRY_OPTOUT=1 dotnet publish "$HELPER_PROJECT_PATH" \
     --configuration "$CONFIGURATION" \
     --runtime "$helper_rid" \
@@ -118,5 +118,7 @@ if command -v codesign >/dev/null 2>&1; then
   codesign --force --deep --sign - "$APP_BUNDLE"
 fi
 
-echo "Echo Gate app bundle ready:"
+rm -rf "$PUBLISH_DIR"
+
+echo "EchoGate app bundle ready:"
 echo "$APP_BUNDLE"

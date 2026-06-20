@@ -97,9 +97,18 @@ public sealed record LaunchPlan(
         foreach (KeyValuePair<string, string> pair in runtimeProfile.Environment)
             environment[pair.Key] = pair.Value;
 
-        string arguments = runtimeProfile.Kind == WineRuntimeKind.NativeWindows
-            ? helperArguments
-            : runtimeProfile.BuildArguments(helperExecutablePath, helperArguments);
+        string arguments;
+        if (runtimeProfile.Kind == WineRuntimeKind.NativeWindows)
+        {
+            arguments = helperArguments;
+        }
+        else
+        {
+            string helperLaunchPath = mapClientPathsForWine
+                ? WinePathMapper.ToWindowsPath(helperExecutablePath)
+                : helperExecutablePath;
+            arguments = runtimeProfile.BuildArguments(helperLaunchPath, helperArguments);
+        }
 
         return new LaunchPlan(
             clientInstall,

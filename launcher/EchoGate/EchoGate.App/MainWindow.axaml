@@ -1,7 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="EchoGate.App.MainWindow"
-        Title="Echo Gate"
+        Title="EchoGate"
         Width="1040"
         Height="680"
         MinWidth="900"
@@ -85,7 +85,7 @@
     <Border Background="{StaticResource HeaderBrush}" Padding="20,14">
       <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto">
         <TextBlock Text="FFXIV Classic Launcher" FontSize="24" FontWeight="SemiBold" />
-        <TextBlock Grid.Row="1" Text="Echo Gate" Foreground="{StaticResource MutedTextBrush}" FontSize="13" />
+        <TextBlock Grid.Row="1" Text="EchoGate" Foreground="{StaticResource MutedTextBrush}" FontSize="13" />
         <TextBlock x:Name="HeaderServiceStatus"
                    Grid.Column="1"
                    Grid.RowSpan="2"
@@ -179,7 +179,7 @@
       </TabItem>
 
       <TabItem Header="Client">
-        <Grid Margin="4,18,4,4" ColumnDefinitions="180,*,Auto" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="10" ColumnSpacing="12">
+        <Grid Margin="4,18,4,4" ColumnDefinitions="180,*,Auto" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="10" ColumnSpacing="12">
           <TextBlock Text="Client root" VerticalAlignment="Center" />
           <TextBox x:Name="ClientPathBox" Grid.Column="1" PlaceholderText="/path/to/FINAL FANTASY XIV 1.x" />
           <Button Grid.Column="2" Content="Browse" Click="BrowseClient_Click" MinWidth="86" />
@@ -187,25 +187,41 @@
           <TextBlock Grid.Row="1"
                      Grid.Column="1"
                      Grid.ColumnSpan="2"
-                     Text="Select ffxivboot.exe for an unpatched install, or ffxivgame.exe after patching. Echo Gate stores the containing client folder."
+                     Text="Select ffxivboot.exe for an unpatched install, or ffxivgame.exe after patching. EchoGate stores the containing client folder."
                      Foreground="{StaticResource MutedTextBrush}"
                      FontSize="12"
                      TextWrapping="Wrap" />
 
-          <TextBlock Grid.Row="2" Text="Version" VerticalAlignment="Center" />
-          <TextBlock x:Name="ClientVersionStatus" Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="2" Text="Not checked" TextWrapping="Wrap" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="2" Text="Launch helper" VerticalAlignment="Center" />
+          <ComboBox x:Name="LaunchHelperModeBox" Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="2" SelectedIndex="0" SelectionChanged="ClientLaunchSettings_SelectionChanged">
+            <ComboBoxItem>Automatic</ComboBoxItem>
+            <ComboBoxItem>32-bit helper (x86)</ComboBoxItem>
+            <ComboBoxItem>64-bit helper (x64)</ComboBoxItem>
+            <ComboBoxItem>ARM64 helper</ComboBoxItem>
+          </ComboBox>
 
-          <TextBlock Grid.Row="3" Text="Executables" VerticalAlignment="Center" />
-          <TextBlock x:Name="ExecutableStatus" Grid.Row="3" Grid.Column="1" Grid.ColumnSpan="2" Text="Not checked" TextWrapping="Wrap" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="3" Text="Graphics target" VerticalAlignment="Center" />
+          <ComboBox x:Name="GraphicsTargetBox" Grid.Row="3" Grid.Column="1" Grid.ColumnSpan="2" SelectedIndex="0" SelectionChanged="ClientLaunchSettings_SelectionChanged">
+            <ComboBoxItem>OpenGL compatibility</ComboBoxItem>
+            <ComboBoxItem>Wine default</ComboBoxItem>
+            <ComboBoxItem>OpenGL threaded</ComboBoxItem>
+            <ComboBoxItem>WineD3D Vulkan</ComboBoxItem>
+          </ComboBox>
 
-          <TextBlock Grid.Row="4" Text="Static actors source" VerticalAlignment="Center" />
-          <TextBlock x:Name="StaticActorsStatus" Grid.Row="4" Grid.Column="1" Grid.ColumnSpan="2" Text="Not checked" TextWrapping="Wrap" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="4" Text="Version" VerticalAlignment="Center" />
+          <TextBlock x:Name="ClientVersionStatus" Grid.Row="4" Grid.Column="1" Grid.ColumnSpan="2" Text="Not checked" TextWrapping="Wrap" VerticalAlignment="Center" />
 
-          <TextBlock Grid.Row="5" Text="Patch library root" VerticalAlignment="Center" />
-          <TextBox x:Name="PatchLibraryPathBox" Grid.Row="5" Grid.Column="1" PlaceholderText="/path/to/user-provided patch library" />
-          <Button Grid.Row="5" Grid.Column="2" Content="Browse" Click="BrowsePatchLibrary_Click" MinWidth="86" />
+          <TextBlock Grid.Row="5" Text="Executables" VerticalAlignment="Center" />
+          <TextBlock x:Name="ExecutableStatus" Grid.Row="5" Grid.Column="1" Grid.ColumnSpan="2" Text="Not checked" TextWrapping="Wrap" VerticalAlignment="Center" />
 
-          <TextBlock Grid.Row="6"
+          <TextBlock Grid.Row="6" Text="Static actors source" VerticalAlignment="Center" />
+          <TextBlock x:Name="StaticActorsStatus" Grid.Row="6" Grid.Column="1" Grid.ColumnSpan="2" Text="Not checked" TextWrapping="Wrap" VerticalAlignment="Center" />
+
+          <TextBlock Grid.Row="7" Text="Patch library root" VerticalAlignment="Center" />
+          <TextBox x:Name="PatchLibraryPathBox" Grid.Row="7" Grid.Column="1" PlaceholderText="/path/to/user-provided patch library" />
+          <Button Grid.Row="7" Grid.Column="2" Content="Browse" Click="BrowsePatchLibrary_Click" MinWidth="86" />
+
+          <TextBlock Grid.Row="8"
                      Grid.Column="1"
                      Grid.ColumnSpan="2"
                      Text="Select the folder containing ffxiv_patches, or select the ffxiv_patches folder itself."
@@ -213,16 +229,17 @@
                      FontSize="12"
                      TextWrapping="Wrap" />
 
-          <TextBlock Grid.Row="7" Text="Patch library" VerticalAlignment="Center" />
-          <TextBlock x:Name="PatchLibraryStatus" Grid.Row="7" Grid.Column="1" Grid.ColumnSpan="2" Text="Not checked" TextWrapping="Wrap" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="9" Text="Patch library" VerticalAlignment="Center" />
+          <TextBlock x:Name="PatchLibraryStatus" Grid.Row="9" Grid.Column="1" Grid.ColumnSpan="2" Text="Not checked" TextWrapping="Wrap" VerticalAlignment="Center" />
 
-          <TextBlock Grid.Row="8" Text="Patch progress" VerticalAlignment="Center" />
-          <TextBlock x:Name="PatchApplyStatus" Grid.Row="8" Grid.Column="1" Grid.ColumnSpan="2" Text="Idle" TextWrapping="Wrap" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="10" Text="Patch progress" VerticalAlignment="Center" />
+          <TextBlock x:Name="PatchApplyStatus" Grid.Row="10" Grid.Column="1" Grid.ColumnSpan="2" Text="Idle" TextWrapping="Wrap" VerticalAlignment="Center" />
 
-          <ProgressBar x:Name="PatchApplyProgressBar" Grid.Row="9" Grid.Column="1" Grid.ColumnSpan="2" Minimum="0" Maximum="100" Value="0" />
+          <ProgressBar x:Name="PatchApplyProgressBar" Grid.Row="11" Grid.Column="1" Grid.ColumnSpan="2" Minimum="0" Maximum="100" Value="0" />
 
-          <StackPanel Grid.Row="10" Grid.Column="1" Grid.ColumnSpan="2" Orientation="Horizontal" Spacing="8">
+          <StackPanel Grid.Row="12" Grid.Column="1" Grid.ColumnSpan="2" Orientation="Horizontal" Spacing="8">
             <Button Content="Validate Client" Click="ValidateClient_Click" />
+            <Button Content="Open FFXIV Config" Click="OpenClientConfig_Click" />
             <Button x:Name="DownloadPatchesButton" Content="Download Patches" Click="DownloadPatches_Click" />
             <Button x:Name="ApplyPatchesButton" Content="Apply Patches" Click="ApplyPatches_Click" />
             <Button x:Name="CancelPatchButton" Content="Cancel" Click="CancelPatch_Click" IsEnabled="False" />
@@ -306,7 +323,7 @@
     </TabControl>
 
     <TextBlock Grid.Row="2"
-               Text="Demi Dev Unit - Echo Gate v1.1"
+               Text="Demi Dev Unit - EchoGate v1.1"
                Foreground="#8E98A4"
                FontStyle="Italic"
                Margin="18,0,0,10"

@@ -23,6 +23,7 @@ public sealed partial class MainWindow : Window
     private string? currentSessionUsername;
     private bool launchInProgress;
     private bool isInitialized;
+    private bool isLoadingProfile;
 
     public MainWindow()
     {
@@ -30,7 +31,7 @@ public sealed partial class MainWindow : Window
         isInitialized = true;
         ConfigurePlatformUi();
         LoadSavedProfile();
-        AppendLog("Echo Gate initialized.");
+        AppendLog("EchoGate initialized.");
         ScanRuntimeCandidates(false);
         RefreshInstalledManagedRuntimeStatus();
         ValidateClientIfSelected();
@@ -53,6 +54,61 @@ public sealed partial class MainWindow : Window
     private void ValidateClient_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
         ValidateClient();
+    }
+
+    private async void OpenClientConfig_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        try
+        {
+            SaveCurrentProfile();
+            ClientInstall clientInstall = ClientInstall.FromPath(ClientPathBox.Text ?? "");
+            if (!File.Exists(clientInstall.ConfigExecutablePath))
+            {
+                AppendLog("FFXIV config blocked: ffxivconfig.exe was not found in the selected client root.");
+                return;
+            }
+
+            WineRuntimeProfile runtimeProfile = ReadRuntimeProfile();
+            if (platform.RequiresCompatibilityRuntime)
+            {
+                ManagedRuntimeStatus.Text = "Validating runtime before config launch...";
+                RuntimeValidationResult validation = await RuntimeValidator.ValidateAsync(
+                    runtimeProfile,
+                    RuntimeInstallStore.ManagedPrefixPath);
+                AppendLog($"Runtime validation: {validation.Message}");
+                AppendLog($"Runtime validation log: {validation.LogPath}");
+                if (!validation.IsReady)
+                {
+                    ManagedRuntimeStatus.Text = validation.Message;
+                    AppendLog("FFXIV config blocked: runtime validation failed.");
+                    return;
+                }
+
+                WineRuntimeConfigurationResult configuration = await WineRuntimeConfigurator.ConfigureAsync(
+                    runtimeProfile,
+                    RuntimeInstallStore.ManagedPrefixPath,
+                    new WineRuntimeConfigurationSettings(platform.OperatingSystem));
+                AppendLog($"Runtime config: {configuration.Message}");
+                AppendLog($"Runtime config target: {configuration.RuntimeTarget}");
+                AppendLog($"Runtime config log: {configuration.LogPath}");
+                if (!configuration.IsReady)
+                {
+                    ManagedRuntimeStatus.Text = configuration.Message;
+                    AppendLog("FFXIV config blocked: runtime setup failed.");
+                    return;
+                }
+            }
+
+            string logPath = RuntimeLaunchDiagnostics.CreateLogPath("client-config");
+            ProcessStartInfo startInfo = BuildClientConfigProcessStartInfo(clientInstall, runtimeProfile, logPath);
+            RuntimeLaunchResult result = RuntimeLaunchDiagnostics.StartWithLogging(startInfo, logPath);
+            AppendLog($"FFXIV config started: pid {result.ProcessId}");
+            AppendLog($"FFXIV config log: {result.LogPath}");
+        }
+        catch (Exception ex)
+        {
+            AppendLog($"FFXIV config launch failed: {ex.Message}");
+        }
     }
 
     private async void LocateClientFromHome_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
@@ -693,7 +749,16 @@ public sealed partial class MainWindow : Window
 
     private void RuntimeMode_SelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
-        if (!isInitialized)
+        if (!isInitialized || isLoadingProfile)
+            return;
+
+        UpdateRuntimeUiState();
+        SaveCurrentProfile();
+    }
+
+    private void ClientLaunchSettings_SelectionChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (!isInitialized || isLoadingProfile)
             return;
 
         UpdateRuntimeUiState();
@@ -746,7 +811,30 @@ public sealed partial class MainWindow : Window
             }
 
             SetLaunchInProgress("Launching game...", "Launching game...");
-            string helperPath = ClientLaunchHelperLocator.FindLaunchHelperRequired();
+            ClientLaunchHelperMode helperMode = ReadLaunchHelperMode();
+            ClientGraphicsTarget graphicsTarget = ReadGraphicsTarget();
+            if (platform.RequiresCompatibilityRuntime)
+            {
+                SetLaunchInProgress("Configuring Wine...", "Configuring Wine runtime...");
+                WineRuntimeConfigurationResult configuration = await WineRuntimeConfigurator.ConfigureAsync(
+                    runtimeProfile,
+                    RuntimeInstallStore.ManagedPrefixPath,
+                    new WineRuntimeConfigurationSettings(platform.OperatingSystem));
+                AppendLog($"Runtime config: {configuration.Message}");
+                AppendLog($"Runtime config target: {configuration.RuntimeTarget}");
+                AppendLog($"Runtime config log: {configuration.LogPath}");
+
+                if (!configuration.IsReady)
+                {
+                    ManagedRuntimeStatus.Text = configuration.Message;
+                    AppendLog("Launch blocked: runtime setup failed.");
+                    HomeLoginStatus.Text = "Runtime setup failed.";
+                    return;
+                }
+            }
+
+            SetLaunchInProgress("Launching game...", "Launching game...");
+            string helperPath = ClientLaunchHelperLocator.FindLaunchHelperRequired(helperMode);
             LaunchPlan plan = LaunchPlan.CreateWithHelper(
                 clientInstall,
                 serverProfile,
@@ -756,6 +844,8 @@ public sealed partial class MainWindow : Window
                 platform.RequiresCompatibilityRuntime);
             ProcessStartInfo startInfo = BuildProcessStartInfo(plan);
             RuntimeLaunchResult result = RuntimeLaunchDiagnostics.StartWithLogging(startInfo, plan.LogPath);
+            AppendLog($"Launch helper: {FormatLaunchHelperMode(helperMode)} ({helperPath})");
+            AppendLog($"Graphics target: {FormatGraphicsTarget(graphicsTarget)}");
             AppendLog($"Launch started: pid {result.ProcessId}");
             AppendLog($"Launch log: {result.LogPath}");
             HomeLoginStatus.Text = "Launch sent to Wine. Watch for the game window.";
@@ -855,7 +945,7 @@ public sealed partial class MainWindow : Window
         {
             int index = DetectedRuntimeBox.SelectedIndex;
             if (index >= 0 && index < runtimeCandidates.Count)
-                return NormalizeRuntimeProfile(RuntimeProfileResolver.CandidateToProfile(runtimeCandidates[index], RuntimeInstallStore.ManagedPrefixPath));
+                return ApplyGraphicsTarget(NormalizeRuntimeProfile(RuntimeProfileResolver.CandidateToProfile(runtimeCandidates[index], RuntimeInstallStore.ManagedPrefixPath)));
         }
 
         WineRuntimeProfile profile = RuntimeProfileResolver.Resolve(
@@ -864,7 +954,7 @@ public sealed partial class MainWindow : Window
             runtimeCandidates,
             ReadCustomRuntimeProfile(),
             RuntimeInstallStore.ManagedPrefixPath);
-        return NormalizeRuntimeProfile(profile);
+        return ApplyGraphicsTarget(NormalizeRuntimeProfile(profile));
     }
 
     private static WineRuntimeProfile NormalizeRuntimeProfile(WineRuntimeProfile profile)
@@ -881,6 +971,14 @@ public sealed partial class MainWindow : Window
         }
 
         return profile;
+    }
+
+    private WineRuntimeProfile ApplyGraphicsTarget(WineRuntimeProfile profile)
+    {
+        if (!platform.RequiresCompatibilityRuntime || profile.Kind == WineRuntimeKind.NativeWindows)
+            return profile;
+
+        return profile.WithGraphicsTarget(ReadGraphicsTarget());
     }
 
     private WineRuntimeProfile ReadCustomRuntimeProfile()
@@ -1117,6 +1215,7 @@ public sealed partial class MainWindow : Window
 
     private void LoadSavedProfile()
     {
+        isLoadingProfile = true;
         try
         {
             LauncherProfile profile = ProfileStore.LoadDefaultOrCreate();
@@ -1132,14 +1231,22 @@ public sealed partial class MainWindow : Window
             WorldPortBox.Value = profile.ServerProfile.WorldPort;
             RememberUsernameBox.IsChecked = profile.RememberUsername;
             LoginUserBox.Text = profile.RememberUsername ? profile.SavedUsername : "";
+            ApplyLaunchHelperMode(profile.LaunchHelperMode);
+            ApplyGraphicsTarget(profile.GraphicsTarget);
             ApplyRuntimeMode(profile.RuntimeMode);
             ApplyRuntimeProfile(profile.RuntimeProfile);
         }
         catch (Exception ex)
         {
             AppendLog($"Profile load failed: {ex.Message}");
+            ApplyLaunchHelperMode(LauncherProfile.LocalDefault().LaunchHelperMode);
+            ApplyGraphicsTarget(LauncherProfile.LocalDefault().GraphicsTarget);
             ApplyRuntimeMode(LauncherProfile.LocalDefault().RuntimeMode);
             ApplyRuntimeProfile(LauncherProfile.LocalDefault().RuntimeProfile);
+        }
+        finally
+        {
+            isLoadingProfile = false;
         }
     }
 
@@ -1169,6 +1276,28 @@ public sealed partial class MainWindow : Window
         };
     }
 
+    private void ApplyLaunchHelperMode(ClientLaunchHelperMode helperMode)
+    {
+        LaunchHelperModeBox.SelectedIndex = helperMode switch
+        {
+            ClientLaunchHelperMode.X86 => 1,
+            ClientLaunchHelperMode.X64 => 2,
+            ClientLaunchHelperMode.Arm64 => 3,
+            _ => 0
+        };
+    }
+
+    private void ApplyGraphicsTarget(ClientGraphicsTarget graphicsTarget)
+    {
+        GraphicsTargetBox.SelectedIndex = graphicsTarget switch
+        {
+            ClientGraphicsTarget.WineDefault => 1,
+            ClientGraphicsTarget.OpenGLThreaded => 2,
+            ClientGraphicsTarget.WineD3DVulkan => 3,
+            _ => 0
+        };
+    }
+
     private void SaveCurrentProfile()
     {
         try
@@ -1181,6 +1310,8 @@ public sealed partial class MainWindow : Window
                 ReadServerProfile(),
                 ReadRuntimeProfile(),
                 ReadRuntimeMode(),
+                ReadLaunchHelperMode(),
+                ReadGraphicsTarget(),
                 RememberUsernameBox.IsChecked == true ? (LoginUserBox.Text ?? "").Trim() : "",
                 RememberUsernameBox.IsChecked == true);
             ProfileStore.SaveDefault(profile);
@@ -1279,6 +1410,51 @@ public sealed partial class MainWindow : Window
         return info;
     }
 
+    private ProcessStartInfo BuildClientConfigProcessStartInfo(
+        ClientInstall clientInstall,
+        WineRuntimeProfile runtimeProfile,
+        string logPath)
+    {
+        ProcessStartInfo info;
+        if (platform.UsesNativeWindowsClient || runtimeProfile.Kind == WineRuntimeKind.NativeWindows)
+        {
+            info = new ProcessStartInfo
+            {
+                FileName = clientInstall.ConfigExecutablePath,
+                Arguments = "",
+                WorkingDirectory = clientInstall.RootPath,
+                UseShellExecute = false
+            };
+        }
+        else
+        {
+            ClientConfigLaunchPlan configPlan = ClientConfigLaunchPlan.Create(
+                clientInstall,
+                runtimeProfile,
+                mapClientPathsForWine: true);
+            info = new ProcessStartInfo
+            {
+                FileName = configPlan.FileName,
+                Arguments = configPlan.Arguments,
+                WorkingDirectory = clientInstall.RootPath,
+                UseShellExecute = false
+            };
+
+            foreach (KeyValuePair<string, string> pair in configPlan.Environment)
+                info.Environment[pair.Key] = pair.Value;
+        }
+
+        if (platform.UsesNativeWindowsClient || runtimeProfile.Kind == WineRuntimeKind.NativeWindows)
+        {
+            foreach (KeyValuePair<string, string> pair in runtimeProfile.Environment)
+                info.Environment[pair.Key] = pair.Value;
+        }
+
+        info.Environment["ECHO_GATE_LAUNCH_LOG"] = logPath;
+
+        return info;
+    }
+
     private void RefreshInstalledManagedRuntimeStatus()
     {
         if (!platform.RequiresCompatibilityRuntime)
@@ -1315,7 +1491,11 @@ public sealed partial class MainWindow : Window
     private void UpdateRuntimeUiState()
     {
         if (!platform.RequiresCompatibilityRuntime)
+        {
+            LaunchHelperModeBox.IsEnabled = false;
+            GraphicsTargetBox.IsEnabled = false;
             return;
+        }
 
         bool isBusy = runtimeCancellation is not null;
         RuntimeSelectionMode mode = ReadRuntimeMode();
@@ -1326,6 +1506,8 @@ public sealed partial class MainWindow : Window
         InstallRuntimeButton.IsEnabled = !isBusy && automatic && selectedRuntimeArtifact is not null;
         ValidateRuntimeButton.IsEnabled = !isBusy;
         ResetPrefixButton.IsEnabled = !isBusy;
+        LaunchHelperModeBox.IsEnabled = !isBusy && platform.RequiresCompatibilityRuntime;
+        GraphicsTargetBox.IsEnabled = !isBusy && platform.RequiresCompatibilityRuntime;
         DetectedRuntimeBox.IsEnabled = !isBusy && detected;
         CustomRuntimeKindBox.IsEnabled = !isBusy && custom;
         RuntimeNameBox.IsEnabled = !isBusy && custom;
@@ -1358,6 +1540,50 @@ public sealed partial class MainWindow : Window
     {
         string value = string.IsNullOrWhiteSpace(candidate.BottleOrPrefix) ? "profile required" : candidate.BottleOrPrefix;
         return $"{candidate.Name} | {candidate.Kind} | {candidate.Command} | {value}";
+    }
+
+    private ClientLaunchHelperMode ReadLaunchHelperMode()
+    {
+        return LaunchHelperModeBox.SelectedIndex switch
+        {
+            1 => ClientLaunchHelperMode.X86,
+            2 => ClientLaunchHelperMode.X64,
+            3 => ClientLaunchHelperMode.Arm64,
+            _ => ClientLaunchHelperMode.Automatic
+        };
+    }
+
+    private ClientGraphicsTarget ReadGraphicsTarget()
+    {
+        return GraphicsTargetBox.SelectedIndex switch
+        {
+            1 => ClientGraphicsTarget.WineDefault,
+            2 => ClientGraphicsTarget.OpenGLThreaded,
+            3 => ClientGraphicsTarget.WineD3DVulkan,
+            _ => ClientGraphicsTarget.OpenGLCompatibility
+        };
+    }
+
+    private static string FormatLaunchHelperMode(ClientLaunchHelperMode mode)
+    {
+        return mode switch
+        {
+            ClientLaunchHelperMode.X86 => "32-bit helper (x86)",
+            ClientLaunchHelperMode.X64 => "64-bit helper (x64)",
+            ClientLaunchHelperMode.Arm64 => "ARM64 helper",
+            _ => "Automatic"
+        };
+    }
+
+    private static string FormatGraphicsTarget(ClientGraphicsTarget target)
+    {
+        return target switch
+        {
+            ClientGraphicsTarget.WineDefault => "Wine default",
+            ClientGraphicsTarget.OpenGLThreaded => "OpenGL threaded",
+            ClientGraphicsTarget.WineD3DVulkan => "WineD3D Vulkan",
+            _ => "OpenGL compatibility"
+        };
     }
 
     private static string FormatStatus(string label, bool isPresent)
