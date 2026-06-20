@@ -20,7 +20,7 @@ public sealed class EchoGateCoreTests
         XElement server = root.Element("Server")!;
 
         Assert.Equal("Servers", root.Name.LocalName);
-        Assert.Equal("Local MeteorXIV Core", (string?)server.Attribute("Name"));
+        Assert.Equal("Localhost", (string?)server.Attribute("Name"));
         Assert.Equal("127.0.0.1", (string?)server.Attribute("Address"));
         Assert.Equal("http://127.0.0.1:8080/login/index.php", (string?)server.Attribute("LoginUrl"));
     }
@@ -151,6 +151,7 @@ public sealed class EchoGateCoreTests
         Assert.Contains("EchoGate.ClientLauncher.exe", plan.Arguments);
         Assert.Contains("--session", plan.Arguments);
         Assert.Contains("127.0.0.1", plan.Arguments);
+        Assert.Equal(Path.Combine(root, "launch.helper.log"), plan.HelperLogPath);
         Assert.Equal("/tmp/echo-gate-prefix", plan.Environment["WINEPREFIX"]);
         Assert.Equal(WineRuntimeProfile.DefaultDirect3DConfig, plan.Environment["WINE_D3D_CONFIG"]);
     }
@@ -181,46 +182,6 @@ public sealed class EchoGateCoreTests
     }
 
     [Fact]
-    public void ClientConfigLaunchPlanUsesIsolatedWineDesktop()
-    {
-        string root = CreateTempDirectory();
-        File.WriteAllText(Path.Combine(root, "ffxivconfig.exe"), "");
-        ClientInstall client = ClientInstall.FromPath(root);
-        WineRuntimeProfile runtime = WineRuntimeProfile.WinePrefix("Wine", "/tmp/echo-gate-prefix");
-
-        ClientConfigLaunchPlan plan = ClientConfigLaunchPlan.Create(
-            client,
-            runtime,
-            mapClientPathsForWine: true);
-
-        Assert.Equal("wine", plan.FileName);
-        Assert.Contains("explorer", plan.Arguments);
-        Assert.Contains("/desktop=EchoGateConfig,900x700", plan.Arguments);
-        Assert.Contains("Z:", plan.Arguments);
-        Assert.Contains("ffxivconfig.exe", plan.Arguments);
-        Assert.Equal(ClientConfigLaunchPlan.WineDebugChannels, plan.Environment["WINEDEBUG"]);
-        Assert.Equal("/tmp/echo-gate-prefix", plan.Environment["WINEPREFIX"]);
-    }
-
-    [Fact]
-    public void ClientConfigLaunchPlanKeepsNativeWindowsDirect()
-    {
-        string root = CreateTempDirectory();
-        string configPath = Path.Combine(root, "ffxivconfig.exe");
-        File.WriteAllText(configPath, "");
-        ClientInstall client = ClientInstall.FromPath(root);
-
-        ClientConfigLaunchPlan plan = ClientConfigLaunchPlan.Create(
-            client,
-            WineRuntimeProfile.NativeWindows(),
-            mapClientPathsForWine: false);
-
-        Assert.Equal(configPath, plan.FileName);
-        Assert.Equal("", plan.Arguments);
-        Assert.False(plan.Environment.ContainsKey("WINEDEBUG"));
-    }
-
-    [Fact]
     public void WineRuntimeConfiguratorBuildsMacRegistrySettings()
     {
         IReadOnlyList<WineRegistrySetting> settings = WineRuntimeConfigurator.BuildRegistrySettings(
@@ -230,7 +191,7 @@ public sealed class EchoGateCoreTests
         Assert.Contains(settings, setting =>
             setting.Key == @"HKCU\Software\Wine\DirectInput"
             && setting.ValueName == "MouseWarpOverride"
-            && setting.Data == "force");
+            && setting.Data == WineRuntimeConfigurator.MouseWarpOverrideDefault);
         Assert.Contains(settings, setting =>
             setting.Key == @"HKCU\Software\Wine\Mac Driver"
             && setting.ValueName == "CaptureDisplaysForFullscreen"
@@ -292,20 +253,150 @@ public sealed class EchoGateCoreTests
     }
 
     [Fact]
+    public void FfxivSettingsStoreResolvesWineConfigStorage()
+    {
+        string prefix = CreateTempDirectory();
+        string userRoot = Path.Combine(prefix, "drive_c", "users", "testuser");
+        Directory.CreateDirectory(userRoot);
+        WineRuntimeProfile profile = WineRuntimeProfile.WinePrefix("Wine", prefix);
+
+        bool resolved = FfxivClientSettingsStore.TryResolveWineTarget(
+            profile,
+            managedPrefixPath: "",
+            out FfxivConfigStorageTarget target,
+            out string error);
+
+        Assert.True(resolved, error);
+        Assert.Equal(Path.Combine(userRoot, "EchoGate Documents"), target.HostDocumentsPath);
+        Assert.Equal(@"C:\users\testuser\EchoGate Documents", target.WindowsDocumentsPath);
+        Assert.EndsWith(
+            Path.Combine("EchoGate Documents", "My Games", "FINAL FANTASY XIV"),
+            target.HostConfigDirectoryPath,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void FfxivSettingsStoreWritesLanguageAndCreatesSystemConfig()
+    {
+        string root = CreateTempDirectory();
+        string configPath = Path.Combine(root, "ffxivconfig.exe");
+        byte[] systemConfig = Enumerable.Range(0, FfxivClientSettingsStore.SystemConfigLength)
+            .Select(index => (byte)(index % 251 + 1))
+            .ToArray();
+        File.WriteAllBytes(configPath, CreateMinimalConfigExecutable(systemConfig));
+        ClientInstall client = ClientInstall.FromPath(root);
+        string configDirectory = Path.Combine(CreateTempDirectory(), "My Games", "FINAL FANTASY XIV");
+
+        FfxivSettingsSaveResult result = FfxivClientSettingsStore.Save(
+            client,
+            configDirectory,
+            new FfxivClientSettings(FfxivClientLanguage.German),
+            repairSystemConfig: true);
+
+        byte[] language = File.ReadAllBytes(Path.Combine(configDirectory, "config.lng"));
+        byte[] savedSystemConfig = File.ReadAllBytes(Path.Combine(configDirectory, "config.sys"));
+        Assert.Equal(8, language.Length);
+        Assert.Equal((int)FfxivClientLanguage.German, BitConverter.ToInt32(language, 4));
+        Assert.NotEqual(systemConfig, savedSystemConfig);
+        Assert.Equal(FfxivSystemConfig.Magic, BitConverter.ToUInt32(savedSystemConfig, 0));
+        Assert.Equal(1280, BitConverter.ToInt32(savedSystemConfig, 0x14));
+        Assert.Equal(720, BitConverter.ToInt32(savedSystemConfig, 0x18));
+        Assert.True(result.CreatedSystemConfig);
+        Assert.False(result.RepairedSystemConfig);
+    }
+
+    [Fact]
+    public void FfxivSettingsStoreWritesGraphicsSettings()
+    {
+        string root = CreateTempDirectory();
+        string configPath = Path.Combine(root, "ffxivconfig.exe");
+        byte[] systemConfig = Enumerable.Range(0, FfxivClientSettingsStore.SystemConfigLength)
+            .Select(index => (byte)(index % 251 + 1))
+            .ToArray();
+        File.WriteAllBytes(configPath, CreateMinimalConfigExecutable(systemConfig));
+        ClientInstall client = ClientInstall.FromPath(root);
+        string configDirectory = Path.Combine(CreateTempDirectory(), "My Games", "FINAL FANTASY XIV");
+
+        FfxivSystemConfig graphics = new(
+            FfxivDisplayMode.Fullscreen,
+            1920,
+            1080,
+            FfxivShadowMapQuality.High,
+            TextureQualityIndex: 0,
+            BackgroundQualityIndex: 1,
+            FfxivFrameRateLimit.Fps30);
+
+        FfxivClientSettingsStore.Save(
+            client,
+            configDirectory,
+            new FfxivClientSettings(FfxivClientLanguage.English, graphics),
+            repairSystemConfig: true);
+
+        byte[] savedSystemConfig = File.ReadAllBytes(Path.Combine(configDirectory, "config.sys"));
+        Assert.Equal(FfxivSystemConfig.Magic, BitConverter.ToUInt32(savedSystemConfig, 0));
+        Assert.Equal((int)FfxivDisplayMode.Fullscreen, BitConverter.ToInt32(savedSystemConfig, 0x10));
+        Assert.Equal(1920, BitConverter.ToInt32(savedSystemConfig, 0x14));
+        Assert.Equal(1080, BitConverter.ToInt32(savedSystemConfig, 0x18));
+        Assert.Equal((int)FfxivShadowMapQuality.High, BitConverter.ToInt32(savedSystemConfig, 0x20));
+        Assert.Equal(0, BitConverter.ToInt32(savedSystemConfig, 0x3c));
+        Assert.Equal(1, BitConverter.ToInt32(savedSystemConfig, 0x40));
+        Assert.Equal((int)FfxivFrameRateLimit.Fps30, BitConverter.ToInt32(savedSystemConfig, 0x44));
+    }
+
+    [Fact]
+    public void FfxivSettingsStoreRejectsInvalidSystemConfigMagic()
+    {
+        string configDirectory = CreateTempDirectory();
+        string systemPath = Path.Combine(configDirectory, "config.sys");
+        File.WriteAllBytes(systemPath, new byte[FfxivClientSettingsStore.SystemConfigLength]);
+
+        Assert.False(FfxivClientSettingsStore.IsUsableSystemConfig(systemPath));
+    }
+
+    [Fact]
     public void WineRuntimeConfiguratorQuotesRegistryArguments()
     {
         WineRegistrySetting setting = new(
             @"HKCU\Software\Wine\DirectInput",
             "MouseWarpOverride",
             "REG_SZ",
-            "force");
+            WineRuntimeConfigurator.MouseWarpOverrideDefault);
 
         string arguments = WineRuntimeConfigurator.BuildRegAddArguments(setting);
 
         Assert.Contains("reg add", arguments);
         Assert.Contains(@"HKCU\Software\Wine\DirectInput", arguments);
         Assert.Contains("/v MouseWarpOverride", arguments);
-        Assert.Contains("/d force", arguments);
+        Assert.Contains($"/d {WineRuntimeConfigurator.MouseWarpOverrideDefault}", arguments);
+    }
+
+    [Fact]
+    public void WineRuntimeConfiguratorBuildsRegistryDeleteValueArguments()
+    {
+        string arguments = WineRuntimeConfigurator.BuildRegDeleteValueArguments(
+            @"HKCU\Software\Wine\Explorer\Desktops",
+            "EchoGateXIV-1920x1080");
+
+        Assert.Contains("reg delete", arguments);
+        Assert.Contains(@"HKCU\Software\Wine\Explorer\Desktops", arguments);
+        Assert.Contains("/v EchoGateXIV-1920x1080", arguments);
+        Assert.Contains("/f", arguments);
+    }
+
+    [Fact]
+    public void WineRuntimeConfiguratorParsesOnlyLegacyEchoGateDesktopValues()
+    {
+        string queryOutput = """
+
+            HKEY_CURRENT_USER\Software\Wine\Explorer\Desktops
+                EchoGateXIV-1600x900    REG_SZ    1600x900
+                OtherGame               REG_SZ    1024x768
+                EchoGateXIV-1920x1080   REG_SZ    1920x1080
+            """;
+
+        IReadOnlyList<string> valueNames = WineRuntimeConfigurator.ParseLegacyDesktopValueNames(queryOutput);
+
+        Assert.Equal(new[] { "EchoGateXIV-1600x900", "EchoGateXIV-1920x1080" }, valueNames);
     }
 
     [Fact]
@@ -579,29 +670,28 @@ public sealed class EchoGateCoreTests
     }
 
     [Fact]
-    public void RuntimeDiscoveryFindsKnownMacRuntimeTools()
+    public void RuntimeDiscoveryFindsApprovedWineStableOnly()
     {
         IReadOnlyList<RuntimeCandidate> candidates = RuntimeDiscovery.Discover(
             path => path.Contains("Wine Stable.app", StringComparison.Ordinal)
                 || path.Contains("XIV on Mac", StringComparison.Ordinal)
-                || path.Contains("WhiskyCmd", StringComparison.Ordinal),
+                || path.Contains("WhiskyCmd", StringComparison.Ordinal)
+                || path.Contains("CrossOver", StringComparison.Ordinal)
+                || path.Contains("game-porting-toolkit", StringComparison.Ordinal),
             _ => false,
             _ => new[] { "wow" });
 
-        Assert.Equal("Homebrew Wine Stable", candidates[0].Name);
-        Assert.Contains(candidates, candidate => candidate.Name == "XIV on Mac Wine");
-        Assert.Contains(candidates, candidate =>
-            candidate.Name == "Homebrew Wine Stable"
-            && candidate.Kind == WineRuntimeKind.WinePrefix
-            && candidate.Command.Contains("Wine Stable.app", StringComparison.Ordinal));
-        Assert.Contains(candidates, candidate =>
-            candidate.Kind == WineRuntimeKind.WhiskyBottle
-            && candidate.Name == "Whisky - wow"
-            && candidate.BottleOrPrefix == "wow");
+        RuntimeCandidate candidate = Assert.Single(candidates);
+        Assert.Equal("Homebrew Wine Stable", candidate.Name);
+        Assert.Equal(WineRuntimeKind.WinePrefix, candidate.Kind);
+        Assert.Contains("Wine Stable.app", candidate.Command, StringComparison.Ordinal);
+        Assert.DoesNotContain(candidates, runtime => runtime.Name.Contains("XIV on Mac", StringComparison.Ordinal));
+        Assert.DoesNotContain(candidates, runtime => runtime.Kind == WineRuntimeKind.WhiskyBottle);
+        Assert.DoesNotContain(candidates, runtime => runtime.Kind == WineRuntimeKind.CrossOverBottle);
     }
 
     [Fact]
-    public void RuntimeDiscoveryFindsCommonLinuxWinePrefixes()
+    public void RuntimeDiscoveryDoesNotAutoAdoptCommonLinuxWinePrefixes()
     {
         string home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
         string dotWine = Path.Combine(home, ".wine");
@@ -612,18 +702,11 @@ public sealed class EchoGateCoreTests
             path => string.Equals(path, dotWine, StringComparison.Ordinal)
                 || string.Equals(path, homeWine, StringComparison.Ordinal));
 
-        Assert.Contains(candidates, candidate =>
-            candidate.Name == "Default Wine prefix"
-            && candidate.Kind == WineRuntimeKind.WinePrefix
-            && candidate.BottleOrPrefix == dotWine);
-        Assert.Contains(candidates, candidate =>
-            candidate.Name == "Home wine prefix"
-            && candidate.Kind == WineRuntimeKind.WinePrefix
-            && candidate.BottleOrPrefix == homeWine);
+        Assert.Empty(candidates);
     }
 
     [Fact]
-    public void RuntimeDiscoveryFindsCustomHomeWinePrefix()
+    public void RuntimeDiscoveryDoesNotAutoAdoptCustomHomeWinePrefix()
     {
         string home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
         string customPrefix = Path.Combine(home, ".wine_custom");
@@ -634,10 +717,7 @@ public sealed class EchoGateCoreTests
             _ => Array.Empty<string>(),
             _ => new[] { customPrefix });
 
-        Assert.Contains(candidates, candidate =>
-            candidate.Name == "Wine prefix .wine_custom"
-            && candidate.Kind == WineRuntimeKind.WinePrefix
-            && candidate.BottleOrPrefix == customPrefix);
+        Assert.Empty(candidates);
     }
 
     [Fact]
@@ -1221,6 +1301,40 @@ public sealed class EchoGateCoreTests
             true,
             true,
             10);
+    }
+
+    private static byte[] CreateMinimalConfigExecutable(byte[] systemConfig)
+    {
+        const int peOffset = 0x80;
+        const int optionalHeaderSize = 0xe0;
+        const int sectionHeaderOffset = peOffset + 0x18 + optionalHeaderSize;
+        const int rawDataOffset = 0x400;
+        const int sectionVirtualAddress = 0x5c000;
+        const int defaultConfigRva = 0x5c600;
+        byte[] executable = new byte[rawDataOffset + 0x1000];
+
+        executable[0] = (byte)'M';
+        executable[1] = (byte)'Z';
+        BitConverter.GetBytes(peOffset).CopyTo(executable, 0x3c);
+
+        executable[peOffset] = (byte)'P';
+        executable[peOffset + 1] = (byte)'E';
+        BitConverter.GetBytes((ushort)0x14c).CopyTo(executable, peOffset + 0x4);
+        BitConverter.GetBytes((ushort)1).CopyTo(executable, peOffset + 0x6);
+        BitConverter.GetBytes((ushort)optionalHeaderSize).CopyTo(executable, peOffset + 0x14);
+
+        int optionalHeaderOffset = peOffset + 0x18;
+        BitConverter.GetBytes((ushort)0x10b).CopyTo(executable, optionalHeaderOffset);
+        BitConverter.GetBytes(0x400000u).CopyTo(executable, optionalHeaderOffset + 0x1c);
+
+        Encoding.ASCII.GetBytes(".data").CopyTo(executable, sectionHeaderOffset);
+        BitConverter.GetBytes(0x1000u).CopyTo(executable, sectionHeaderOffset + 0x8);
+        BitConverter.GetBytes(sectionVirtualAddress).CopyTo(executable, sectionHeaderOffset + 0xc);
+        BitConverter.GetBytes(0x1000u).CopyTo(executable, sectionHeaderOffset + 0x10);
+        BitConverter.GetBytes(rawDataOffset).CopyTo(executable, sectionHeaderOffset + 0x14);
+
+        systemConfig.CopyTo(executable, rawDataOffset + (defaultConfigRva - sectionVirtualAddress));
+        return executable;
     }
 
     private sealed class StaticPatchHandler : HttpMessageHandler

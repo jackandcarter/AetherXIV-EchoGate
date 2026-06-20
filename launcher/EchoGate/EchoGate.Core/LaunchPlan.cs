@@ -7,6 +7,7 @@ public sealed record LaunchPlan(
     string WindowsExecutablePath,
     string Arguments,
     string LogPath,
+    string? HelperLogPath,
     IReadOnlyDictionary<string, string> Environment)
 {
     public static LaunchPlan Create(
@@ -37,6 +38,7 @@ public sealed record LaunchPlan(
             clientInstall.GameExecutablePath,
             runtimeProfile.BuildArguments(clientInstall.GameExecutablePath),
             logPath ?? RuntimeLaunchDiagnostics.CreateLogPath(),
+            null,
             environment);
     }
 
@@ -117,6 +119,7 @@ public sealed record LaunchPlan(
             helperExecutablePath,
             arguments,
             outputLogPath,
+            helperOutputLogPath,
             environment);
     }
 }

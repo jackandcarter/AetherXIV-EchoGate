@@ -27,6 +27,7 @@ using MeteorXIV.Core.Map.dataobjects;
 
 using MeteorXIV.Core.Common;
 using MeteorXIV.Core.Map.Actors;
+using MeteorXIV.Core.Map.actors.chara.ai;
 
 namespace MeteorXIV.Core.Map
 {
@@ -35,6 +36,7 @@ namespace MeteorXIV.Core.Map
         public const int FFXIV_MAP_PORT = 54992;
         public const int BUFFER_SIZE = 0xFFFF; //Max basepacket size is 0xFFFF
         public const int BACKLOG = 100;
+        private const uint SESSION_END_GRACE_SECONDS = 5;
 
         public const string STATIC_ACTORS_PATH = "./staticactors.bin";
 
@@ -123,15 +125,28 @@ namespace MeteorXIV.Core.Map
 
         public Session AddSession(uint id)
         {
+            PruneEndingSessions();
+
             if (mSessionList.ContainsKey(id))
             {
-                mSessionList[id].ClearInstance();
-                return mSessionList[id];
+                if (mSessionList[id].isEnding)
+                    RemoveSession(id);
+                else
+                {
+                    mSessionList[id].ClearInstance();
+                    return mSessionList[id];
+                }
             }
 
             Session session = new Session(id);
             mSessionList.Add(id, session);
             return session;
+        }
+
+        public void BeginSessionEnd(uint id)
+        {
+            if (mSessionList.ContainsKey(id))
+                mSessionList[id].BeginEnding();
         }
 
         public void RemoveSession(uint id)
@@ -140,6 +155,21 @@ namespace MeteorXIV.Core.Map
             {
                 mSessionList.Remove(id);                
             }
+        }
+
+        public void PruneEndingSessions()
+        {
+            uint now = Utils.UnixTimeStampUTC();
+            List<uint> expiredSessions = new List<uint>();
+
+            foreach (KeyValuePair<uint, Session> entry in mSessionList)
+            {
+                if (entry.Value.IsEndingExpired(now, SESSION_END_GRACE_SECONDS))
+                    expiredSessions.Add(entry.Key);
+            }
+
+            foreach (uint sessionId in expiredSessions)
+                RemoveSession(sessionId);
         }
 
         public Session GetSession(uint id)
@@ -251,6 +281,7 @@ namespace MeteorXIV.Core.Map
 
                     //Build any queued subpackets into basepackets and send
                     conn.FlushQueuedSendPackets();
+                    PruneEndingSessions();
 
                     if (offset < bytesRead)
                         //Need offset since not all bytes consumed
@@ -304,12 +335,47 @@ namespace MeteorXIV.Core.Map
 
         public static Actor GetStaticActors(uint id)
         {
-            return mStaticActors.GetActor(id);
+            Actor actor = mStaticActors.GetActor(id);
+            if (actor != null)
+                return actor;
+
+            return GetBattleCommandActor(id);
         }
 
         public static Actor GetStaticActors(string name)
         {
             return mStaticActors.FindStaticActor(name);
+        }
+
+        private static Actor GetBattleCommandActor(uint id)
+        {
+            if ((id & 0xFFF00000) != 0xA0F00000 || mWorldManager == null)
+                return null;
+
+            BattleCommand battleCommand = mWorldManager.GetBattleCommand(id & 0xFFFF);
+            if (battleCommand == null)
+                return null;
+
+            string commandScript = GetBattleCommandScriptName(battleCommand);
+            if (commandScript == null)
+                return null;
+
+            return new Command(id, commandScript);
+        }
+
+        private static string GetBattleCommandScriptName(BattleCommand battleCommand)
+        {
+            switch (battleCommand.commandType)
+            {
+                case CommandType.Spell:
+                    return "EffectMagic";
+                case CommandType.Ability:
+                    return "Ability";
+                case CommandType.WeaponSkill:
+                    return "AttackWeaponSkill";
+                default:
+                    return null;
+            }
         }
 
         public static ItemData GetItemGamedata(uint id)

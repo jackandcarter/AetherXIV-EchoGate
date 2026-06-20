@@ -140,6 +140,7 @@ namespace MeteorXIV.Core.Map.Actors
         public Pet pet;
 
         private Dictionary<Modifier, double> modifiers = new Dictionary<Modifier, double>();
+        private Dictionary<Modifier, double> recalculatedMods = new Dictionary<Modifier, double>();
 
         protected ushort hpBase, hpMaxBase, mpBase, mpMaxBase, tpBase;
         protected BattleTemp baseStats = new BattleTemp();
@@ -358,7 +359,7 @@ namespace MeteorXIV.Core.Map.Actors
 
         public void SubtractMod(Modifier modifier, double val)
         {
-            AddMod((uint)modifier, val);
+            SubtractMod((uint)modifier, val);
         }
 
         public void SubtractMod(uint modifier, double val)
@@ -387,6 +388,27 @@ namespace MeteorXIV.Core.Map.Actors
         {
             double newVal = GetMod(modifier) / val;
             SetMod(modifier, newVal);
+        }
+
+        protected void AddRecalculatedMod(Modifier modifier, double val)
+        {
+            if (val == 0)
+                return;
+
+            AddMod(modifier, val);
+
+            if (recalculatedMods.ContainsKey(modifier))
+                recalculatedMods[modifier] += val;
+            else
+                recalculatedMods.Add(modifier, val);
+        }
+
+        protected void ClearRecalculatedMods()
+        {
+            foreach (KeyValuePair<Modifier, double> entry in recalculatedMods)
+                SubtractMod(entry.Key, entry.Value);
+
+            recalculatedMods.Clear();
         }
 
 
@@ -841,12 +863,54 @@ namespace MeteorXIV.Core.Map.Actors
             updateFlags |= ActorUpdateFlags.HpTpMp;
 
 
-            SetMod((uint)Modifier.HitCount, 1);
+            if (GetMod((uint)Modifier.HitCount) == 0)
+                SetMod((uint)Modifier.HitCount, 1);
         }
 
         public void RecalculateStats()
         {
-            //CalculateBaseStats();
+            RecalculateStats("unspecified");
+        }
+
+        public void RecalculateStats(string reason)
+        {
+            DevDiagnostics.Trace(
+                "stats.recalc.begin",
+                "actor", String.Format("0x{0:X}", actorId),
+                "actorName", customDisplayName != null ? customDisplayName : actorName,
+                "reason", reason,
+                "classId", GetClass(),
+                "level", GetLevel(),
+                "hp", charaWork.parameterSave.hp[0],
+                "hpMax", charaWork.parameterSave.hpMax[0],
+                "mp", charaWork.parameterSave.mp,
+                "mpMax", charaWork.parameterSave.mpMax,
+                "recalculatedModCount", recalculatedMods.Count);
+
+            ClearRecalculatedMods();
+            CalculateBaseStats();
+
+            DevDiagnostics.Trace(
+                "stats.recalc.end",
+                "actor", String.Format("0x{0:X}", actorId),
+                "actorName", customDisplayName != null ? customDisplayName : actorName,
+                "reason", reason,
+                "classId", GetClass(),
+                "level", GetLevel(),
+                "hp", charaWork.parameterSave.hp[0],
+                "hpMax", charaWork.parameterSave.hpMax[0],
+                "mp", charaWork.parameterSave.mp,
+                "mpMax", charaWork.parameterSave.mpMax,
+                "str", GetMod(Modifier.Strength),
+                "vit", GetMod(Modifier.Vitality),
+                "dex", GetMod(Modifier.Dexterity),
+                "int", GetMod(Modifier.Intelligence),
+                "mnd", GetMod(Modifier.Mind),
+                "pie", GetMod(Modifier.Piety),
+                "attack", GetMod(Modifier.Attack),
+                "accuracy", GetMod(Modifier.Accuracy),
+                "defense", GetMod(Modifier.Defense),
+                "evasion", GetMod(Modifier.Evasion));
         }
 
         public void SetStat(uint statId, int val)

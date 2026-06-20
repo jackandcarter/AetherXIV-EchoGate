@@ -58,8 +58,8 @@ namespace MeteorXIV.Core.Map
             DevDiagnostics.Configure("Map", args);
 
             Log.Info("==================================");
-            Log.Info("MeteorXIV Core: Map Server");
-            Log.Info("Version: 0.1");
+            Log.Info("MeteorXIV Core v1.2: Map Server");
+            Log.Info("Version: 1.2");
             Log.Info("==================================");
 
             try

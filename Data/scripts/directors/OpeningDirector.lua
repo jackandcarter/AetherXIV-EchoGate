@@ -11,13 +11,25 @@ function onEventStarted(player, actor, triggerName)
 	
 	if (player:HasQuest(110001) == true) then
 		quest = player:GetQuest("Man0l0");
-		callClientFunction(player, "delegateEvent", player, quest, "processTtrNomal001withHQ", nil, nil, nil);		
+		if (quest:GetQuestFlag(MAN0L0_FLAG_STARTED_TALK_TUT) == false) then
+			callClientFunction(player, "delegateEvent", player, quest, "processTtrNomal001withHQ", nil, nil, nil);
+		else
+			onTalkEvent(player, actor);
+		end
 	elseif (player:HasQuest(110005) == true) then
 		quest = player:GetQuest("Man0g0");
-		callClientFunction(player, "delegateEvent", player, quest, "processTtrNomal001withHQ", nil, nil, nil);
+		if (quest:GetQuestFlag(MAN0L0_FLAG_STARTED_TALK_TUT) == false) then
+			callClientFunction(player, "delegateEvent", player, quest, "processTtrNomal001withHQ", nil, nil, nil);
+		else
+			onTalkEvent(player, actor);
+		end
 	elseif (player:HasQuest(110009) == true) then
 		quest = player:GetQuest("Man0u0");
-		callClientFunction(player, "delegateEvent", player, quest, "processTtrNomal001withHQ", nil, nil, nil);
+		if (quest:GetQuestFlag(MAN0U0_FLAG_TUTORIAL3_DONE) == false) then
+			callClientFunction(player, "delegateEvent", player, quest, "processTtrNomal001withHQ", nil, nil, nil);
+		else
+			onTalkEvent(player, actor);
+		end
 	end
 	
 	player:EndEvent();

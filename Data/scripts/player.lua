@@ -1,10 +1,82 @@
 require("global");
+require("quests/man/man0l0");
+require("quests/man/man0g0");
+require("quests/man/man0u0");
 
 local initClassItems, initRaceItems;
 
 local function ensureOpeningQuest(player, questId, isSilent)
 	if (player:HasQuest(questId) == false and player:IsQuestCompleted(questId) == false) then
 		player:AddQuest(questId, isSilent == true);
+	end
+end
+
+local function setPlayerPosition(player, x, y, z, rotation)
+	player.positionX = x;
+	player.positionY = y;
+	player.positionZ = z;
+	player.rotation = rotation;
+	player.oldPositionX = x;
+	player.oldPositionY = y;
+	player.oldPositionZ = z;
+	player.oldRotation = rotation;
+end
+
+local function hasQuestFlag(quest, bitIndex)
+	return quest ~= nil and quest:GetQuestFlag(bitIndex) == true;
+end
+
+local function setUldahOpeningCheckpoint(player)
+	local quest = player:GetQuest("Man0u0");
+
+	if (hasQuestFlag(quest, MAN0U0_FLAG_MINITUT_DONE3)) then
+		setPlayerPosition(player, -13.0, 194.91, 82.0, 3.1);
+	elseif (hasQuestFlag(quest, MAN0U0_FLAG_MINITUT_DONE2)) then
+		setPlayerPosition(player, -16.5, 196.0, 98.0, -2.8);
+	elseif (hasQuestFlag(quest, MAN0U0_FLAG_MINITUT_DONE1)) then
+		setPlayerPosition(player, 3.0, 196.0, 119.0, -2.8);
+	elseif (hasQuestFlag(quest, MAN0U0_FLAG_TUTORIAL3_DONE)) then
+		setPlayerPosition(player, 0.0, 196.0, 125.0, -2.2);
+	else
+		setPlayerPosition(player, 5.364327, 196.0, 133.6561, -2.849384);
+	end
+end
+
+local function setGridaniaOpeningCheckpoint(player)
+	local quest = player:GetQuest("Man0g0");
+
+	if (hasQuestFlag(quest, MAN0G0_FLAG_MINITUT_DONE1)) then
+		setPlayerPosition(player, 356.0, 4.0, -699.5, -2.6);
+	elseif (hasQuestFlag(quest, MAN0L0_FLAG_STARTED_TALK_TUT)) then
+		setPlayerPosition(player, 356.0, 4.0, -703.5, -2.6);
+	else
+		setPlayerPosition(player, 369.5434, 4.21, -706.1074, -1.26721);
+	end
+end
+
+local function setLimsaOpeningCheckpoint(player)
+	local quest = player:GetQuest("Man0l0");
+
+	if (hasQuestFlag(quest, MAN0L0_FLAG_MINITUT_DONE3)) then
+		setPlayerPosition(player, 0.0, 10.35, -20.5, 0.0);
+	elseif (hasQuestFlag(quest, MAN0L0_FLAG_MINITUT_DONE2)) then
+		setPlayerPosition(player, 2.0, 10.35, -22.5, 3.1);
+	elseif (hasQuestFlag(quest, MAN0L0_FLAG_MINITUT_DONE1)) then
+		setPlayerPosition(player, -3.5, 9.4, -25.5, 0.1);
+	elseif (hasQuestFlag(quest, MAN0L0_FLAG_STARTED_TALK_TUT)) then
+		setPlayerPosition(player, -6.5, 10.0, -27.0, 1.6);
+	else
+		setPlayerPosition(player, 0.016, 10.35, -36.91, 0.025);
+	end
+end
+
+local function setOpeningCheckpoint(player)
+	if (player:HasQuest(110001) == true and player:GetZoneID() == 193) then
+		setLimsaOpeningCheckpoint(player);
+	elseif (player:HasQuest(110005) == true and player:GetZoneID() == 166) then
+		setGridaniaOpeningCheckpoint(player);
+	elseif (player:HasQuest(110009) == true and player:GetZoneID() == 184) then
+		setUldahOpeningCheckpoint(player);
 	end
 end
 
@@ -49,6 +121,8 @@ function onBeginLogin(player)
 	elseif (player:GetInitialTown() == 3 and player:GetZoneID() == 184) then
 		ensureOpeningQuest(player, 110009, true);
 	end
+
+	setOpeningCheckpoint(player);
 end
 
 function onLogin(player)
@@ -56,25 +130,10 @@ function onLogin(player)
 	--For Opening. Set Director and reset position in case of reconnect.
 	if (player:HasQuest(110001) == true and player:GetZoneID() == 193) then
 		startOpeningDirector(player, true);
-
-		player.positionX = 0.016;
-		player.positionY = 10.35;
-		player.positionZ = -36.91;
-		player.rotation = 0.025;
 	elseif (player:HasQuest(110005) == true and player:GetZoneID() == 166) then 
 		startOpeningDirector(player, true);
-		
-		player.positionX = 369.5434;
-		player.positionY = 4.21;
-		player.positionZ = -706.1074;
-		player.rotation = -1.26721;
 	elseif (player:HasQuest(110009) == true and player:GetZoneID() == 184) then
 		startOpeningDirector(player, true);
-
-		player.positionX = 5.364327;
-		player.positionY = 196.0;
-		player.positionZ = 133.6561;
-		player.rotation = -2.849384;
 	end
 
 	if (player:GetPlayTime(false) == 0) then

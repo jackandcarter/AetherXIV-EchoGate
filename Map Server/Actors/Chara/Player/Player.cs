@@ -27,6 +27,7 @@ using MeteorXIV.Core.Map.dataobjects;
 using MeteorXIV.Core.Map.dataobjects.chara;
 using MeteorXIV.Core.Map.lua;
 using MeteorXIV.Core.Map.packets.WorldPackets.Send.Group;
+using MeteorXIV.Core.Map.packets.WorldPackets.Send;
 using MeteorXIV.Core.Map.utils;
 using MeteorXIV.Core.Map.actors.group;
 using MeteorXIV.Core.Map.actors.chara.player;
@@ -49,8 +50,80 @@ using MeteorXIV.Core.Map.packets.send.actor.events;
 
 namespace MeteorXIV.Core.Map.Actors
 {
+    class PlayerBaseStatProfile
+    {
+        public readonly byte classId;
+        public readonly byte tribe;
+        public readonly short level;
+        public readonly short hp;
+        public readonly short mp;
+        public readonly short strength;
+        public readonly short vitality;
+        public readonly short dexterity;
+        public readonly short intelligence;
+        public readonly short mind;
+        public readonly short piety;
+        public readonly string source;
+
+        public PlayerBaseStatProfile(byte classId, byte tribe, short level, short hp, short mp, short strength, short vitality, short dexterity, short intelligence, short mind, short piety, string source)
+        {
+            this.classId = classId;
+            this.tribe = tribe;
+            this.level = level;
+            this.hp = hp;
+            this.mp = mp;
+            this.strength = strength;
+            this.vitality = vitality;
+            this.dexterity = dexterity;
+            this.intelligence = intelligence;
+            this.mind = mind;
+            this.piety = piety;
+            this.source = source;
+        }
+    }
+
+    class PlayerClassAttributeAllocation
+    {
+        public readonly byte classId;
+        public readonly short pointsRemaining;
+        public readonly short strength;
+        public readonly short vitality;
+        public readonly short dexterity;
+        public readonly short intelligence;
+        public readonly short mind;
+        public readonly short piety;
+
+        public PlayerClassAttributeAllocation(byte classId, short pointsRemaining, short strength, short vitality, short dexterity, short intelligence, short mind, short piety)
+        {
+            this.classId = classId;
+            this.pointsRemaining = pointsRemaining;
+            this.strength = strength;
+            this.vitality = vitality;
+            this.dexterity = dexterity;
+            this.intelligence = intelligence;
+            this.mind = mind;
+            this.piety = piety;
+        }
+
+        public short SpentPoints()
+        {
+            return (short)(strength + vitality + dexterity + intelligence + mind + piety);
+        }
+    }
+
     class Player : Character
     {
+        private const int PARAM_NAME_MODIFIER_OFFSET = 15001;
+        private const int PARAM_NAME_MODIFIER_MAX = 15132;
+
+        public const int JOBID_MNK = 15;
+        public const int JOBID_PLD = 16;
+        public const int JOBID_WAR = 17;
+        public const int JOBID_BRD = 18;
+        public const int JOBID_DRG = 19;
+        public const int JOBID_BLM = 26;
+        public const int JOBID_WHM = 27;
+
         public const int TIMER_TOTORAK = 0;
         public const int TIMER_DZEMAEL = 1;
         public const int TIMER_BOWL_OF_EMBERS_HARD = 2;
@@ -167,6 +240,9 @@ namespace MeteorXIV.Core.Map.Actors
         List<ushort> hotbarSlotsToUpdate = new List<ushort>();
 
         public PlayerWork playerWork = new PlayerWork();
+        private readonly Dictionary<byte, PlayerClassAttributeAllocation> classAttributeAllocations = new Dictionary<byte, PlayerClassAttributeAllocation>();
+        private readonly Dictionary<string, PlayerBaseStatProfile> baseStatProfiles = new Dictionary<string, PlayerBaseStatProfile>();
+        private readonly HashSet<string> missingBaseStatProfiles = new HashSet<string>();
 
         public Session playerSession;
 
@@ -273,7 +349,7 @@ namespace MeteorXIV.Core.Map.Actors
 
             this.aiContainer = new AIContainer(this, new PlayerController(this), null, new TargetFind(this));
             allegiance = CharacterTargetingAllegiance.Player;
-            CalculateBaseStats();
+            RecalculateStats("login");
         }
 
         public List<SubPacket> Create0x132Packets()
@@ -562,6 +638,7 @@ namespace MeteorXIV.Core.Map.Actors
         {
             QueuePacket(SetMusicPacket.BuildPacket(actorId, zone.bgmDay, SetMusicPacket.EFFECT_FADEIN));
             QueuePacket(SetWeatherPacket.BuildPacket(actorId, SetWeatherPacket.WEATHER_CLEAR, 1));
+            QueuePacket(SetMapPacket.BuildPacket(actorId, zone.regionId, zone.actorId));
         }
 
         public void SendZoneInPackets(WorldManager world, ushort spawnType)
@@ -795,7 +872,25 @@ namespace MeteorXIV.Core.Map.Actors
             playerSession.LockUpdates(true);
 
             //Remove actor from zone and main server list
-            zone.RemoveActorFromZone(this);
+            if (zone != null)
+            {
+                zone.RemoveActorFromZone(this);
+            }
+            else
+            {
+                DevDiagnostics.Trace(
+                    "player.cleanup.missingZone",
+                    "player", customDisplayName,
+                    "zone", zoneId,
+                    "privateArea", privateArea ?? "",
+                    "privateAreaType", privateAreaType,
+                    "destinationZone", destinationZone,
+                    "spawnType", destinationSpawnType,
+                    "x", positionX,
+                    "y", positionY,
+                    "z", positionZ,
+                    "rot", rotation);
+            }
 
             // Keep pending zone-in state if the client disconnected before confirming position.
             bool preservePendingZoneChange = IsInZoneChange() && (this.destinationZone != 0 || this.destinationSpawnType != 0);
@@ -853,7 +948,25 @@ namespace MeteorXIV.Core.Map.Actors
             playerSession.LockUpdates(true);
 
             //Remove actor from zone and main server list
-            zone.RemoveActorFromZone(this);
+            if (zone != null)
+            {
+                zone.RemoveActorFromZone(this);
+            }
+            else
+            {
+                DevDiagnostics.Trace(
+                    "player.cleanupForZoneChange.missingZone",
+                    "player", customDisplayName,
+                    "zone", zoneId,
+                    "privateArea", privateArea ?? "",
+                    "privateAreaType", privateAreaType,
+                    "destinationZone", destinationZone,
+                    "spawnType", destinationSpawnType,
+                    "x", positionX,
+                    "y", positionY,
+                    "z", positionZ,
+                    "rot", rotation);
+            }
 
             //Clean up parties
             RemoveFromCurrentPartyAndCleanup();
@@ -874,7 +987,7 @@ namespace MeteorXIV.Core.Map.Actors
             Database.SavePlayerStatusEffects(this);
         }
 
-        public Area GetZone()
+        public new Area GetZone()
         {
             return zone;
         }
@@ -928,17 +1041,55 @@ namespace MeteorXIV.Core.Map.Actors
 
         public void Logout()
         {
-            // todo: really this should be in CleanupAndSave but we might want logout/disconnect handled separately for some effects
-            QueuePacket(LogoutPacket.BuildPacket(actorId));
-            statusEffects.RemoveStatusEffectsByFlags((uint)StatusEffectFlags.LoseOnLogout);
-            CleanupAndSave();
+            EndClientSession("logout", LogoutPacket.BuildPacket(actorId));
         }
 
         public void QuitGame()
         {
-            QueuePacket(QuitPacket.BuildPacket(actorId));
+            EndClientSession("quit", QuitPacket.BuildPacket(actorId));
+        }
+
+        private void EndClientSession(string reason, SubPacket clientTransitionPacket)
+        {
+            DevDiagnostics.Trace(
+                "player.logout.request",
+                "player", actorId,
+                "playerName", customDisplayName,
+                "reason", reason,
+                "session", playerSession.id,
+                "zone", zoneId);
+
+            QueuePacket(clientTransitionPacket);
+
+            DevDiagnostics.Trace(
+                "player.logout.packet",
+                "player", actorId,
+                "playerName", customDisplayName,
+                "reason", reason,
+                "session", playerSession.id,
+                "opcode", String.Format("0x{0:X4}", clientTransitionPacket.gameMessage.opcode));
+
             statusEffects.RemoveStatusEffectsByFlags((uint)StatusEffectFlags.LoseOnLogout);
             CleanupAndSave();
+
+            DevDiagnostics.Trace(
+                "player.logout.cleanup",
+                "player", actorId,
+                "playerName", customDisplayName,
+                "reason", reason,
+                "session", playerSession.id);
+
+            playerSession.QueuePacket(SessionEndConfirmPacket.BuildPacket(playerSession, 0));
+
+            DevDiagnostics.Trace(
+                "player.logout.sessionEnd",
+                "player", actorId,
+                "playerName", customDisplayName,
+                "reason", reason,
+                "session", playerSession.id,
+                "destinationZone", 0);
+
+            Server.GetServer().BeginSessionEnd(playerSession.id);
         }
 
         public uint GetPlayTime(bool doUpdate)
@@ -2126,7 +2277,7 @@ namespace MeteorXIV.Core.Map.Actors
         
         public void SendInstanceUpdate(bool force = false)
         {
-            //Server.GetWorldManager().SeamlessCheck(this);
+            Server.GetWorldManager().SeamlessCheck(this);
 
             //Update Instance
             List<Actor> aroundMe = new List<Actor>();
@@ -2344,7 +2495,11 @@ namespace MeteorXIV.Core.Map.Actors
             if ((updateFlags & ActorUpdateFlags.Position) != 0)
             {
                 if (positionUpdates.Count > 1)
-                    positionUpdates.RemoveRange(1, positionUpdates.Count - 1);
+                {
+                    var latestPosition = positionUpdates[positionUpdates.Count - 1];
+                    positionUpdates.Clear();
+                    positionUpdates.Add(latestPosition);
+                }
             }
 
             if ((updateFlags & ActorUpdateFlags.HpTpMp) != 0)
@@ -2729,14 +2884,34 @@ namespace MeteorXIV.Core.Map.Actors
                 return false;
             }
 
-            if (Utils.XZDistance(positionX, positionZ, target.positionX, target.positionZ) > skill.range)
+            float xzDistance = Utils.XZDistance(positionX, positionZ, target.positionX, target.positionZ);
+            if (xzDistance > skill.range)
             {
+                DevDiagnostics.Trace(
+                    "battle.command.blocked",
+                    "reason", "out_of_range",
+                    "player", String.Format("0x{0:X}", actorId),
+                    "playerName", customDisplayName != null ? customDisplayName : actorName,
+                    "target", String.Format("0x{0:X}", target.actorId),
+                    "targetName", target.customDisplayName != null ? target.customDisplayName : target.actorName,
+                    "commandId", skill.id,
+                    "commandName", skill.name,
+                    "distance", xzDistance,
+                    "range", skill.range,
+                    "playerX", positionX,
+                    "playerY", positionY,
+                    "playerZ", positionZ,
+                    "targetX", target.positionX,
+                    "targetY", target.positionY,
+                    "targetZ", target.positionZ,
+                    "queuedPositions", positionUpdates == null ? 0 : positionUpdates.Count);
+
                 // The target is too far away.
                 error?.SetTextId(32539);
                 return false;
             }
 
-            if (Utils.XZDistance(positionX, positionZ, target.positionX, target.positionZ) < skill.minRange)
+            if (xzDistance < skill.minRange)
             {
                 // The target is too close.
                 error?.SetTextId(32538);
@@ -2830,6 +3005,7 @@ namespace MeteorXIV.Core.Map.Actors
             base.OnAbility(state, actions, ability, ref errors);
             UpdateHotbarTimer(ability.id, ability.recastTimeMs);
             LuaEngine.GetInstance().OnSignal("abilityUse");
+            LuaEngine.GetInstance().OnSignal("abilityUsed");
         }
 
         //Handles exp being added, does not handle figuring out exp bonus from buffs or skill/link chains or any of that
@@ -2838,7 +3014,24 @@ namespace MeteorXIV.Core.Map.Actors
         public List<CommandResult> AddExp(int exp, byte classId, byte bonusPercent = 0)
         {
             List<CommandResult> actionList = new List<CommandResult>();
+            int originalExp = exp;
+            short startingLevel = GetLevel();
+            int startingClassExp = charaWork.battleSave.skillPoint[classId - 1];
+
             exp += (int) Math.Ceiling((exp * bonusPercent / 100.0f));
+            int awardedExp = exp;
+
+            DevDiagnostics.Trace(
+                "player.exp.grant.begin",
+                "player", String.Format("0x{0:X}", actorId),
+                "playerName", customDisplayName != null ? customDisplayName : actorName,
+                "classId", classId,
+                "currentClassId", GetClass(),
+                "level", startingLevel,
+                "oldExp", startingClassExp,
+                "baseExp", originalExp,
+                "bonusPercent", bonusPercent,
+                "finalExp", awardedExp);
 
             //You earn [exp] (+[bonusPercent]%) experience points.
             //In non-english languages there are unique messages for each language, hence the use of ClassExperienceTextIds
@@ -2879,6 +3072,22 @@ namespace MeteorXIV.Core.Map.Actors
             QueuePackets(expPropertyPacket.Done());
             Database.SetExp(this, classId, charaWork.battleSave.skillPoint[classId - 1]);
 
+            DevDiagnostics.Trace(
+                "player.exp.grant.end",
+                "player", String.Format("0x{0:X}", actorId),
+                "playerName", customDisplayName != null ? customDisplayName : actorName,
+                "classId", classId,
+                "currentClassId", GetClass(),
+                "oldLevel", startingLevel,
+                "newLevel", GetLevel(),
+                "oldExp", startingClassExp,
+                "newExp", charaWork.battleSave.skillPoint[classId - 1],
+                "baseExp", originalExp,
+                "bonusPercent", bonusPercent,
+                "finalExp", awardedExp,
+                "remainderApplied", exp,
+                "leveled", leveled);
+
             return actionList;
         }
 
@@ -2908,16 +3117,75 @@ namespace MeteorXIV.Core.Map.Actors
         {
             if (charaWork.battleSave.skillLevel[classId - 1] < charaWork.battleSave.skillLevelCap[classId])
             {
+                short oldLevel = charaWork.battleSave.skillLevel[classId - 1];
+
                 //Increase level
                 charaWork.battleSave.skillLevel[classId - 1]++;
                 charaWork.parameterSave.state_mainSkillLevel++;
+                short newLevel = charaWork.battleSave.skillLevel[classId - 1];
+
+                DevDiagnostics.Trace(
+                    "player.level.up",
+                    "player", String.Format("0x{0:X}", actorId),
+                    "playerName", customDisplayName != null ? customDisplayName : actorName,
+                    "classId", classId,
+                    "currentClassId", GetClass(),
+                    "oldLevel", oldLevel,
+                    "newLevel", newLevel);
 
                 //33909: You attain level [level].
                 if (actionList != null)
-                    actionList.Add(new CommandResult(actorId, 33909, 0, (ushort)charaWork.battleSave.skillLevel[classId - 1]));
+                    actionList.Add(new CommandResult(actorId, 33909, 0, (ushort)newLevel));
 
                 EquipAbilitiesAtLevel(classId, GetLevel(), actionList);
+
+                if (classId == GetClass())
+                    RecalculateStats("level-up");
             }
+        }
+
+        public void SetClassAttributeAllocation(PlayerClassAttributeAllocation allocation)
+        {
+            if (allocation == null)
+                return;
+
+            classAttributeAllocations[allocation.classId] = allocation;
+        }
+
+        private PlayerClassAttributeAllocation GetClassAttributeAllocation(byte classId)
+        {
+            PlayerClassAttributeAllocation allocation;
+            if (classAttributeAllocations.TryGetValue(classId, out allocation))
+                return allocation;
+
+            return new PlayerClassAttributeAllocation(classId, 0, 0, 0, 0, 0, 0, 0);
+        }
+
+        public static short GetEarnedAttributePointsForLevel(short level)
+        {
+            if (level < 10)
+                return 0;
+
+            return (short)(level - 5);
+        }
+
+        public static short GetAttributePointCapForLevel(short level)
+        {
+            if (level < 10)
+                return 0;
+
+            return (short)(3 + ((level - 10) / 2));
+        }
+
+        public static bool IsDiscipleOfWarOrMagicClass(byte classId)
+        {
+            return classId == CLASSID_PUG ||
+                   classId == CLASSID_GLA ||
+                   classId == CLASSID_MRD ||
+                   classId == CLASSID_ARC ||
+                   classId == CLASSID_LNC ||
+                   classId == CLASSID_THM ||
+                   classId == CLASSID_CNJ;
         }
         
         public static byte ConvertClassIdToJobId(byte classId)
@@ -2944,12 +3212,46 @@ namespace MeteorXIV.Core.Map.Actors
             return jobId;
         }
 
+        public static byte ConvertJobIdToClassId(byte jobId)
+        {
+            switch (jobId)
+            {
+                case JOBID_MNK:
+                    return CLASSID_PUG;
+                case JOBID_PLD:
+                    return CLASSID_GLA;
+                case JOBID_WAR:
+                    return CLASSID_MRD;
+                case JOBID_BRD:
+                    return CLASSID_ARC;
+                case JOBID_DRG:
+                    return CLASSID_LNC;
+                case JOBID_BLM:
+                    return CLASSID_THM;
+                case JOBID_WHM:
+                    return CLASSID_CNJ;
+                default:
+                    return jobId;
+            }
+        }
+
+        public byte GetAttributeAllocationClassId()
+        {
+            return ConvertJobIdToClassId(GetCurrentClassOrJob());
+        }
+
+        public byte GetBaseStatClassOrJobId()
+        {
+            return GetCurrentClassOrJob();
+        }
+
         public void SetCurrentJob(byte jobId)
         {
             currentJob = jobId;
             BroadcastPacket(SetCurrentJobPacket.BuildPacket(actorId, jobId), true);
             Database.LoadHotbar(this);
             SendCharaExpInfo();
+            RecalculateStats("job-change");
         }
 
         //Gets the id of the player's current job. If they aren't a job, gets the id of their class
@@ -3003,9 +3305,169 @@ namespace MeteorXIV.Core.Map.Actors
             QueuePackets(comboPropertyPacket.Done());
         }
 
+        private string GetBaseStatProfileKey(byte classOrJobId, byte tribe, short level)
+        {
+            return String.Format("{0}:{1}:{2}", classOrJobId, tribe, level);
+        }
+
+        private PlayerBaseStatProfile GetCurrentBaseStatProfile()
+        {
+            byte classOrJobId = GetBaseStatClassOrJobId();
+            byte tribe = playerWork.tribe;
+            short level = GetLevel();
+            string key = GetBaseStatProfileKey(classOrJobId, tribe, level);
+
+            if (baseStatProfiles.ContainsKey(key))
+                return baseStatProfiles[key];
+
+            if (missingBaseStatProfiles.Contains(key))
+                return null;
+
+            PlayerBaseStatProfile profile = Database.GetPlayerBaseStats(classOrJobId, tribe, level);
+            if (profile != null)
+            {
+                baseStatProfiles[key] = profile;
+                return profile;
+            }
+
+            missingBaseStatProfiles.Add(key);
+            DevDiagnostics.Trace(
+                "stats.base.missing",
+                "player", String.Format("0x{0:X}", actorId),
+                "playerName", customDisplayName != null ? customDisplayName : actorName,
+                "classOrJobId", classOrJobId,
+                "allocationClassId", GetAttributeAllocationClassId(),
+                "tribe", tribe,
+                "level", level);
+
+            return null;
+        }
+
+        private void ApplyBaseStatProfile()
+        {
+            PlayerBaseStatProfile profile = GetCurrentBaseStatProfile();
+            if (profile == null)
+                return;
+
+            AddRecalculatedMod(Modifier.Hp, profile.hp);
+            AddRecalculatedMod(Modifier.Mp, profile.mp);
+            AddRecalculatedMod(Modifier.Strength, profile.strength);
+            AddRecalculatedMod(Modifier.Vitality, profile.vitality);
+            AddRecalculatedMod(Modifier.Dexterity, profile.dexterity);
+            AddRecalculatedMod(Modifier.Intelligence, profile.intelligence);
+            AddRecalculatedMod(Modifier.Mind, profile.mind);
+            AddRecalculatedMod(Modifier.Piety, profile.piety);
+
+            DevDiagnostics.Trace(
+                "stats.layer.base",
+                "player", String.Format("0x{0:X}", actorId),
+                "classOrJobId", profile.classId,
+                "tribe", profile.tribe,
+                "level", profile.level,
+                "source", profile.source,
+                "hp", profile.hp,
+                "mp", profile.mp,
+                "str", profile.strength,
+                "vit", profile.vitality,
+                "dex", profile.dexterity,
+                "int", profile.intelligence,
+                "mnd", profile.mind,
+                "pie", profile.piety);
+        }
+
+        private void ApplyClassAttributeAllocation()
+        {
+            byte classId = GetAttributeAllocationClassId();
+            if (!IsDiscipleOfWarOrMagicClass(classId))
+                return;
+
+            PlayerClassAttributeAllocation allocation = GetClassAttributeAllocation(classId);
+            short earnedPoints = GetEarnedAttributePointsForLevel(GetLevel());
+            short statCap = GetAttributePointCapForLevel(GetLevel());
+
+            AddRecalculatedMod(Modifier.Strength, allocation.strength);
+            AddRecalculatedMod(Modifier.Vitality, allocation.vitality);
+            AddRecalculatedMod(Modifier.Dexterity, allocation.dexterity);
+            AddRecalculatedMod(Modifier.Intelligence, allocation.intelligence);
+            AddRecalculatedMod(Modifier.Mind, allocation.mind);
+            AddRecalculatedMod(Modifier.Piety, allocation.piety);
+
+            DevDiagnostics.Trace(
+                "stats.layer.allocation",
+                "player", String.Format("0x{0:X}", actorId),
+                "classId", classId,
+                "level", GetLevel(),
+                "earnedPoints", earnedPoints,
+                "storedRemaining", allocation.pointsRemaining,
+                "storedSpent", allocation.SpentPoints(),
+                "statCap", statCap,
+                "str", allocation.strength,
+                "vit", allocation.vitality,
+                "dex", allocation.dexterity,
+                "int", allocation.intelligence,
+                "mnd", allocation.mind,
+                "pie", allocation.piety);
+        }
+
+        private void ApplyEquipmentParamBonus(int paramType, short value)
+        {
+            if (value == 0)
+                return;
+
+            if (paramType < PARAM_NAME_MODIFIER_OFFSET || paramType > PARAM_NAME_MODIFIER_MAX)
+                return;
+
+            uint modifierId = (uint)(paramType - PARAM_NAME_MODIFIER_OFFSET);
+            AddRecalculatedMod((Modifier)modifierId, value);
+        }
+
+        private void ApplyEquipmentStatBonuses()
+        {
+            int equippedItems = 0;
+
+            for (ushort slot = 0; slot < equipment.GetCapacity(); slot++)
+            {
+                var equippedItem = equipment.GetItemAtSlot(slot);
+                if (equippedItem == null)
+                    continue;
+
+                EquipmentItem itemData = equippedItem.itemData as EquipmentItem;
+                if (itemData == null)
+                    continue;
+
+                equippedItems++;
+                ApplyEquipmentParamBonus(itemData.paramBonusType1, itemData.paramBonusValue1);
+                ApplyEquipmentParamBonus(itemData.paramBonusType2, itemData.paramBonusValue2);
+                ApplyEquipmentParamBonus(itemData.paramBonusType3, itemData.paramBonusValue3);
+                ApplyEquipmentParamBonus(itemData.paramBonusType4, itemData.paramBonusValue4);
+                ApplyEquipmentParamBonus(itemData.paramBonusType5, itemData.paramBonusValue5);
+                ApplyEquipmentParamBonus(itemData.paramBonusType6, itemData.paramBonusValue6);
+                ApplyEquipmentParamBonus(itemData.paramBonusType7, itemData.paramBonusValue7);
+                ApplyEquipmentParamBonus(itemData.paramBonusType8, itemData.paramBonusValue8);
+                ApplyEquipmentParamBonus(itemData.paramBonusType9, itemData.paramBonusValue9);
+                ApplyEquipmentParamBonus(itemData.paramBonusType10, itemData.paramBonusValue10);
+            }
+
+            DevDiagnostics.Trace(
+                "stats.layer.equipment",
+                "player", String.Format("0x{0:X}", actorId),
+                "equippedItems", equippedItems,
+                "hp", GetMod(Modifier.Hp),
+                "mp", GetMod(Modifier.Mp),
+                "str", GetMod(Modifier.Strength),
+                "vit", GetMod(Modifier.Vitality),
+                "dex", GetMod(Modifier.Dexterity),
+                "int", GetMod(Modifier.Intelligence),
+                "mnd", GetMod(Modifier.Mind),
+                "pie", GetMod(Modifier.Piety));
+        }
+
         public override void CalculateBaseStats()
         {
-            base.CalculateBaseStats();
+            ApplyBaseStatProfile();
+            ApplyClassAttributeAllocation();
+            ApplyEquipmentStatBonuses();
+
             //Add weapon property mod
             var equip = GetEquipment();
             var mainHandItem = equip.GetItemAtSlot(SLOT_MAINHAND);
@@ -3030,23 +3492,24 @@ namespace MeteorXIV.Core.Map.Actors
 
             //These stats all correlate in a 3:2 fashion
             //It seems these stats don't actually increase their respective stats. The magic stats do, however
-            AddMod((uint)Modifier.Attack, (long)(GetMod(Modifier.Strength) * 0.667));
-            AddMod((uint)Modifier.Accuracy, (long)(GetMod(Modifier.Dexterity) * 0.667));
-            AddMod((uint)Modifier.Defense, (long)(GetMod(Modifier.Vitality) * 0.667));
+            AddRecalculatedMod(Modifier.Attack, (long)(GetMod(Modifier.Strength) * 0.667));
+            AddRecalculatedMod(Modifier.Accuracy, (long)(GetMod(Modifier.Dexterity) * 0.667));
+            AddRecalculatedMod(Modifier.Defense, (long)(GetMod(Modifier.Vitality) * 0.667));
 
             //These stats correlate in a 4:1 fashion. (Unsure if MND is accurate but it would make sense for it to be)
-            AddMod((uint)Modifier.AttackMagicPotency, (long)((float)GetMod(Modifier.Intelligence) * 0.25));
+            AddRecalculatedMod(Modifier.AttackMagicPotency, (long)((float)GetMod(Modifier.Intelligence) * 0.25));
 
-            AddMod((uint)Modifier.MagicAccuracy, (long)((float)GetMod(Modifier.Mind) * 0.25));
-            AddMod((uint)Modifier.HealingMagicPotency, (long)((float)GetMod(Modifier.Mind) * 0.25));
+            AddRecalculatedMod(Modifier.MagicAccuracy, (long)((float)GetMod(Modifier.Mind) * 0.25));
+            AddRecalculatedMod(Modifier.HealingMagicPotency, (long)((float)GetMod(Modifier.Mind) * 0.25));
 
-            AddMod((uint)Modifier.MagicEvasion, (long)((float)GetMod(Modifier.Piety) * 0.25));
-            AddMod((uint)Modifier.EnfeeblingMagicPotency, (long)((float)GetMod(Modifier.Piety) * 0.25));
+            AddRecalculatedMod(Modifier.MagicEvasion, (long)((float)GetMod(Modifier.Piety) * 0.25));
+            AddRecalculatedMod(Modifier.EnfeeblingMagicPotency, (long)((float)GetMod(Modifier.Piety) * 0.25));
 
             //VIT correlates to HP in a 1:1 fashion
-            AddMod((uint)Modifier.Hp, (long)((float)Modifier.Vitality));
+            AddRecalculatedMod(Modifier.Hp, (long)GetMod(Modifier.Vitality));
 
             CalculateTraitMods();
+            base.CalculateBaseStats();
         }
 
         public bool HasTrait(ushort id)
@@ -3070,7 +3533,7 @@ namespace MeteorXIV.Core.Map.Actors
                 var trait = Server.GetWorldManager().GetBattleTrait(traitId);
                 if(HasTrait(trait))
                 {
-                    AddMod(trait.modifier, trait.bonus);
+                    AddRecalculatedMod((Modifier)trait.modifier, trait.bonus);
                 }
             }
         }

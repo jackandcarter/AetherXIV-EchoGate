@@ -29,6 +29,28 @@ The seed SQL currently has only a small set of battle NPC spawn rows. The known 
 
 See [Zones and Spawns](zones-and-spawns.md) for the durable data model.
 
+## Enemy Restoration Evidence
+
+The next enemy-population pass should be treated as a data-ledger project, not a guess-and-seed project. The client and repo can reveal useful pieces of truth, but no single source currently proves full retail battle NPC placement, levels, stats, abilities, and density.
+
+Current findings:
+
+- `Repo-confirmed`: `server_spawn_locations` contains normal NPCs, aetherytes, doors, and interactable world objects. These rows are good zone anchors, but they are not battle NPC population rows.
+- `Repo-confirmed`: battle NPC population loads through `server_battlenpc_spawn_locations`, `server_battlenpc_groups`, `server_battlenpc_pools`, `server_battlenpc_genus`, and modifier tables.
+- `Repo-confirmed`: current durable battle NPC population is still tiny and includes temporary/test combat fixtures. Do not treat those fixtures as final 1.23b population.
+- `Client-confirmed`: the local 1.23b client has monster model assets under `client/chara/mon`, and the repo actor-class table contains many `/Chara/Npc/Monster/...` rows. This can confirm that a model family exists, but not where it spawned or what level it should be.
+- `Client-confirmed / Repo-confirmed`: the `rq9q1797qvs.san` / `staticactors.bin` path currently used by the map server contains static actor command/path entries. The current parser reads IDs and path strings, not battle NPC coordinates. It should not be cited as proof of monster spawn positions.
+- `Repo-confirmed`: `staticactors.bin` includes monster command paths such as monster range attacks, weaponskills, and abilities. These are useful leads for command/action mapping, but not complete enemy AI tables by themselves.
+- `Trace-confirmed`: the client accepted the current Central Thanalan test battle NPC lifecycle after the respawn parity fixes: target, attack, kill, despawn, respawn, and retarget.
+
+Promotion rules for real enemy data:
+
+1. Use existing schema first. Do not add parallel spawn/genus/action schemas unless the current schema is proven unable to represent the client behavior.
+2. Record an evidence label for every new enemy row or action mapping.
+3. Split identity, placement, and behavior evidence. A confirmed model does not prove a confirmed spawn coordinate; a confirmed public-era location does not prove stats or actions.
+4. Prefer client files, current repo SQL, repeatable traces, and original-era public sources over modern AI summaries or memory.
+5. Mark unverified restoration rows as `Hypothesis` or `Test-only` until a playtest trace proves the client accepts the actor, name, targeting, combat, death, despawn, and respawn flow.
+
 ## Spawn Aliases
 
 | Alias | Actor Class / Model ID |

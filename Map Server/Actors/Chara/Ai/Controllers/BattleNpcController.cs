@@ -28,6 +28,7 @@ using MeteorXIV.Core.Map.actors.area;
 using MeteorXIV.Core.Map.utils;
 using MeteorXIV.Core.Map.actors.chara.ai.state;
 using MeteorXIV.Core.Map.actors.chara.npc;
+using MeteorXIV.Core.Map.actors.chara.ai;
 
 namespace MeteorXIV.Core.Map.actors.chara.ai.controllers
 {
@@ -44,6 +45,7 @@ namespace MeteorXIV.Core.Map.actors.chara.ai.controllers
         private bool firstSpell = true;
         protected DateTime lastRoamUpdate;
         protected DateTime battleStartTime;
+        private DateTime lastNoActionTrace;
 
         protected new BattleNpc owner;
         public BattleNpcController(BattleNpc owner) :
@@ -235,11 +237,141 @@ namespace MeteorXIV.Core.Map.actors.chara.ai.controllers
             if ((tick - lastCombatTickScript).TotalSeconds > 3)
             {
                 Move();
-                //if (owner.aiContainer.CanChangeState())
-                    //owner.aiContainer.WeaponSkill(owner.zone.FindActorInArea<Character>(owner.target.actorId), 27155);
+                TryUseListedAction(tick);
                 //lua.LuaEngine.CallLuaBattleFunction(owner, "onCombatTick", owner, owner.target, Utils.UnixTimeStampUTC(tick), contentGroupCharas);
                 lastCombatTickScript = tick;
             }
+        }
+
+        private void TryUseListedAction(DateTime tick)
+        {
+            if (!owner.aiContainer.CanChangeState() || owner.target == null)
+                return;
+
+            var candidates = new List<BattleCommand>();
+            foreach (var command in owner.skillList.Values)
+                candidates.Add(command.Clone());
+            foreach (var command in owner.spellList.Values)
+                candidates.Add(command.Clone());
+
+            if (candidates.Count == 0)
+            {
+                TraceNoListedAction(tick, "no listed skills or spells");
+                return;
+            }
+
+            while (candidates.Count > 0)
+            {
+                var index = Program.Random.Next(candidates.Count);
+                var command = candidates[index];
+                candidates.RemoveAt(index);
+
+                if (!CanUseListedAction(command, tick))
+                    continue;
+
+                Character target = GetListedActionTarget(command);
+                if (target == null || !owner.CanUse(target, command))
+                    continue;
+
+                TraceListedAction("select", command, target, "ready");
+                DispatchListedAction(command, target, tick);
+                return;
+            }
+
+            TraceNoListedAction(tick, "no listed action was currently valid");
+        }
+
+        private bool CanUseListedAction(BattleCommand command, DateTime tick)
+        {
+            if (command == null)
+                return false;
+
+            if (command.validUser == BattleCommandValidUser.Player)
+                return false;
+
+            switch (command.commandType)
+            {
+                case CommandType.Spell:
+                    return castingEnabled && tick >= lastSpellCastTime;
+                case CommandType.WeaponSkill:
+                    return weaponSkillEnabled && tick >= lastSkillTime;
+                case CommandType.Ability:
+                    return tick >= lastSpecialSkillTime;
+            }
+
+            return false;
+        }
+
+        private Character GetListedActionTarget(BattleCommand command)
+        {
+            if ((command.mainTarget & ValidTarget.SelfOnly) != 0)
+                return owner;
+
+            return owner.target as Character;
+        }
+
+        private void DispatchListedAction(BattleCommand command, Character target, DateTime tick)
+        {
+            var recastMs = Math.Max(command.recastTimeMs, 3000);
+
+            switch (command.commandType)
+            {
+                case CommandType.Spell:
+                    lastSpellCastTime = tick.AddMilliseconds(recastMs);
+                    owner.aiContainer.InternalCast(target, command.id);
+                    break;
+                case CommandType.WeaponSkill:
+                    lastSkillTime = tick.AddMilliseconds(recastMs);
+                    owner.aiContainer.InternalWeaponSkill(target, command.id);
+                    break;
+                case CommandType.Ability:
+                    lastSpecialSkillTime = tick.AddMilliseconds(recastMs);
+                    owner.aiContainer.InternalAbility(target, command.id);
+                    break;
+            }
+        }
+
+        private void TraceNoListedAction(DateTime tick, string reason)
+        {
+            if ((tick - lastNoActionTrace).TotalSeconds < 10)
+                return;
+
+            lastNoActionTrace = tick;
+            DevDiagnostics.Trace(
+                "battle.npc.action.select",
+                "state", "idle",
+                "reason", reason,
+                "actor", String.Format("0x{0:X}", owner.actorId),
+                "actorName", owner.customDisplayName != null ? owner.customDisplayName : owner.actorName,
+                "uniqueId", owner.GetUniqueId(),
+                "bnpcId", owner.GetBattleNpcId(),
+                "poolId", owner.poolId,
+                "skillListId", owner.skillListId,
+                "skillCount", owner.skillList.Count,
+                "spellListId", owner.spellListId,
+                "spellCount", owner.spellList.Count,
+                "target", owner.target == null ? "0x0" : String.Format("0x{0:X}", owner.target.actorId),
+                "targetName", owner.target == null ? "" : (owner.target.customDisplayName != null ? owner.target.customDisplayName : owner.target.actorName));
+        }
+
+        private void TraceListedAction(string state, BattleCommand command, Character target, string reason)
+        {
+            DevDiagnostics.Trace(
+                "battle.npc.action.select",
+                "state", state,
+                "reason", reason,
+                "actor", String.Format("0x{0:X}", owner.actorId),
+                "actorName", owner.customDisplayName != null ? owner.customDisplayName : owner.actorName,
+                "uniqueId", owner.GetUniqueId(),
+                "bnpcId", owner.GetBattleNpcId(),
+                "poolId", owner.poolId,
+                "commandId", command == null ? 0 : command.id,
+                "commandName", command == null ? "" : command.name,
+                "commandType", command == null ? "" : command.commandType.ToString(),
+                "target", target == null ? "0x0" : String.Format("0x{0:X}", target.actorId),
+                "targetName", target == null ? "" : (target.customDisplayName != null ? target.customDisplayName : target.actorName),
+                "distance", target == null ? 0 : Utils.Distance(owner.positionX, owner.positionY, owner.positionZ, target.positionX, target.positionY, target.positionZ),
+                "range", command == null ? 0 : command.range);
         }
 
         protected virtual void Move()

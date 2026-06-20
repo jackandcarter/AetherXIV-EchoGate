@@ -64,6 +64,26 @@ namespace MeteorXIV.Core.Map
                     return;
                 }
 
+                if (session != null && session.isEnding && subpacket.gameMessage.opcode < 0x1000)
+                {
+                    if (subpacket.gameMessage.opcode == 0x0001)
+                    {
+                        PingPacket pingPacket = new PingPacket(subpacket.data);
+                        session.QueuePacket(PongPacket.BuildPacket(session.id, pingPacket.time));
+                        session.Ping();
+                    }
+                    else
+                    {
+                        DevDiagnostics.Trace(
+                            "client.packet.afterSessionEnd",
+                            "session", session.id,
+                            "player", session.GetActor().customDisplayName,
+                            "opcode", String.Format("0x{0:X4}", subpacket.gameMessage.opcode));
+                    }
+
+                    return;
+                }
+
                 //Normal Game Opcode
                 switch (subpacket.gameMessage.opcode)
                 {
@@ -119,12 +139,20 @@ namespace MeteorXIV.Core.Map
                         else                        
                             session.GetActor().CleanupAndSave(endSessionPacket.destinationZoneId, endSessionPacket.destinationSpawnType, endSessionPacket.destinationX, endSessionPacket.destinationY, endSessionPacket.destinationZ, endSessionPacket.destinationRot);
 
-                        Server.GetServer().RemoveSession(session.id);
-                        Program.Log.Info("{0} has been removed from the session list.", session.GetActor().customDisplayName);
-
                         session.QueuePacket(SessionEndConfirmPacket.BuildPacket(session, endSessionPacket.destinationZoneId));
                         Program.Log.Info("Map queued session end confirm: session={0} destinationZone={1}", session.id, endSessionPacket.destinationZoneId);
                         client.FlushQueuedSendPackets();
+
+                        if (endSessionPacket.destinationZoneId == 0)
+                        {
+                            Server.GetServer().BeginSessionEnd(session.id);
+                            Program.Log.Info("{0} has been marked for session close.", session.GetActor().customDisplayName);
+                        }
+                        else
+                        {
+                            Server.GetServer().RemoveSession(session.id);
+                            Program.Log.Info("{0} has been removed from the session list.", session.GetActor().customDisplayName);
+                        }
                         break;
                     //World Server - Party Synch
                     case 0x1020:

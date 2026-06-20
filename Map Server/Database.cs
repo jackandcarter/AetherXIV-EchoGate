@@ -39,6 +39,8 @@ namespace MeteorXIV.Core.Map
 
     class Database
     {
+        private static bool playerBaseStatsTableAvailable = true;
+        private static bool playerClassAttributesTableAvailable = true;
 
         public static uint GetUserIdFromSession(String sessionId)
         {
@@ -262,10 +264,161 @@ namespace MeteorXIV.Core.Map
             }
         }
 
+        public static PlayerBaseStatProfile GetPlayerBaseStats(byte classOrJobId, byte tribe, short level)
+        {
+            if (!playerBaseStatsTableAvailable)
+                return null;
+
+            using (MySqlConnection conn = new MySqlConnection(String.Format("Server={0}; Port={1}; Database={2}; UID={3}; Password={4}", ConfigConstants.DATABASE_HOST, ConfigConstants.DATABASE_PORT, ConfigConstants.DATABASE_NAME, ConfigConstants.DATABASE_USERNAME, ConfigConstants.DATABASE_PASSWORD)))
+            {
+                try
+                {
+                    conn.Open();
+
+                    string query = @"
+                        SELECT
+                        classId,
+                        tribe,
+                        level,
+                        hp,
+                        mp,
+                        str,
+                        vit,
+                        dex,
+                        `int`,
+                        mnd,
+                        pie,
+                        source
+                        FROM server_player_base_stats
+                        WHERE classId = @classId
+                        AND level = @level
+                        AND tribe IN (@tribe, 0)
+                        ORDER BY IF(tribe = @tribe, 1, 0) DESC
+                        LIMIT 1";
+
+                    MySqlCommand cmd = new MySqlCommand(query, conn);
+                    cmd.Parameters.AddWithValue("@classId", classOrJobId);
+                    cmd.Parameters.AddWithValue("@tribe", tribe);
+                    cmd.Parameters.AddWithValue("@level", level);
+
+                    using (MySqlDataReader reader = cmd.ExecuteReader())
+                    {
+                        if (reader.Read())
+                        {
+                            string source = "";
+                            if (!reader.IsDBNull(reader.GetOrdinal("source")))
+                                source = reader.GetString("source");
+
+                            return new PlayerBaseStatProfile(
+                                reader.GetByte("classId"),
+                                reader.GetByte("tribe"),
+                                reader.GetInt16("level"),
+                                reader.GetInt16("hp"),
+                                reader.GetInt16("mp"),
+                                reader.GetInt16("str"),
+                                reader.GetInt16("vit"),
+                                reader.GetInt16("dex"),
+                                reader.GetInt16("int"),
+                                reader.GetInt16("mnd"),
+                                reader.GetInt16("pie"),
+                                source);
+                        }
+                    }
+                }
+                catch (MySqlException e)
+                {
+                    if (e.Number == 1146)
+                    {
+                        playerBaseStatsTableAvailable = false;
+                        Program.Log.Warn("server_player_base_stats table is unavailable; player base stat profiles will be skipped.");
+                    }
+                    else
+                        Program.Log.Error(e.ToString());
+                }
+                finally
+                {
+                    conn.Dispose();
+                }
+            }
+
+            return null;
+        }
+
+        private static void LoadPlayerClassAttributes(Player player, MySqlConnection conn)
+        {
+            if (!playerClassAttributesTableAvailable)
+                return;
+
+            try
+            {
+                string query = @"
+                    SELECT
+                    classId,
+                    pointsRemaining,
+                    strSpent,
+                    vitSpent,
+                    dexSpent,
+                    intSpent,
+                    mndSpent,
+                    pieSpent
+                    FROM characters_class_attributes
+                    WHERE characterId = @charId";
+
+                MySqlCommand cmd = new MySqlCommand(query, conn);
+                cmd.Parameters.AddWithValue("@charId", player.actorId);
+
+                using (MySqlDataReader reader = cmd.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        player.SetClassAttributeAllocation(new PlayerClassAttributeAllocation(
+                            reader.GetByte("classId"),
+                            reader.GetInt16("pointsRemaining"),
+                            reader.GetInt16("strSpent"),
+                            reader.GetInt16("vitSpent"),
+                            reader.GetInt16("dexSpent"),
+                            reader.GetInt16("intSpent"),
+                            reader.GetInt16("mndSpent"),
+                            reader.GetInt16("pieSpent")));
+                    }
+                }
+            }
+            catch (MySqlException e)
+            {
+                if (e.Number == 1146)
+                {
+                    playerClassAttributesTableAvailable = false;
+                    Program.Log.Warn("characters_class_attributes table is unavailable; class-scoped attribute allocation will be skipped.");
+                }
+                else
+                    Program.Log.Error(e.ToString());
+            }
+        }
+
         public static void SavePlayerPosition(Player player)
         {
             string query;
             MySqlCommand cmd;
+            string currentPrivateArea = player.privateArea;
+            uint currentPrivateAreaType = player.privateAreaType;
+            bool isTransientContentArea =
+                player.zone == null &&
+                !String.IsNullOrEmpty(player.privateArea) &&
+                player.privateArea.StartsWith("SimpleContent", StringComparison.Ordinal);
+
+            if (isTransientContentArea)
+            {
+                DevDiagnostics.Trace(
+                    "player.position.save.clearTransientPrivateArea",
+                    "player", player.customDisplayName,
+                    "zone", player.zoneId,
+                    "privateArea", player.privateArea ?? "",
+                    "privateAreaType", player.privateAreaType,
+                    "areaKind", player.zone == null ? "(none)" : player.zone.GetType().Name);
+
+                currentPrivateArea = null;
+                currentPrivateAreaType = 0;
+            }
 
             using (MySqlConnection conn = new MySqlConnection(String.Format("Server={0}; Port={1}; Database={2}; UID={3}; Password={4}", ConfigConstants.DATABASE_HOST, ConfigConstants.DATABASE_PORT, ConfigConstants.DATABASE_NAME, ConfigConstants.DATABASE_USERNAME, ConfigConstants.DATABASE_PASSWORD)))
             {
@@ -294,8 +447,8 @@ namespace MeteorXIV.Core.Map
                     cmd.Parameters.AddWithValue("@z", player.positionZ);
                     cmd.Parameters.AddWithValue("@rot", player.rotation);
                     cmd.Parameters.AddWithValue("@zoneId", player.zoneId);
-                    cmd.Parameters.AddWithValue("@privateArea", player.privateArea);
-                    cmd.Parameters.AddWithValue("@privateAreaType", player.privateAreaType);
+                    cmd.Parameters.AddWithValue("@privateArea", String.IsNullOrEmpty(currentPrivateArea) ? (object)DBNull.Value : currentPrivateArea);
+                    cmd.Parameters.AddWithValue("@privateAreaType", currentPrivateAreaType);
                     cmd.Parameters.AddWithValue("@destZone", player.destinationZone);
                     cmd.Parameters.AddWithValue("@destSpawn", player.destinationSpawnType);
 
@@ -838,6 +991,8 @@ namespace MeteorXIV.Core.Map
                             player.charaWork.battleSave.skillPoint[Player.CLASSID_FSH - 1] = reader.GetInt32("fsh");
                         }
                     }
+
+                    LoadPlayerClassAttributes(player, conn);
 
                     //Load Saved Parameters
                     query = @"

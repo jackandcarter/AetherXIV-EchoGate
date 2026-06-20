@@ -80,11 +80,21 @@ namespace MeteorXIV.Core.Map.actors.area
                 Dictionary<uint, PrivateArea> instances = privateAreas[type];
                 if (instances.ContainsKey(number))
                     return instances[number];
-                else
-                    return null;
             }
-            else
-                return null;
+
+            lock (contentAreasLock)
+            {
+                if (contentAreas.ContainsKey(type))
+                {
+                    foreach (PrivateAreaContent contentArea in contentAreas[type])
+                    {
+                        if (contentArea.GetPrivateAreaType() == number)
+                            return contentArea;
+                    }
+                }
+            }
+
+            return null;
         }
 
         public override SubPacket CreateScriptBindPacket()

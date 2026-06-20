@@ -17,5 +17,5 @@ DROP TABLE IF EXISTS `server_battlenpc_skill_list`;
 CREATE TABLE `server_battlenpc_skill_list` (
   `skillListId` int(10) unsigned NOT NULL DEFAULT '0',
   `skillId` int(10) unsigned NOT NULL DEFAULT '0',
-  PRIMARY KEY (`skillListId`)
+  PRIMARY KEY (`skillListId`, `skillId`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
