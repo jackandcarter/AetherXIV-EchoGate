@@ -39,10 +39,9 @@ Client installers, client files, patch files, and patch torrents are intentional
 
 ![Echo Gate runtime tab](../Runtime.png)
 
-- Detects Wine-compatible runtimes on macOS and Linux.
-- Supports automatic managed runtime mode when a server runtime catalog is available.
-- Supports detected runtimes such as Homebrew Wine, Wine Stable, Whisky, CrossOver, and common Linux Wine installs.
-- Supports custom runtime entries for users with their own Wine prefix or executable path.
+- Uses an approved-runtime flow on macOS and Linux.
+- Supports approved runtime catalog installs when hosted runtime archives are available.
+- Supports approved detected Wine Stable paths, with custom runtime entries available only when the user chooses the advanced custom path.
 - Validates the selected runtime before launch.
 - Can reset the managed prefix.
 - Uses safer Linux defaults for the legacy DirectX 9 client path.

@@ -234,7 +234,7 @@ namespace MeteorXIV.Core.Map.actors.director
             return contentGroup;
         }
 
-        public void GenerateActorName(int actorNumber)
+        public new void GenerateActorName(int actorNumber)
         {            
             //Format Class Name
             string className = this.className;

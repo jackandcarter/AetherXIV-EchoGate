@@ -25,6 +25,10 @@ public sealed record WineUserDocumentsTarget(
 
 public static class WineRuntimeConfigurator
 {
+    private const string WineExplorerDesktopsKey = @"HKCU\Software\Wine\Explorer\Desktops";
+    private const string LegacyDesktopValuePrefix = "EchoGateXIV-";
+    public const string MouseWarpOverrideDefault = "enable";
+
     public static IReadOnlyList<WineRegistrySetting> BuildRegistrySettings(
         WineRuntimeConfigurationSettings settings,
         string? windowsDocumentsPath = null)
@@ -37,7 +41,7 @@ public static class WineRuntimeConfigurator
                 @"HKCU\Software\Wine\DirectInput",
                 "MouseWarpOverride",
                 "REG_SZ",
-                "force")
+                MouseWarpOverrideDefault),
         };
 
         if (!string.IsNullOrWhiteSpace(windowsDocumentsPath))
@@ -119,6 +123,24 @@ public static class WineRuntimeConfigurator
             setting.Type,
             "/d",
             CommandLineArguments.Quote(setting.Data),
+            "/f"
+        });
+    }
+
+    public static string BuildRegDeleteValueArguments(string key, string valueName)
+    {
+        if (string.IsNullOrWhiteSpace(key))
+            throw new ArgumentException("Registry key is required.", nameof(key));
+        if (string.IsNullOrWhiteSpace(valueName))
+            throw new ArgumentException("Registry value name is required.", nameof(valueName));
+
+        return string.Join(" ", new[]
+        {
+            "reg",
+            "delete",
+            CommandLineArguments.Quote(key),
+            "/v",
+            CommandLineArguments.Quote(valueName),
             "/f"
         });
     }
@@ -211,6 +233,12 @@ public static class WineRuntimeConfigurator
                 $"ffxiv_config_storage=runtime-managed prefix path unavailable for {runtimeTarget}{Environment.NewLine}",
                 cancellationToken);
         }
+
+        await RemoveLegacyDesktopSettingsAsync(
+            profile.Command,
+            environment,
+            logPath,
+            cancellationToken);
 
         foreach (WineRegistrySetting setting in BuildRegistrySettings(settings, windowsDocumentsPath))
         {
@@ -325,6 +353,63 @@ public static class WineRuntimeConfigurator
         return string.IsNullOrWhiteSpace(environmentUser)
             ? "echo-gate"
             : RuntimeInstallStore.SanitizePathSegment(environmentUser);
+    }
+
+    private static async Task RemoveLegacyDesktopSettingsAsync(
+        string command,
+        IReadOnlyDictionary<string, string> environment,
+        string logPath,
+        CancellationToken cancellationToken)
+    {
+        ProcessRunResult queryResult = await RunAndLogAsync(
+            command,
+            $"reg query {CommandLineArguments.Quote(WineExplorerDesktopsKey)}",
+            environment,
+            logPath,
+            TimeSpan.FromSeconds(15),
+            cancellationToken);
+
+        if (queryResult.ExitCode != 0)
+            return;
+
+        foreach (string valueName in ParseLegacyDesktopValueNames(queryResult.Output))
+        {
+            ProcessRunResult deleteResult = await RunAndLogAsync(
+                command,
+                BuildRegDeleteValueArguments(WineExplorerDesktopsKey, valueName),
+                environment,
+                logPath,
+                TimeSpan.FromSeconds(15),
+                cancellationToken);
+
+            if (deleteResult.ExitCode != 0)
+            {
+                await File.AppendAllTextAsync(
+                    logPath,
+                    $"legacy_desktop_cleanup_failed={valueName}{Environment.NewLine}",
+                    cancellationToken);
+            }
+        }
+    }
+
+    public static IReadOnlyList<string> ParseLegacyDesktopValueNames(string registryQueryOutput)
+    {
+        if (string.IsNullOrWhiteSpace(registryQueryOutput))
+            return Array.Empty<string>();
+
+        List<string> valueNames = new();
+        foreach (string line in registryQueryOutput.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries))
+        {
+            string trimmed = line.Trim();
+            if (!trimmed.StartsWith(LegacyDesktopValuePrefix, StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            string[] parts = trimmed.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length > 0)
+                valueNames.Add(parts[0]);
+        }
+
+        return valueNames;
     }
 
     private static async Task<ProcessRunResult> RunAndLogAsync(

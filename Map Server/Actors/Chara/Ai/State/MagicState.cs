@@ -150,6 +150,9 @@ namespace MeteorXIV.Core.Map.actors.chara.ai.state
             isCompleted = true;
             var targets = spell.targetFind.GetTargets();
 
+            if (owner is Player)
+                lua.LuaEngine.GetInstance().OnSignal("spellUsed");
+
             owner.DoBattleCommand(spell, "magic");
         }
 

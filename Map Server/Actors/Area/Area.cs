@@ -40,7 +40,7 @@ namespace MeteorXIV.Core.Map.Actors
         public ushort weatherNormal, weatherCommon, weatherRare;
         public ushort bgmDay, bgmNight, bgmBattle;
 
-        protected string classPath;
+        protected new string classPath;
 
         public int boundingGridSize = 50;
         public int minX = -5000, minY = -5000, maxX = 5000, maxY = 5000;
@@ -56,6 +56,8 @@ namespace MeteorXIV.Core.Map.Actors
         protected List<SpawnLocation> mSpawnLocations = new List<SpawnLocation>();
         protected Dictionary<uint, Actor> mActorList = new Dictionary<uint, Actor>();
         protected List<Actor>[,] mActorBlock;
+        private const uint PrivateAreaActorNumberStart = 0x700;
+        private uint nextPrivateAreaActorNumber = PrivateAreaActorNumberStart;
 
         LuaScript areaScript;
 
@@ -127,8 +129,21 @@ namespace MeteorXIV.Core.Map.Actors
                 if (actor is Character)
                     ((Character)actor).ResetTempVars();
 
-                if (!mActorList.ContainsKey(actor.actorId))
-                    mActorList.Add(actor.actorId, actor);
+                if (mActorList.ContainsKey(actor.actorId))
+                {
+                    Actor existing = mActorList[actor.actorId];
+                    DevDiagnostics.Trace(
+                        "area.actor.duplicateId",
+                        "area", zoneName,
+                        "areaActorId", String.Format("0x{0:X}", actorId),
+                        "actorId", String.Format("0x{0:X}", actor.actorId),
+                        "incoming", actor.actorName,
+                        "existing", existing == null ? null : existing.actorName,
+                        "privateArea", this is PrivateArea);
+                    return;
+                }
+
+                mActorList.Add(actor.actorId, actor);
 
 
                 int gridX = (int)actor.positionX / boundingGridSize;
@@ -482,7 +497,9 @@ namespace MeteorXIV.Core.Map.Actors
                 else
                     zoneId = actorId;
 
-                Npc npc = new Npc(mActorList.Count + 1, actorClass, location.uniqueId, this, location.x, location.y, location.z, location.rot, location.state, location.animId, null);
+                uint actorNumber = AllocateSpawnedActorNumber();
+                Npc npc = new Npc((int)actorNumber, actorClass, location.uniqueId, this, location.x, location.y, location.z, location.rot, location.state, location.animId, null);
+                TracePrivateAreaSpawn(npc, actorNumber, location.classId, location.uniqueId, false);
 
 
                 npc.LoadEventConditions(actorClass.eventConditions);
@@ -506,11 +523,13 @@ namespace MeteorXIV.Core.Map.Actors
                 else
                     zoneId = actorId;
 
+                uint actorNumber = AllocateSpawnedActorNumber();
                 Npc npc;
                 if (isMob)
-                    npc = new BattleNpc(mActorList.Count + 1, actorClass, uniqueId, this, x, y, z, rot, state, animId, null);
+                    npc = new BattleNpc((int)actorNumber, actorClass, uniqueId, this, x, y, z, rot, state, animId, null);
                 else
-                    npc = new Npc(mActorList.Count + 1, actorClass, uniqueId, this, x, y, z, rot, state, animId, null);
+                    npc = new Npc((int)actorNumber, actorClass, uniqueId, this, x, y, z, rot, state, animId, null);
+                TracePrivateAreaSpawn(npc, actorNumber, classId, uniqueId, isMob);
 
                 npc.LoadEventConditions(actorClass.eventConditions);
                 npc.SetMaxHP(100);
@@ -539,7 +558,9 @@ namespace MeteorXIV.Core.Map.Actors
                 else
                     zoneId = actorId;
 
-                Npc npc = new Npc(mActorList.Count + 1, actorClass, uniqueId, this, x, y, z, 0, regionId, layoutId);
+                uint actorNumber = AllocateSpawnedActorNumber();
+                Npc npc = new Npc((int)actorNumber, actorClass, uniqueId, this, x, y, z, 0, regionId, layoutId);
+                TracePrivateAreaSpawn(npc, actorNumber, classId, uniqueId, false);
 
                 npc.LoadEventConditions(actorClass.eventConditions);
 
@@ -567,6 +588,35 @@ namespace MeteorXIV.Core.Map.Actors
         public void DespawnActor(Actor actor)
         {
             RemoveActorFromZone(actor);
+        }
+
+        private uint AllocateSpawnedActorNumber()
+        {
+            if (this is PrivateArea)
+                return nextPrivateAreaActorNumber++;
+
+            return (uint)mActorList.Count + 1;
+        }
+
+        private void TracePrivateAreaSpawn(Npc npc, uint actorNumber, uint classId, string uniqueId, bool isMob)
+        {
+            if (!(this is PrivateArea) || npc == null)
+                return;
+
+            PrivateArea privateArea = (PrivateArea)this;
+            DevDiagnostics.Trace(
+                "area.actor.spawn.private",
+                "area", zoneName,
+                "areaActorId", String.Format("0x{0:X}", actorId),
+                "parentZoneActorId", String.Format("0x{0:X}", privateArea.GetParentZone().actorId),
+                "privateArea", privateArea.GetPrivateAreaName(),
+                "privateAreaType", privateArea.GetPrivateAreaType(),
+                "classId", classId,
+                "uniqueId", uniqueId,
+                "actorNumber", actorNumber,
+                "actorId", String.Format("0x{0:X}", npc.actorId),
+                "actorName", npc.actorName,
+                "isMob", isMob);
         }
 
         public Director GetWeatherDirector()

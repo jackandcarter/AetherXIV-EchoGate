@@ -150,7 +150,11 @@ namespace MeteorXIV.Core.Map.Actors
 
         public SubPacket CreateNamePacket()
         {
-            return SetActorNamePacket.BuildPacket(actorId, customDisplayName != null ? 0 : displayNameId, displayNameId == 0xFFFFFFFF | displayNameId == 0x0 | customDisplayName != null ? customDisplayName : "");
+            bool hasCustomDisplayName = !String.IsNullOrWhiteSpace(customDisplayName);
+            uint packetDisplayNameId = hasCustomDisplayName ? 0 : displayNameId;
+            string packetCustomName = hasCustomDisplayName ? customDisplayName : "";
+
+            return SetActorNamePacket.BuildPacket(actorId, packetDisplayNameId, packetCustomName);
         }
 
         public SubPacket CreateSpeedPacket()
@@ -372,6 +376,11 @@ namespace MeteorXIV.Core.Map.Actors
                 return actorId == actorObj.actorId;
         }
 
+        public override int GetHashCode()
+        {
+            return actorId.GetHashCode();
+        }
+
         public string GetName()
         {
             return actorName;
@@ -480,7 +489,7 @@ namespace MeteorXIV.Core.Map.Actors
 
                 if ((updateFlags & ActorUpdateFlags.Name) != 0)
                 {
-                    packets.Add(SetActorNamePacket.BuildPacket(actorId, displayNameId, customDisplayName));
+                    packets.Add(CreateNamePacket());
                 }
 
                 if ((updateFlags & ActorUpdateFlags.State) != 0)
@@ -784,4 +793,3 @@ namespace MeteorXIV.Core.Map.Actors
         }
     }
 }
-

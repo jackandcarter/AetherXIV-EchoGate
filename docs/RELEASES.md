@@ -24,26 +24,26 @@ GitHub artifacts are temporary workflow outputs unless they are attached to a Gi
 
 When the workflow is run from a release tag, or when `publish_release` is enabled in a manual run, it creates or updates a GitHub Release and attaches the built files.
 
-Expected first-release assets:
+Expected release assets:
 
 ```text
-EchoGate-linux-x64-v1.1.0.tar.gz
-EchoGate-linux-arm64-v1.1.0.tar.gz
-EchoGate-osx-arm64-v1.1.0.zip
-EchoGate-osx-x64-v1.1.0.zip
-EchoGate-win-x86-v1.1.0.zip
-EchoGate-win-x64-v1.1.0.zip
-EchoGate-win-arm64-v1.1.0.zip
-MeteorXIV-Server-Core-v1.1.0.tar.gz
+EchoGate-linux-x64-v1.2.tar.gz
+EchoGate-linux-arm64-v1.2.tar.gz
+EchoGate-osx-arm64-v1.2.zip
+EchoGate-osx-x64-v1.2.zip
+EchoGate-win-x86-v1.2.zip
+EchoGate-win-x64-v1.2.zip
+EchoGate-win-arm64-v1.2.zip
+MeteorXIV-Server-Core-v1.2.tar.gz
 ```
 
-The recommended first release tag is:
+The recommended release tag is:
 
 ```text
-release-v1.1.0
+release-v1.2
 ```
 
-That avoids ambiguity with the existing `v1.1.0` branch while still naming the release `v1.1.0`.
+That avoids ambiguity with branch names while still naming the release `v1.2`.
 
 ## Local Platform Builds
 
@@ -55,7 +55,7 @@ Local builds are still the more complete workflow because they exercise your act
 - local FFXIV 1.x client folder
 - local patch library
 - local `staticactors.bin` preparation
-- local Wine, Whisky, CrossOver, or Windows direct launch path
+- approved Wine runtime, explicit custom runtime, or Windows direct launch path
 
 Use the platform guides when setting up a machine for real playtests:
 

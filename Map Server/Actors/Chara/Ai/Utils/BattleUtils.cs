@@ -159,6 +159,7 @@ namespace MeteorXIV.Core.Map.actors.chara.ai.utils
         public static void CalculatePhysicalDamageTaken(Character attacker, Character defender, BattleCommand skill, CommandResult action)
         {
             short dlvl = (short)(defender.GetLevel() - attacker.GetLevel());
+            ushort originalAmount = action.amount;
 
             // todo: physical resistances
 
@@ -166,14 +167,47 @@ namespace MeteorXIV.Core.Map.actors.chara.ai.utils
             //player attacks cannot do more than 9999 damage.
             //VIT is turned into Defense at a 3:2 ratio in calculatestats, so don't need to do that here
             double damageTakenPercent = 1 - (defender.GetMod(Modifier.DamageTakenDown) / 100.0);
+            DevDiagnostics.Trace(
+                "battle.damage.input",
+                "damageKind", "physical",
+                "attacker", String.Format("0x{0:X}", attacker.actorId),
+                "attackerName", attacker.customDisplayName != null ? attacker.customDisplayName : attacker.actorName,
+                "defender", String.Format("0x{0:X}", defender.actorId),
+                "defenderName", defender.customDisplayName != null ? defender.customDisplayName : defender.actorName,
+                "commandId", skill == null ? 0 : skill.id,
+                "commandName", skill == null ? "" : skill.name,
+                "attackerLevel", attacker.GetLevel(),
+                "defenderLevel", defender.GetLevel(),
+                "dlvl", dlvl,
+                "amountBeforeMitigation", originalAmount,
+                "attackerAttack", attacker.GetMod(Modifier.Attack),
+                "attackerStrength", attacker.GetMod(Modifier.Strength),
+                "attackerMind", attacker.GetMod(Modifier.Mind),
+                "attackerPiety", attacker.GetMod(Modifier.Piety),
+                "defenderDefense", defender.GetMod(Modifier.Defense),
+                "defenderVitality", defender.GetMod(Modifier.Vitality),
+                "damageTakenPercent", damageTakenPercent);
+
             action.amount = (ushort)(action.amount - CalculateDlvlModifier(dlvl) * (defender.GetMod((uint)Modifier.Defense))).Clamp(0, 9999);
             action.amount = (ushort)(action.amount * damageTakenPercent).Clamp(0, 9999);
+
+            DevDiagnostics.Trace(
+                "battle.damage.result",
+                "damageKind", "physical",
+                "attacker", String.Format("0x{0:X}", attacker.actorId),
+                "defender", String.Format("0x{0:X}", defender.actorId),
+                "commandId", skill == null ? 0 : skill.id,
+                "amountBeforeMitigation", originalAmount,
+                "amountAfterMitigation", action.amount,
+                "amountMitigated", action.amountMitigated,
+                "hitType", action.hitType.ToString());
         }
 
 
         public static void CalculateSpellDamageTaken(Character attacker, Character defender, BattleCommand skill, CommandResult action)
         {
             short dlvl = (short)(defender.GetLevel() - attacker.GetLevel());
+            ushort originalAmount = action.amount;
 
             // todo: elemental resistances
             //Patch 1.19:
@@ -187,8 +221,40 @@ namespace MeteorXIV.Core.Map.actors.chara.ai.utils
             //dlvl, Defense, and Vitality all effect how much damage is taken after hittype takes effect
             //player attacks cannot do more than 9999 damage.
             double damageTakenPercent = 1 - (defender.GetMod(Modifier.DamageTakenDown) / 100.0);
+            DevDiagnostics.Trace(
+                "battle.damage.input",
+                "damageKind", "spell",
+                "attacker", String.Format("0x{0:X}", attacker.actorId),
+                "attackerName", attacker.customDisplayName != null ? attacker.customDisplayName : attacker.actorName,
+                "defender", String.Format("0x{0:X}", defender.actorId),
+                "defenderName", defender.customDisplayName != null ? defender.customDisplayName : defender.actorName,
+                "commandId", skill == null ? 0 : skill.id,
+                "commandName", skill == null ? "" : skill.name,
+                "attackerLevel", attacker.GetLevel(),
+                "defenderLevel", defender.GetLevel(),
+                "dlvl", dlvl,
+                "amountBeforeMitigation", originalAmount,
+                "attackerMagicPotency", attacker.GetMod(Modifier.AttackMagicPotency),
+                "attackerIntelligence", attacker.GetMod(Modifier.Intelligence),
+                "attackerMind", attacker.GetMod(Modifier.Mind),
+                "attackerPiety", attacker.GetMod(Modifier.Piety),
+                "defenderDefense", defender.GetMod(Modifier.Defense),
+                "defenderVitality", defender.GetMod(Modifier.Vitality),
+                "damageTakenPercent", damageTakenPercent);
+
             action.amount = (ushort)(action.amount - CalculateDlvlModifier(dlvl) * (defender.GetMod((uint)Modifier.Defense) + 0.67 * defender.GetMod((uint)Modifier.Vitality))).Clamp(0, 9999);
             action.amount = (ushort)(action.amount * damageTakenPercent).Clamp(0, 9999);
+
+            DevDiagnostics.Trace(
+                "battle.damage.result",
+                "damageKind", "spell",
+                "attacker", String.Format("0x{0:X}", attacker.actorId),
+                "defender", String.Format("0x{0:X}", defender.actorId),
+                "commandId", skill == null ? 0 : skill.id,
+                "amountBeforeMitigation", originalAmount,
+                "amountAfterMitigation", action.amount,
+                "amountMitigated", action.amountMitigated,
+                "hitType", action.hitType.ToString());
         }
 
         
@@ -944,6 +1010,22 @@ namespace MeteorXIV.Core.Map.actors.chara.ai.utils
                 newChain.SetDuration(timeLimit);
                 newChain.SetTier((byte)(Math.Min(expChainNumber + 1, 255)));
                 attacker.statusEffects.AddStatusEffect(newChain, attacker);
+
+                DevDiagnostics.Trace(
+                    "battle.exp.calculated",
+                    "player", String.Format("0x{0:X}", attacker.actorId),
+                    "playerName", attacker.customDisplayName != null ? attacker.customDisplayName : attacker.actorName,
+                    "target", String.Format("0x{0:X}", defender.actorId),
+                    "targetName", defender.customDisplayName != null ? defender.customDisplayName : defender.actorName,
+                    "playerLevel", attacker.GetLevel(),
+                    "targetLevel", defender.GetLevel(),
+                    "baseExp", baseExp,
+                    "linkCount", linkCount,
+                    "linkBonus", GetLinkBonus((byte)Math.Min(linkCount, 255)),
+                    "chainTier", expChainNumber,
+                    "chainBonus", GetChainBonus(expChainNumber),
+                    "chainTimeLimit", timeLimit,
+                    "totalBonus", totalBonus);
 
                 actionContainer?.AddEXPActions(attacker.AddExp(baseExp, (byte)attacker.GetClass(), (byte)(totalBonus.Min(255))));
             }

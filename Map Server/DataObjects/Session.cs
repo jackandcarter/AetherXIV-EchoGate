@@ -35,8 +35,10 @@ namespace MeteorXIV.Core.Map.dataobjects
         public List<Actor> actorInstanceList = new List<Actor>();
         public uint languageCode = 1;        
         private uint lastPingPacket = Utils.UnixTimeStampUTC();
+        private uint sessionEndMarkedAt = 0;
 
         public bool isUpdatesLocked = true;
+        public bool isEnding = false;
 
         public string errorMessage = "";
 
@@ -68,6 +70,18 @@ namespace MeteorXIV.Core.Map.dataobjects
             lastPingPacket = Utils.UnixTimeStampUTC();
         }
 
+        public void BeginEnding()
+        {
+            isEnding = true;
+            isUpdatesLocked = true;
+            sessionEndMarkedAt = Utils.UnixTimeStampUTC();
+        }
+
+        public bool IsEndingExpired(uint now, uint graceSeconds)
+        {
+            return isEnding && now - sessionEndMarkedAt >= graceSeconds;
+        }
+
         public bool CheckIfDCing()
         {
             uint currentTime = Utils.UnixTimeStampUTC();
@@ -88,20 +102,23 @@ namespace MeteorXIV.Core.Map.dataobjects
             if (playerActor.positionX == x && playerActor.positionY == y && playerActor.positionZ == z && playerActor.rotation == rot)
                 return;
 
-            /*
             playerActor.oldPositionX = playerActor.positionX;
             playerActor.oldPositionY = playerActor.positionY;
             playerActor.oldPositionZ = playerActor.positionZ;
             playerActor.oldRotation = playerActor.rotation;
-            
+
             playerActor.positionX = x;
             playerActor.positionY = y;
             playerActor.positionZ = z;
-            */
             playerActor.rotation = rot;
             playerActor.moveState = moveState;
 
-            //GetActor().GetZone().UpdateActorPosition(GetActor());
+            if (playerActor.GetZone() != null)
+                playerActor.GetZone().UpdateActorPosition(playerActor);
+
+            if (playerActor.zone2 != null && playerActor.zone2 != playerActor.GetZone())
+                playerActor.zone2.UpdateActorPosition(playerActor);
+
             playerActor.QueuePositionUpdate(new Vector3(x,y,z));
         }
 

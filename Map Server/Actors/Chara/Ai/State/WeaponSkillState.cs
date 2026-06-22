@@ -159,10 +159,11 @@ namespace MeteorXIV.Core.Map.actors.chara.ai.state
             TraceWeaponSkill("complete", String.Format("targets={0}", skill.targetFind.GetTargets().Count));
             isCompleted = true;
 
+            if (owner is Player)
+                lua.LuaEngine.GetInstance().OnSignal("weaponskillUsed");
+
             owner.DoBattleCommand(skill, "weaponskill");
             owner.statusEffects.RemoveStatusEffectsByFlags((uint) StatusEffectFlags.LoseOnAttacking);
-
-            lua.LuaEngine.GetInstance().OnSignal("weaponskillUsed");
         }
 
         public override void TryInterrupt()

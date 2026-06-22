@@ -157,20 +157,19 @@ Echo Gate writes a legacy-compatible `Servers.xml` under app data:
 
 ```xml
 <Servers>
-  <Server Name="Local MeteorXIV Core" Address="127.0.0.1" LoginUrl="http://127.0.0.1:8080/login/index.php" />
+  <Server Name="Localhost" Address="127.0.0.1" LoginUrl="http://127.0.0.1:8080/login/index.php" />
 </Servers>
 ```
 
 The macOS/Linux launch path runs the included `EchoGate.ClientLauncher.exe` helper through the selected Wine runtime. Windows builds run the same helper natively. The helper generates the 1.23b `sqex0002...!////` launch argument, starts the user-selected local `ffxivgame.exe` suspended, applies the verified 1.23b lobby host and CPU-thread patches, then resumes the game process.
 
-Windows builds launch the client natively. macOS and Linux builds default to `Automatic Managed` runtime mode. Runtime priority is:
+Windows builds launch the client through the native helper. macOS and Linux builds default to the approved-runtime flow. Runtime priority is:
 
-1. active service-catalog managed Wine artifact
-2. detected free Wine or XIV on Mac Wine runtime
-3. detected CrossOver or Whisky runtime
-4. custom runtime profile
+1. installed approved EchoGate runtime from the service runtime catalog
+2. approved detected Wine Stable runtime
+3. explicit custom runtime profile selected by the user
 
-Managed runtime app-data paths:
+Runtime app-data paths:
 
 ```text
 macOS: ~/Library/Application Support/Demi Dev Unit/Echo Gate/
@@ -178,7 +177,7 @@ Linux: $XDG_DATA_HOME/Demi Dev Unit/Echo Gate/
 Linux fallback: ~/.local/share/Demi Dev Unit/Echo Gate/
 ```
 
-Managed runtime subfolders:
+Runtime subfolders:
 
 ```text
 Runtimes/

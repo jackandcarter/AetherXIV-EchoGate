@@ -12,7 +12,7 @@ Install the local development tools you need:
 - Mono/MSBuild
 - NuGet
 - .NET 10 SDK
-- A Wine-compatible runtime such as Homebrew Wine, Whisky, CrossOver, or another local runtime you already use
+- An approved Wine-compatible runtime, or the EchoGate Runtime tab's custom runtime path for advanced testing
 
 ## 2. Prepare The Database
 

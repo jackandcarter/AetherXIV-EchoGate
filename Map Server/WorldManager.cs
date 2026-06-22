@@ -60,11 +60,23 @@ namespace MeteorXIV.Core.Map
         private Dictionary<uint, ModifierList> battleNpcGenusMods = new Dictionary<uint, ModifierList>();
         private Dictionary<uint, ModifierList> battleNpcPoolMods = new Dictionary<uint, ModifierList>();
         private Dictionary<uint, ModifierList> battleNpcSpawnMods = new Dictionary<uint, ModifierList>();
+        private Dictionary<uint, List<uint>> battleNpcSkillLists = new Dictionary<uint, List<uint>>();
+        private Dictionary<uint, List<uint>> battleNpcSpellLists = new Dictionary<uint, List<uint>>();
 
         private Server mServer;
 
         private const int MILIS_LOOPTIME = 333;
         private Timer mZoneTimer;
+        private const int Man0l0StartedTalkTutorialFlag = 0;
+        private const int Man0l0MiniTutorial1DoneFlag = 4;
+        private const int Man0l0MiniTutorial2DoneFlag = 8;
+        private const int Man0l0MiniTutorial3DoneFlag = 16;
+        private const int Man0g0StartedTalkTutorialFlag = 0;
+        private const int Man0g0MiniTutorial1DoneFlag = 1;
+        private const int Man0u0Tutorial3DoneFlag = 2;
+        private const int Man0u0MiniTutorial1DoneFlag = 4;
+        private const int Man0u0MiniTutorial2DoneFlag = 8;
+        private const int Man0u0MiniTutorial3DoneFlag = 16;
 
         //Zone Server Groups
         public Dictionary<ulong, Group> mContentGroups = new Dictionary<ulong, Group>();
@@ -448,6 +460,7 @@ namespace MeteorXIV.Core.Map
             LoadBattleNpcModifiers("server_battlenpc_genus_mods", "genusId", battleNpcGenusMods);
             LoadBattleNpcModifiers("server_battlenpc_pool_mods", "poolId", battleNpcPoolMods);
             LoadBattleNpcModifiers("server_battlenpc_spawn_mods", "bnpcId", battleNpcSpawnMods);
+            LoadBattleNpcActionLists();
 
             using (MySqlConnection conn = new MySqlConnection(String.Format("Server={0}; Port={1}; Database={2}; UID={3}; Password={4}", ConfigConstants.DATABASE_HOST, ConfigConstants.DATABASE_PORT, ConfigConstants.DATABASE_NAME, ConfigConstants.DATABASE_USERNAME, ConfigConstants.DATABASE_PASSWORD)))
             {
@@ -533,6 +546,11 @@ namespace MeteorXIV.Core.Map
                                 battleNpc.dropListId = reader.GetUInt32("dropListId");
                                 battleNpc.spellListId = reader.GetUInt32("spellListId");
                                 battleNpc.skillListId = reader.GetUInt32("skillListId");
+                                AttachBattleNpcActionLists(battleNpc);
+                                ApplyBattleNpcModifierLists(battleNpc);
+                                battleNpc.SetRespawnTime(reader.GetUInt32("respawnTime"));
+                                battleNpc.CalculateBaseStats();
+                                battleNpc.RecalculateStats();
 
                                 //battleNpc.SetMod((uint)Modifier.ResistFire, )
 
@@ -662,46 +680,12 @@ namespace MeteorXIV.Core.Map
                             battleNpc.SetMod((uint)Modifier.Defense, reader.GetUInt32("def"));
                             battleNpc.SetMod((uint)Modifier.Evasion, reader.GetUInt32("eva"));
 
-                            if (battleNpc.poolMods != null)
-                            {
-                                foreach (var a in battleNpc.poolMods.mobModList)
-                                {
-                                    battleNpc.SetMobMod(a.Value.id, (long)(a.Value.value));
-                                }
-                                foreach (var a in battleNpc.poolMods.modList)
-                                {
-                                    battleNpc.SetMod(a.Key, (long)(a.Value.value));
-                                }
-                            }
-
-                            if (battleNpc.genusMods != null)
-                            {
-                                foreach (var a in battleNpc.genusMods.mobModList)
-                                {
-                                    battleNpc.SetMobMod(a.Key, (long)(a.Value.value));
-                                }
-                                foreach (var a in battleNpc.genusMods.modList)
-                                {
-                                    battleNpc.SetMod(a.Key, (long)(a.Value.value));
-                                }
-                            }
-
-                            if(battleNpc.spawnMods != null)
-                            {
-                                foreach (var a in battleNpc.spawnMods.mobModList)
-                                {
-                                    battleNpc.SetMobMod(a.Key, (long)(a.Value.value));
-                                }
-
-                                foreach (var a in battleNpc.spawnMods.modList)
-                                {
-                                    battleNpc.SetMod(a.Key, (long)(a.Value.value));
-                                }
-                            }
+                            ApplyBattleNpcModifierLists(battleNpc);
 
                             battleNpc.dropListId = reader.GetUInt32("dropListId");
                             battleNpc.spellListId = reader.GetUInt32("spellListId");
                             battleNpc.skillListId = reader.GetUInt32("skillListId");
+                            AttachBattleNpcActionLists(battleNpc);
                             battleNpc.SetBattleNpcId(reader.GetUInt32("bnpcId"));
                             battleNpc.SetRespawnTime(reader.GetUInt32("respawnTime"));
                             battleNpc.CalculateBaseStats();
@@ -724,6 +708,141 @@ namespace MeteorXIV.Core.Map
                 }
             }
             return bnpc;
+        }
+
+        private void LoadBattleNpcActionLists()
+        {
+            battleNpcSkillLists.Clear();
+            battleNpcSpellLists.Clear();
+
+            LoadBattleNpcActionList("server_battlenpc_skill_list", "skillListId", "skillId", battleNpcSkillLists);
+            LoadBattleNpcActionList("server_battlenpc_spell_list", "spellListId", "spellId", battleNpcSpellLists);
+        }
+
+        private void LoadBattleNpcActionList(string tableName, string listColumn, string commandColumn, Dictionary<uint, List<uint>> list)
+        {
+            using (MySqlConnection conn = new MySqlConnection(String.Format("Server={0}; Port={1}; Database={2}; UID={3}; Password={4}", ConfigConstants.DATABASE_HOST, ConfigConstants.DATABASE_PORT, ConfigConstants.DATABASE_NAME, ConfigConstants.DATABASE_USERNAME, ConfigConstants.DATABASE_PASSWORD)))
+            {
+                try
+                {
+                    conn.Open();
+
+                    var query = String.Format("SELECT `{0}`, `{1}` FROM `{2}` ORDER BY `{0}`, `{1}`;", listColumn, commandColumn, tableName);
+                    MySqlCommand cmd = new MySqlCommand(query, conn);
+
+                    using (MySqlDataReader reader = cmd.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            var listId = reader.GetUInt32(listColumn);
+                            var commandId = reader.GetUInt32(commandColumn);
+
+                            if (!list.ContainsKey(listId))
+                                list.Add(listId, new List<uint>());
+
+                            list[listId].Add(commandId);
+                        }
+                    }
+
+                    Program.Log.Info("Loaded {0} battle NPC action list rows from {1}.", list.Values.Sum(actions => actions.Count), tableName);
+                }
+                catch (MySqlException e)
+                {
+                    Program.Log.Error(e.ToString());
+                }
+                finally
+                {
+                    conn.Dispose();
+                }
+            }
+        }
+
+        private void AttachBattleNpcActionLists(BattleNpc battleNpc)
+        {
+            if (battleNpc == null)
+                return;
+
+            battleNpc.skillList.Clear();
+            battleNpc.spellList.Clear();
+
+            AttachBattleNpcActionList(battleNpc, battleNpc.skillListId, battleNpcSkillLists, battleNpc.skillList, "skill");
+            AttachBattleNpcActionList(battleNpc, battleNpc.spellListId, battleNpcSpellLists, battleNpc.spellList, "spell");
+
+            DevDiagnostics.Trace(
+                "battle.npc.actionLists",
+                "actor", String.Format("0x{0:X}", battleNpc.actorId),
+                "actorName", battleNpc.customDisplayName != null ? battleNpc.customDisplayName : battleNpc.actorName,
+                "uniqueId", battleNpc.GetUniqueId(),
+                "bnpcId", battleNpc.GetBattleNpcId(),
+                "poolId", battleNpc.poolId,
+                "skillListId", battleNpc.skillListId,
+                "skillCount", battleNpc.skillList.Count,
+                "spellListId", battleNpc.spellListId,
+                "spellCount", battleNpc.spellList.Count);
+        }
+
+        private void AttachBattleNpcActionList(BattleNpc battleNpc, uint listId, Dictionary<uint, List<uint>> sourceList, Dictionary<uint, BattleCommand> targetList, string listType)
+        {
+            if (listId == 0)
+                return;
+
+            List<uint> actionIds;
+            if (!sourceList.TryGetValue(listId, out actionIds))
+            {
+                DevDiagnostics.Trace(
+                    "battle.npc.actionList.missing",
+                    "actor", String.Format("0x{0:X}", battleNpc.actorId),
+                    "actorName", battleNpc.customDisplayName != null ? battleNpc.customDisplayName : battleNpc.actorName,
+                    "uniqueId", battleNpc.GetUniqueId(),
+                    "bnpcId", battleNpc.GetBattleNpcId(),
+                    "poolId", battleNpc.poolId,
+                    "listType", listType,
+                    "listId", listId);
+                return;
+            }
+
+            foreach (var actionId in actionIds)
+            {
+                var command = GetBattleCommand(actionId);
+                if (command == null)
+                {
+                    DevDiagnostics.Trace(
+                        "battle.npc.actionList.commandMissing",
+                        "actor", String.Format("0x{0:X}", battleNpc.actorId),
+                        "actorName", battleNpc.customDisplayName != null ? battleNpc.customDisplayName : battleNpc.actorName,
+                        "uniqueId", battleNpc.GetUniqueId(),
+                        "bnpcId", battleNpc.GetBattleNpcId(),
+                        "poolId", battleNpc.poolId,
+                        "listType", listType,
+                        "listId", listId,
+                        "commandId", actionId);
+                    continue;
+                }
+
+                targetList[command.id] = command;
+            }
+        }
+
+        private void ApplyBattleNpcModifierLists(BattleNpc battleNpc)
+        {
+            if (battleNpc == null)
+                return;
+
+            ApplyBattleNpcModifierList(battleNpc, battleNpc.poolMods);
+            ApplyBattleNpcModifierList(battleNpc, battleNpc.genusMods);
+            ApplyBattleNpcModifierList(battleNpc, battleNpc.spawnMods);
+        }
+
+        private void ApplyBattleNpcModifierList(BattleNpc battleNpc, ModifierList modifiers)
+        {
+            if (modifiers == null)
+                return;
+
+            foreach (var a in modifiers.mobModList)
+                battleNpc.SetMobMod(a.Key, (long)(a.Value.value));
+
+            foreach (var a in modifiers.modList)
+                battleNpc.SetMod(a.Key, (long)(a.Value.value));
         }
 
         public void LoadBattleNpcModifiers(string tableName, string primaryKey, Dictionary<uint, ModifierList> list)
@@ -759,96 +878,147 @@ namespace MeteorXIV.Core.Map
             }
         }
 
-        //Moves the actor to the new zone if exists. No packets are sent nor position changed. Merged zone is removed.
-        public void DoSeamlessZoneChange(Player player, uint destinationZoneId)
+        //Moves the actor to the new public zone while preserving the normal actor diff stream.
+        public bool DoSeamlessZoneChange(Player player, uint destinationZoneId)
         {
-            Area oldZone;
+            if (player == null)
+                return false;
 
-            if (player.zone != null)
-            {
-                oldZone = player.zone;
-                oldZone.RemoveActorFromZone(player);
-            }
-
-            //Add player to new zone and update
             Zone newZone = GetZone(destinationZoneId);
 
-            //This server does not contain that zoneId
             if (newZone == null)
-                return;
+            {
+                DevDiagnostics.Trace(
+                    "zone.seamless.change.missingZone",
+                    "player", player == null ? "" : player.customDisplayName,
+                    "destinationZone", destinationZoneId);
+                return false;
+            }
 
-            newZone.AddActorToZone(player);
+            Area oldZone = player.zone;
+            Area oldMergedZone = player.zone2;
+            uint oldZoneId = player.zoneId;
+            string oldPrivateArea = player.privateArea ?? "";
+            uint oldPrivateAreaType = player.privateAreaType;
+            bool alreadyInDestination = oldZone == newZone || oldMergedZone == newZone;
+
+            DevDiagnostics.Trace(
+                "zone.seamless.change.begin",
+                "player", player.customDisplayName,
+                "fromZone", oldZoneId,
+                "fromAreaKind", oldZone == null ? "" : oldZone.GetType().Name,
+                "fromPrivateArea", oldPrivateArea,
+                "fromPrivateAreaType", oldPrivateAreaType,
+                "fromMergedZone", oldMergedZone == null ? 0 : oldMergedZone.actorId,
+                "toZone", destinationZoneId,
+                "x", player.positionX,
+                "y", player.positionY,
+                "z", player.positionZ,
+                "rot", player.rotation);
+
+            if (oldZone != null && oldZone != newZone)
+                oldZone.RemoveActorFromZone(player);
+
+            if (oldMergedZone != null && oldMergedZone != oldZone && oldMergedZone != newZone)
+                oldMergedZone.RemoveActorFromZone(player);
+
+            if (!alreadyInDestination)
+                newZone.AddActorToZone(player);
 
             player.zone = newZone;
             player.zoneId = destinationZoneId;
-
             player.zone2 = null;
             player.zoneId2 = 0;
+            player.privateArea = null;
+            player.privateAreaType = 0;
 
             player.SendSeamlessZoneInPackets();
+            Database.SavePlayerPosition(player);
 
-            player.SendMessage(0x20, "", "Doing Seamless Zone Change");
+            DevDiagnostics.Trace(
+                "zone.seamless.change.end",
+                "player", player.customDisplayName,
+                "fromZone", oldZoneId,
+                "toZone", player.zoneId,
+                "areaActorCount", player.zone == null ? 0 : player.zone.GetActorCount(),
+                "privateArea", player.privateArea ?? "",
+                "privateAreaType", player.privateAreaType);
 
             LuaEngine.GetInstance().CallLuaFunction(player, newZone, "onZoneIn", true);
+            return true;
         }
 
         //Adds a second zone to pull actors from. Used for an improved seamless zone change.
-        public void MergeZones(Player player, uint mergedZoneId)
+        public bool MergeZones(Player player, uint mergedZoneId)
         {
-            //Add player to new zone and update
+            if (player == null)
+                return false;
+
             Zone mergedZone = GetZone(mergedZoneId);
 
-            //This server does not contain that zoneId
             if (mergedZone == null)
-                return;
+            {
+                DevDiagnostics.Trace(
+                    "zone.seamless.merge.missingZone",
+                    "player", player == null ? "" : player.customDisplayName,
+                    "mergedZone", mergedZoneId);
+                return false;
+            }
+
+            if (player.zone == mergedZone)
+                return ClearMergedZone(player, "merge-is-current-zone");
+
+            if (player.zone2 == mergedZone)
+                return false;
+
+            ClearMergedZone(player, "replace-merge");
 
             mergedZone.AddActorToZone(player);
-
             player.zone2 = mergedZone;
             player.zoneId2 = mergedZone.actorId;
 
-            player.SendMessage(0x20, "", "Merging Zones");
+            DevDiagnostics.Trace(
+                "zone.seamless.merge",
+                "player", player.customDisplayName,
+                "zone", player.zoneId,
+                "mergedZone", mergedZone.actorId,
+                "x", player.positionX,
+                "y", player.positionY,
+                "z", player.positionZ);
 
             LuaEngine.GetInstance().CallLuaFunction(player, mergedZone, "onZoneIn", true);
+            return true;
         }
 
         //Checks all seamless bounding boxes in region to see if player needs to merge or zonechange
-        public void SeamlessCheck(Player player)
+        public bool SeamlessCheck(Player player)
         {
-            //Check if you are in a seamless bounding box
-            //WorldMaster.DoSeamlessCheck(this) -- Return 
-
-            /*
-             * Find what bounding box in region I am in
-             * ->If none, ignore
-             * ->If zone box && is my zone, ignore
-             * ->If zone box && is not my zone, DoSeamlessZoneChange
-             * ->If merge box, MergeZones
-             */
-
-            if (player.zone == null)
-                return;
+            if (!CanRunSeamlessCheck(player))
+                return false;
 
             uint regionId = player.zone.regionId;
 
             if (!seamlessBoundryList.ContainsKey(regionId))
-                return;
+                return ClearMergedZone(player, "region-has-no-boundaries");
 
             foreach (SeamlessBoundry bounds in seamlessBoundryList[regionId])
             {
+                if (player.zoneId != bounds.zoneId1 && player.zoneId != bounds.zoneId2)
+                    continue;
+
                 if (CheckPosInBounds(player.positionX, player.positionZ, bounds.zone1_x1, bounds.zone1_y1, bounds.zone1_x2, bounds.zone1_y2))
                 {
-                    if (player.zoneId == bounds.zoneId1 && player.zoneId2 == 0)
-                        return;
+                    if (player.zoneId == bounds.zoneId1)
+                        return ClearMergedZone(player, "entered-primary-zone-box");
 
-                    DoSeamlessZoneChange(player, bounds.zoneId1);
+                    return DoSeamlessZoneChange(player, bounds.zoneId1);
                 }
                 else if (CheckPosInBounds(player.positionX, player.positionZ, bounds.zone2_x1, bounds.zone2_y1, bounds.zone2_x2, bounds.zone2_y2))
                 {
-                    if (player.zoneId == bounds.zoneId2 && player.zoneId2 == 0)
-                        return;
+                    if (player.zoneId == bounds.zoneId2)
+                        return ClearMergedZone(player, "entered-secondary-zone-box");
 
-                    DoSeamlessZoneChange(player, bounds.zoneId2);
+                    return DoSeamlessZoneChange(player, bounds.zoneId2);
                 }
                 else if (CheckPosInBounds(player.positionX, player.positionZ, bounds.merge_x1, bounds.merge_y1, bounds.merge_x2, bounds.merge_y2))
                 {
@@ -860,11 +1030,58 @@ namespace MeteorXIV.Core.Map
 
                     //Already merged
                     if (player.zoneId2 == merged)
-                        return;
+                        return false;
 
-                    MergeZones(player, merged);
+                    return MergeZones(player, merged);
                 }
             }
+
+            return ClearMergedZone(player, "left-boundary");
+        }
+
+        private bool CanRunSeamlessCheck(Player player)
+        {
+            if (player == null || player.zone == null)
+                return false;
+
+            if (player.playerSession == null || player.playerSession.isUpdatesLocked)
+                return false;
+
+            if (player.IsInZoneChange())
+                return false;
+
+            if (player.currentContentGroup != null)
+                return false;
+
+            if (player.zone is PrivateArea)
+                return false;
+
+            return true;
+        }
+
+        private bool ClearMergedZone(Player player, string reason)
+        {
+            if (player == null || player.zone2 == null)
+                return false;
+
+            Area mergedZone = player.zone2;
+
+            if (mergedZone != player.zone)
+                mergedZone.RemoveActorFromZone(player);
+
+            DevDiagnostics.Trace(
+                "zone.seamless.merge.clear",
+                "player", player.customDisplayName,
+                "zone", player.zoneId,
+                "mergedZone", mergedZone.actorId,
+                "reason", reason,
+                "x", player.positionX,
+                "y", player.positionY,
+                "z", player.positionZ);
+
+            player.zone2 = null;
+            player.zoneId2 = 0;
+            return true;
         }
 
         public bool CheckPosInBounds(float x, float y, float x1, float y1, float x2, float y2)
@@ -1167,10 +1384,35 @@ namespace MeteorXIV.Core.Map
 
             //Add player to new zone and update
             Area playerArea;
-            if (player.privateArea != null)
+            bool requestedPrivateArea = !String.IsNullOrEmpty(player.privateArea);
+            if (requestedPrivateArea)
                 playerArea = GetPrivateArea(player.zoneId, player.privateArea, player.privateAreaType);
             else
                 playerArea = GetZone(player.zoneId);
+
+            if (playerArea == null && requestedPrivateArea)
+            {
+                Area fallbackArea = GetZone(player.zoneId);
+                if (fallbackArea != null)
+                {
+                    string missingPrivateArea = player.privateArea;
+                    uint missingPrivateAreaType = player.privateAreaType;
+
+                    DevDiagnostics.Trace(
+                        "zone.in.recoveredMissingPrivateArea",
+                        "player", player.customDisplayName,
+                        "requestedZone", player.zoneId,
+                        "requestedPrivateArea", missingPrivateArea ?? "",
+                        "requestedPrivateAreaType", missingPrivateAreaType,
+                        "fallbackArea", fallbackArea.zoneName,
+                        "fallbackAreaKind", fallbackArea.GetType().Name);
+
+                    player.privateArea = null;
+                    player.privateAreaType = 0;
+                    ResetOpeningTutorialCheckpoint(player, missingPrivateArea);
+                    playerArea = fallbackArea;
+                }
+            }
 
             //This server does not contain that zoneId
             if (playerArea == null)
@@ -1182,6 +1424,7 @@ namespace MeteorXIV.Core.Map
                     "requestedZone", player.zoneId,
                     "requestedPrivateArea", player.privateArea ?? "",
                     "requestedPrivateAreaType", player.privateAreaType);
+                player.SetZoneChanging(false);
                 return;
             }
 
@@ -1223,6 +1466,96 @@ namespace MeteorXIV.Core.Map
                 "instanceActorCount", player.playerSession.actorInstanceList.Count);
 
             LuaEngine.GetInstance().CallLuaFunction(player, playerArea, "onZoneIn", true);
+        }
+
+        private void ResetOpeningTutorialCheckpoint(Player player, string missingPrivateArea)
+        {
+            if (String.IsNullOrEmpty(missingPrivateArea))
+                return;
+
+            if (player.zoneId == 184 && missingPrivateArea.Equals("SimpleContent30079", StringComparison.Ordinal))
+            {
+                SetUldahOpeningCheckpoint(player);
+            }
+            else if (player.zoneId == 166 && missingPrivateArea.Equals("SimpleContent30010", StringComparison.Ordinal))
+            {
+                SetGridaniaOpeningCheckpoint(player);
+            }
+            else if (player.zoneId == 193 && missingPrivateArea.Equals("SimpleContent30002", StringComparison.Ordinal))
+            {
+                SetLimsaOpeningCheckpoint(player);
+            }
+            else
+            {
+                return;
+            }
+
+            DevDiagnostics.Trace(
+                "zone.in.openingTutorialCheckpoint",
+                "player", player.customDisplayName,
+                "zone", player.zoneId,
+                "missingPrivateArea", missingPrivateArea,
+                "x", player.positionX,
+                "y", player.positionY,
+                "z", player.positionZ,
+                "rot", player.rotation);
+        }
+
+        private void SetUldahOpeningCheckpoint(Player player)
+        {
+            Quest quest = player.GetQuest(110009);
+
+            if (HasQuestFlag(quest, Man0u0MiniTutorial3DoneFlag))
+                SetPlayerPosition(player, -13.0f, 194.91f, 82.0f, 3.1f);
+            else if (HasQuestFlag(quest, Man0u0MiniTutorial2DoneFlag))
+                SetPlayerPosition(player, -16.5f, 196.0f, 98.0f, -2.8f);
+            else if (HasQuestFlag(quest, Man0u0MiniTutorial1DoneFlag))
+                SetPlayerPosition(player, 3.0f, 196.0f, 119.0f, -2.8f);
+            else if (HasQuestFlag(quest, Man0u0Tutorial3DoneFlag))
+                SetPlayerPosition(player, 0.0f, 196.0f, 125.0f, -2.2f);
+            else
+                SetPlayerPosition(player, 5.364327f, 196.0f, 133.6561f, -2.849384f);
+        }
+
+        private void SetGridaniaOpeningCheckpoint(Player player)
+        {
+            Quest quest = player.GetQuest(110005);
+
+            if (HasQuestFlag(quest, Man0g0MiniTutorial1DoneFlag))
+                SetPlayerPosition(player, 356.0f, 4.0f, -699.5f, -2.6f);
+            else if (HasQuestFlag(quest, Man0g0StartedTalkTutorialFlag))
+                SetPlayerPosition(player, 356.0f, 4.0f, -703.5f, -2.6f);
+            else
+                SetPlayerPosition(player, 369.5434f, 4.21f, -706.1074f, -1.26721f);
+        }
+
+        private void SetLimsaOpeningCheckpoint(Player player)
+        {
+            Quest quest = player.GetQuest(110001);
+
+            if (HasQuestFlag(quest, Man0l0MiniTutorial3DoneFlag))
+                SetPlayerPosition(player, 0.0f, 10.35f, -20.5f, 0.0f);
+            else if (HasQuestFlag(quest, Man0l0MiniTutorial2DoneFlag))
+                SetPlayerPosition(player, 2.0f, 10.35f, -22.5f, 3.1f);
+            else if (HasQuestFlag(quest, Man0l0MiniTutorial1DoneFlag))
+                SetPlayerPosition(player, -3.5f, 9.4f, -25.5f, 0.1f);
+            else if (HasQuestFlag(quest, Man0l0StartedTalkTutorialFlag))
+                SetPlayerPosition(player, -6.5f, 10.0f, -27.0f, 1.6f);
+            else
+                SetPlayerPosition(player, 0.016f, 10.35f, -36.91f, 0.025f);
+        }
+
+        private static bool HasQuestFlag(Quest quest, int bitIndex)
+        {
+            return quest != null && quest.GetQuestFlag(bitIndex);
+        }
+
+        private static void SetPlayerPosition(Player player, float x, float y, float z, float rotation)
+        {
+            player.oldPositionX = player.positionX = x;
+            player.oldPositionY = player.positionY = y;
+            player.oldPositionZ = player.positionZ = z;
+            player.oldRotation = player.rotation = rotation;
         }
 
         public void ReloadZone(uint zoneId)

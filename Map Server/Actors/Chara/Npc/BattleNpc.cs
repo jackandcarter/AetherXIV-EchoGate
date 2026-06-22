@@ -243,6 +243,11 @@ namespace MeteorXIV.Core.Map.Actors
             respawnTime = seconds;
         }
 
+        private string GetDiagnosticsActorName()
+        {
+            return customDisplayName != null ? customDisplayName : actorName;
+        }
+
         ///<summary> // todo: create an action object? </summary>
         public bool OnAttack(AttackState state)
         {
@@ -253,7 +258,42 @@ namespace MeteorXIV.Core.Map.Actors
         {
             if (respawnTime > 0)
             {
+                DevDiagnostics.Trace(
+                    "battle.respawn.ready",
+                    "actor", String.Format("0x{0:X}", actorId),
+                    "actorName", GetDiagnosticsActorName(),
+                    "actorType", GetType().Name,
+                    "uniqueId", GetUniqueId(),
+                    "bnpcId", bnpcId,
+                    "zone", zoneId,
+                    "respawnTime", respawnTime,
+                    "x", positionX,
+                    "y", positionY,
+                    "z", positionZ,
+                    "spawnX", spawnX,
+                    "spawnY", spawnY,
+                    "spawnZ", spawnZ,
+                    "tick", tick.ToString("o"));
                 ForceRespawn();
+            }
+            else
+            {
+                DevDiagnostics.Trace(
+                    "battle.respawn.skipped",
+                    "reason", "respawnTime is zero",
+                    "actor", String.Format("0x{0:X}", actorId),
+                    "actorName", GetDiagnosticsActorName(),
+                    "actorType", GetType().Name,
+                    "uniqueId", GetUniqueId(),
+                    "bnpcId", bnpcId,
+                    "zone", zoneId,
+                    "x", positionX,
+                    "y", positionY,
+                    "z", positionZ,
+                    "spawnX", spawnX,
+                    "spawnY", spawnY,
+                    "spawnZ", spawnZ,
+                    "tick", tick.ToString("o"));
             }
         }
 
@@ -269,6 +309,24 @@ namespace MeteorXIV.Core.Map.Actors
 
             OnSpawn();
             updateFlags |= ActorUpdateFlags.AllNpc;
+
+            DevDiagnostics.Trace(
+                "battle.respawn.spawn",
+                "actor", String.Format("0x{0:X}", actorId),
+                "actorName", GetDiagnosticsActorName(),
+                "actorType", GetType().Name,
+                "uniqueId", GetUniqueId(),
+                "bnpcId", bnpcId,
+                "zone", zoneId,
+                "respawnTime", respawnTime,
+                "hp", GetHP(),
+                "maxHp", GetMaxHP(),
+                "x", positionX,
+                "y", positionY,
+                "z", positionZ,
+                "spawnX", spawnX,
+                "spawnY", spawnY,
+                "spawnZ", spawnZ);
         }
 
         public override void Die(DateTime tick, CommandResultContainer actionContainer = null)
@@ -276,11 +334,16 @@ namespace MeteorXIV.Core.Map.Actors
             DevDiagnostics.Trace(
                 "battle.death.request",
                 "actor", String.Format("0x{0:X}", actorId),
-                "actorName", customDisplayName != null ? customDisplayName : actorName,
+                "actorName", GetDiagnosticsActorName(),
                 "actorType", GetType().Name,
+                "uniqueId", GetUniqueId(),
+                "bnpcId", bnpcId,
+                "zone", zoneId,
                 "hp", GetHP(),
                 "maxHp", GetMaxHP(),
                 "isAlive", IsAlive(),
+                "despawnTime", despawnTime,
+                "respawnTime", respawnTime,
                 "lastAttacker", lastAttacker == null ? "0x0" : String.Format("0x{0:X}", lastAttacker.actorId),
                 "lastAttackerName", lastAttacker == null ? "" : (lastAttacker.customDisplayName != null ? lastAttacker.customDisplayName : lastAttacker.actorName),
                 "hasActionContainer", actionContainer != null);
@@ -331,17 +394,22 @@ namespace MeteorXIV.Core.Map.Actors
                 DevDiagnostics.Trace(
                     "battle.death",
                     "actor", String.Format("0x{0:X}", actorId),
-                    "actorName", customDisplayName != null ? customDisplayName : actorName,
+                    "actorName", GetDiagnosticsActorName(),
                     "actorType", GetType().Name,
                     "uniqueId", GetUniqueId(),
+                    "bnpcId", bnpcId,
+                    "zone", zoneId,
                     "lastAttacker", lastAttacker == null ? "0x0" : String.Format("0x{0:X}", lastAttacker.actorId),
                     "lastAttackerName", lastAttacker == null ? "" : (lastAttacker.customDisplayName != null ? lastAttacker.customDisplayName : lastAttacker.actorName),
-                    "despawnTime", despawnTime);
+                    "despawnTime", despawnTime,
+                    "respawnTime", respawnTime);
                 DevDiagnostics.Trace(
                     "battle.mobkill.emit",
                     "actor", String.Format("0x{0:X}", actorId),
-                    "actorName", customDisplayName != null ? customDisplayName : actorName,
+                    "actorName", GetDiagnosticsActorName(),
                     "uniqueId", GetUniqueId(),
+                    "bnpcId", bnpcId,
+                    "zone", zoneId,
                     "lastAttacker", lastAttacker == null ? "0x0" : String.Format("0x{0:X}", lastAttacker.actorId),
                     "lastAttackerName", lastAttacker == null ? "" : (lastAttacker.customDisplayName != null ? lastAttacker.customDisplayName : lastAttacker.actorName));
                 lua.LuaEngine.GetInstance().OnSignal("mobkill");
@@ -354,8 +422,11 @@ namespace MeteorXIV.Core.Map.Actors
                     "battle.death.skipped",
                     "reason", "not alive",
                     "actor", String.Format("0x{0:X}", actorId),
-                    "actorName", customDisplayName != null ? customDisplayName : actorName,
+                    "actorName", GetDiagnosticsActorName(),
                     "actorType", GetType().Name,
+                    "uniqueId", GetUniqueId(),
+                    "bnpcId", bnpcId,
+                    "zone", zoneId,
                     "hp", GetHP(),
                     "maxHp", GetMaxHP(),
                     "lastAttacker", lastAttacker == null ? "0x0" : String.Format("0x{0:X}", lastAttacker.actorId),
@@ -367,6 +438,25 @@ namespace MeteorXIV.Core.Map.Actors
         public override void Despawn(DateTime tick)
         {
             // todo: probably didnt need to make a new state...
+            DevDiagnostics.Trace(
+                "battle.despawn.start",
+                "actor", String.Format("0x{0:X}", actorId),
+                "actorName", GetDiagnosticsActorName(),
+                "actorType", GetType().Name,
+                "uniqueId", GetUniqueId(),
+                "bnpcId", bnpcId,
+                "zone", zoneId,
+                "despawnTime", despawnTime,
+                "respawnTime", respawnTime,
+                "hp", GetHP(),
+                "maxHp", GetMaxHP(),
+                "x", positionX,
+                "y", positionY,
+                "z", positionZ,
+                "spawnX", spawnX,
+                "spawnY", spawnY,
+                "spawnZ", spawnZ,
+                "tick", tick.ToString("o"));
             aiContainer.InternalDespawn(tick, respawnTime);
             lua.LuaEngine.CallLuaBattleFunction(this, "onDespawn", this);
             this.isAtSpawn = true;

@@ -41,13 +41,15 @@ namespace MeteorXIV.Core.Map.actors.chara.ai.state
             this.target = (skill.mainTarget & ValidTarget.SelfOnly) != 0 ? owner : target;
 
             errorResult = new CommandResult(owner.actorId, 32553, 0);
-            if (returnCode == 0)
+            if (returnCode == 0 && owner.CanUse(this.target, skill, errorResult))
             {
                 OnStart();
             }
             else
             {
-                errorResult = null;
+                if (returnCode != 0)
+                    errorResult = null;
+
                 interrupt = true;
             }
         }
@@ -124,6 +126,9 @@ namespace MeteorXIV.Core.Map.actors.chara.ai.state
             skill.targetFind.FindWithinArea(target, skill.validTarget, skill.aoeTarget);
             isCompleted = true;
 
+            if (owner is Player)
+                lua.LuaEngine.GetInstance().OnSignal("abilityUsed");
+
             owner.DoBattleCommand(skill, "ability");
         }
 
@@ -151,7 +156,7 @@ namespace MeteorXIV.Core.Map.actors.chara.ai.state
 
         private bool CanUse()
         {
-            return skill.IsValidMainTarget(owner, target);
+            return owner.CanUse(target, skill);
         }
 
         public BattleCommand GetWeaponSkill()

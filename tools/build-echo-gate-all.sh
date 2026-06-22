@@ -56,6 +56,11 @@ for rid in "${RIDS[@]}"; do
           /p:PublishSingleFile=false \
           /p:UseAppHost=true
       done
+      case "$rid" in
+        linux-*)
+          "$ROOT_DIR/tools/create-echo-gate-linux-launchers.sh" "$ROOT_DIR/build/echo-gate/$rid" "$output"
+          ;;
+      esac
       ;;
   esac
 done

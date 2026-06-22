@@ -688,50 +688,8 @@ publish_echo_gate_linux() {
 create_echo_gate_linux_launchers() {
   local bundle_dir="$1"
   local output="$2"
-  local launcher_script="$bundle_dir/launch-echo-gate.sh"
-  local desktop_file="$bundle_dir/Echo Gate.desktop"
-  local icon_source="$ROOT_DIR/launcher/EchoGate/Image/icon.png"
-  local icon_dest="$bundle_dir/EchoGate.png"
 
-  if [[ ! -x "$output/EchoGate.App" && ! -f "$output/EchoGate.App.dll" ]]; then
-    die "Echo Gate publish output is missing EchoGate.App"
-  fi
-
-  cat > "$launcher_script" <<'EOF'
-#!/usr/bin/env bash
-set -euo pipefail
-
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-APP_DIR="$SCRIPT_DIR/publish"
-
-if [[ -x "$APP_DIR/EchoGate.App" ]]; then
-  exec "$APP_DIR/EchoGate.App" "$@"
-fi
-
-exec dotnet "$APP_DIR/EchoGate.App.dll" "$@"
-EOF
-  chmod +x "$launcher_script"
-
-  if [[ -f "$icon_source" ]]; then
-    cp "$icon_source" "$icon_dest"
-  fi
-
-  {
-    printf '[Desktop Entry]\n'
-    printf 'Type=Application\n'
-    printf 'Name=Echo Gate\n'
-    printf 'Comment=FFXIV Classic Launcher\n'
-    printf 'Exec=%s\n' "$launcher_script"
-    if [[ -f "$icon_dest" ]]; then
-      printf 'Icon=%s\n' "$icon_dest"
-    fi
-    printf 'Terminal=false\n'
-    printf 'Categories=Game;\n'
-  } > "$desktop_file"
-  chmod +x "$desktop_file"
-
-  log "Echo Gate launcher script: $launcher_script"
-  log "Echo Gate desktop shortcut: $desktop_file"
+  "$ROOT_DIR/tools/create-echo-gate-linux-launchers.sh" "$bundle_dir" "$output"
 }
 
 build_launcher() {

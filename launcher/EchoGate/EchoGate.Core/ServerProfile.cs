@@ -9,7 +9,7 @@ public sealed record ServerProfile(
     string LoginUrl = "")
 {
     public static ServerProfile LocalDefault() => new(
-        "Local MeteorXIV Core",
+        "Localhost",
         "127.0.0.1",
         54994,
         54992,
