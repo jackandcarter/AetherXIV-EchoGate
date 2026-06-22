@@ -1808,14 +1808,15 @@ public sealed partial class MainWindow : Window
 
     private void UpdateRuntimeUiState()
     {
+        bool isBusy = runtimeCancellation is not null;
+        LaunchHelperModeBox.IsEnabled = !isBusy;
+
         if (!platform.RequiresCompatibilityRuntime)
         {
-            LaunchHelperModeBox.IsEnabled = false;
             GraphicsTargetBox.IsEnabled = false;
             return;
         }
 
-        bool isBusy = runtimeCancellation is not null;
         RuntimeSelectionMode mode = ReadRuntimeMode();
         bool automatic = mode == RuntimeSelectionMode.AutomaticManaged;
         bool custom = mode == RuntimeSelectionMode.CustomRuntime;
@@ -1823,7 +1824,7 @@ public sealed partial class MainWindow : Window
         InstallRuntimeButton.IsEnabled = !isBusy && automatic && selectedRuntimeArtifact is not null;
         ValidateRuntimeButton.IsEnabled = !isBusy;
         ResetPrefixButton.IsEnabled = !isBusy;
-        LaunchHelperModeBox.IsEnabled = !isBusy && platform.RequiresCompatibilityRuntime;
+        LaunchHelperModeBox.IsEnabled = !isBusy;
         GraphicsTargetBox.IsEnabled = !isBusy && platform.RequiresCompatibilityRuntime;
         DetectedRuntimeBox.IsEnabled = !isBusy && automatic && runtimeCandidates.Count > 0;
         CustomRuntimeKindBox.IsEnabled = !isBusy && custom;
