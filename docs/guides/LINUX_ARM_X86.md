@@ -94,6 +94,18 @@ Use the generated launch script from that folder. In Echo Gate:
 - Runtime tab: choose a detected Wine runtime or enter a custom Wine executable/prefix.
 - Home tab: create an account, log in, and launch.
 
+To add Echo Gate to the Linux desktop menu or Steam Deck Desktop Mode launcher,
+run the installer from the published folder:
+
+```sh
+cd build/echo-gate/linux-x64
+./install-desktop.sh
+```
+
+The installer writes `~/.local/share/applications/echo-gate.desktop` with the
+current local path. Do not reuse a `.desktop` file generated on another machine,
+because Linux desktop entries need absolute `Exec=` paths.
+
 ![Echo Gate runtime tab](../../Runtime.png)
 
 ## 6. Troubleshooting Launch Crashes
