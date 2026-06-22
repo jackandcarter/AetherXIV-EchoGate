@@ -36,6 +36,12 @@ function Confirm-Install {
     return ($answer -match "^(y|yes)$")
 }
 
+function Test-WingetNoUpdateExitCode {
+    param([int]$ExitCode)
+
+    return ($ExitCode -eq -1978335189)
+}
+
 function Install-WingetPackage {
     param(
         [string]$Name,
@@ -46,12 +52,12 @@ function Install-WingetPackage {
     $winget = Find-OptionalCommand -Names @("winget.exe", "winget")
     if ($null -eq $winget) {
         Write-Warning "winget was not found. Install $Name manually."
-        return
+        return $false
     }
 
     if (-not (Confirm-Install -Name $Name)) {
         Write-Host "Skipped: $Name"
-        return
+        return $false
     }
 
     $args = @(
@@ -71,10 +77,18 @@ function Install-WingetPackage {
     }
 
     Write-Host "Installing $Name with winget package '$Id'"
-    & $winget @args
-    if ($LASTEXITCODE -ne 0) {
-        Write-Warning "winget install failed for $Name with exit code $LASTEXITCODE."
+    & $winget @args 2>&1 | ForEach-Object { Write-Host $_ }
+    $exitCode = $LASTEXITCODE
+    if ($exitCode -ne 0) {
+        if (Test-WingetNoUpdateExitCode -ExitCode $exitCode) {
+            Write-Host "winget reports $Name is already installed and no newer package is available."
+            return $true
+        }
+        Write-Warning "winget install failed for $Name with exit code $exitCode."
+        return $false
     }
+
+    return $true
 }
 
 function Update-ProcessPath {
@@ -88,8 +102,18 @@ function Update-ProcessPath {
     }
 }
 
+function Test-Requirement {
+    param($Requirement)
+
+    try {
+        return [bool](& $Requirement.Test)
+    } catch {
+        return $false
+    }
+}
+
 $runRequirements = @(
-    (Requirement -Name "MariaDB or MySQL client/server" -Test { $null -ne (Find-OptionalCommand -Names @("mariadb.exe", "mysql.exe", "mariadb", "mysql")) } -WingetId "MariaDB.Server" -Hint "Required for local database setup.")
+    (Requirement -Name "MariaDB or MySQL client/server" -Test { $null -ne (Find-MySqlCommand) } -WingetId "MariaDB.Server" -Hint "Required for local database setup. If it is installed but not detected, open a new PowerShell window or set MYSQL_BIN to the full mariadb.exe/mysql.exe path.")
     (Requirement -Name "PHP" -Test { $null -ne (Find-OptionalCommand -Names @("php.exe", "php")) } -WingetId "PHP.PHP" -Hint "Required for the launcher HTTP service.")
     (Requirement -Name "PHP mysqli extension" -Test {
             $php = Find-OptionalCommand -Names @("php.exe", "php")
@@ -121,12 +145,7 @@ Write-Host "Windows prerequisite check ($Mode)"
 Write-Host
 
 foreach ($requirement in $requirements) {
-    $ok = $false
-    try {
-        $ok = [bool](& $requirement.Test)
-    } catch {
-        $ok = $false
-    }
+    $ok = Test-Requirement -Requirement $requirement
 
     if ($ok) {
         "{0,-36} ok" -f $requirement.Name
@@ -139,7 +158,18 @@ foreach ($requirement in $requirements) {
     }
 
     if ($Install -and $requirement.WingetId -ne "") {
-        Install-WingetPackage -Name $requirement.Name -Id $requirement.WingetId -Override $requirement.WingetOverride
+        $installed = Install-WingetPackage -Name $requirement.Name -Id $requirement.WingetId -Override $requirement.WingetOverride
+        if ($installed) {
+            Update-ProcessPath
+            if (Test-Requirement -Requirement $requirement) {
+                "{0,-36} ok" -f $requirement.Name
+            } else {
+                Write-Warning "$($requirement.Name) was installed or already present, but it still was not detected in this PowerShell session."
+                if ($requirement.Hint -ne "") {
+                    Write-Host "  $($requirement.Hint)"
+                }
+            }
+        }
     } elseif ($Install -and $requirement.WingetId -eq "") {
         Write-Host "  Automatic install is not available for this check."
     }

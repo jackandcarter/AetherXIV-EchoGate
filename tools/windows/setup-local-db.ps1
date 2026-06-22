@@ -20,6 +20,11 @@ Write-Host "App account: $($db.AppUser) / $($db.AppPass)"
 Write-Host "App hosts:   $($db.AppHosts -join ', ')"
 Write-Host
 
+$mysql = Get-MySqlCommand
+$env:MYSQL_BIN = $mysql
+Write-Host "DB client:   $mysql"
+Write-Host
+
 if ($db.AdminPass -eq "") {
     $secure = Read-Host "MariaDB admin password for '$($db.AdminUser)' (leave blank if none)" -AsSecureString
     $bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure)

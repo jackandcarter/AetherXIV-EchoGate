@@ -290,6 +290,8 @@ If `php mysqli` is missing, run `php --ini`, open the active `php.ini`, and enab
 extension=mysqli
 ```
 
+If `winget` says `No newer package versions are available` while installing MariaDB/MySQL, it usually means the package is already installed. Open a new PowerShell window and rerun the prerequisite check. If MariaDB/MySQL is still not detected, set `MYSQL_BIN` to the full path of `mariadb.exe` or `mysql.exe`.
+
 If the database setup cannot connect, confirm MariaDB is running and rerun:
 
 ```powershell

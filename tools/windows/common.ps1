@@ -77,6 +77,34 @@ function Find-OptionalCommand {
     return $null
 }
 
+function Find-MySqlCommand {
+    $command = Find-OptionalCommand -Names @("mariadb.exe", "mysql.exe", "mariadb", "mysql")
+    if ($null -ne $command) {
+        return $command
+    }
+
+    $roots = @()
+    if ($env:ProgramFiles) { $roots += $env:ProgramFiles }
+    if (${env:ProgramFiles(x86)}) { $roots += ${env:ProgramFiles(x86)} }
+    if ($env:ProgramW6432) { $roots += $env:ProgramW6432 }
+
+    $patterns = @()
+    foreach ($root in ($roots | Select-Object -Unique)) {
+        $patterns += (Join-Path $root "MariaDB*\bin\mariadb.exe")
+        $patterns += (Join-Path $root "MariaDB*\bin\mysql.exe")
+        $patterns += (Join-Path $root "MySQL\MySQL Server *\bin\mysql.exe")
+    }
+
+    foreach ($pattern in ($patterns | Select-Object -Unique)) {
+        $matches = @(Get-ChildItem -Path $pattern -File -ErrorAction SilentlyContinue | Sort-Object FullName -Descending)
+        if ($matches.Count -gt 0) {
+            return $matches[0].FullName
+        }
+    }
+
+    return $null
+}
+
 function Find-MsBuildCommand {
     $command = Find-OptionalCommand -Names @("msbuild.exe", "msbuild")
     if ($null -ne $command) {
@@ -183,7 +211,12 @@ function Get-MySqlCommand {
         return $command.Source
     }
 
-    return Find-RequiredCommand -Names @("mariadb.exe", "mysql.exe", "mariadb", "mysql") -FriendlyName "MariaDB/MySQL client"
+    $command = Find-MySqlCommand
+    if ($null -ne $command) {
+        return $command
+    }
+
+    throw "MariaDB/MySQL client was not found on PATH or in common Program Files install folders. Install MariaDB/MySQL, open a new PowerShell window, or set MYSQL_BIN to the full client path."
 }
 
 function Get-DbSettings {
