@@ -26,6 +26,19 @@ public sealed class EchoGateCoreTests
     }
 
     [Fact]
+    public void DemiDevUnitDefaultProfileUsesPublicDeveloperServer()
+    {
+        LauncherProfile profile = LauncherProfile.DemiDevUnitDefault();
+
+        Assert.Equal("https://launcher.dev.demidevunit.com/launcher", profile.LauncherServiceUrl);
+        Assert.Equal("Demi Dev Unit Developer Server", profile.ServerProfile.Name);
+        Assert.Equal("game.dev.demidevunit.com", profile.ServerProfile.Host);
+        Assert.Equal(54994, profile.ServerProfile.LobbyPort);
+        Assert.Equal(54992, profile.ServerProfile.WorldPort);
+        Assert.Equal(1989, profile.ServerProfile.MapPort);
+    }
+
+    [Fact]
     public void StaticActorsLocatorFindsClientScriptFile()
     {
         string root = CreateTempDirectory();

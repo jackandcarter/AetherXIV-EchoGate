@@ -128,7 +128,7 @@ public sealed partial class MainWindow : Window
         if (ServerPresetBox.SelectedIndex == ServerPresetLocalhost)
             ApplyLocalhostServerPreset();
         else if (ServerPresetBox.SelectedIndex == ServerPresetDemiDevUnit)
-            ServerPresetStatus.Text = "Demi Dev Unit Server will be enabled when the public VPS address is configured.";
+            ApplyDemiDevUnitServerPreset();
         else
             ServerPresetStatus.Text = "Custom server setup. Edit the service URL, host, and ports below.";
 
@@ -149,19 +149,46 @@ public sealed partial class MainWindow : Window
         ServerPresetStatus.Text = "Local testing on this machine.";
     }
 
+    private void ApplyDemiDevUnitServerPreset()
+    {
+        LauncherProfile devUnitProfile = LauncherProfile.DemiDevUnitDefault();
+        ServerProfile devUnitServer = devUnitProfile.ServerProfile;
+
+        LauncherServiceUrlBox.Text = devUnitProfile.LauncherServiceUrl;
+        PatchBaseUrlBox.Text = devUnitProfile.PatchBaseUrl;
+        ServerNameBox.Text = devUnitServer.Name;
+        ServerHostBox.Text = devUnitServer.Host;
+        LobbyPortBox.Value = devUnitServer.LobbyPort;
+        WorldPortBox.Value = devUnitServer.WorldPort;
+        ServerPresetStatus.Text = "Public Demi Dev Unit developer server.";
+    }
+
     private void SelectServerPresetForProfile(LauncherProfile profile)
     {
         LauncherProfile localProfile = LauncherProfile.LocalDefault();
         ServerProfile localServer = localProfile.ServerProfile;
+        LauncherProfile devUnitProfile = LauncherProfile.DemiDevUnitDefault();
+        ServerProfile devUnitServer = devUnitProfile.ServerProfile;
         bool isLocalProfile =
             IsSameText(profile.LauncherServiceUrl, localProfile.LauncherServiceUrl)
             && IsSameText(profile.ServerProfile.Host, localServer.Host)
             && profile.ServerProfile.LobbyPort == localServer.LobbyPort
             && profile.ServerProfile.WorldPort == localServer.WorldPort;
+        bool isDevUnitProfile =
+            IsSameText(profile.LauncherServiceUrl, devUnitProfile.LauncherServiceUrl)
+            && IsSameText(profile.ServerProfile.Host, devUnitServer.Host)
+            && profile.ServerProfile.LobbyPort == devUnitServer.LobbyPort
+            && profile.ServerProfile.WorldPort == devUnitServer.WorldPort;
 
-        ServerPresetBox.SelectedIndex = isLocalProfile ? ServerPresetLocalhost : ServerPresetCustom;
+        ServerPresetBox.SelectedIndex = isLocalProfile
+            ? ServerPresetLocalhost
+            : isDevUnitProfile
+                ? ServerPresetDemiDevUnit
+                : ServerPresetCustom;
         if (isLocalProfile)
             ApplyLocalhostServerPreset();
+        else if (isDevUnitProfile)
+            ApplyDemiDevUnitServerPreset();
         else
             ServerPresetStatus.Text = "Custom server setup. Edit the service URL, host, and ports below.";
 

@@ -13,6 +13,8 @@ public sealed record LauncherProfile(
     string SavedUsername = "",
     bool RememberUsername = false)
 {
+    public const string DemiDevUnitLauncherServiceUrl = "https://launcher.dev.demidevunit.com/launcher";
+
     public static LauncherProfile LocalDefault() => new(
         "",
         "",
@@ -32,4 +34,11 @@ public sealed record LauncherProfile(
         ClientGraphicsTarget.OpenGLCompatibility,
         "",
         false);
+
+    public static LauncherProfile DemiDevUnitDefault() => LocalDefault() with
+    {
+        LauncherServiceUrl = DemiDevUnitLauncherServiceUrl,
+        PatchBaseUrl = "",
+        ServerProfile = ServerProfile.DemiDevUnitDefault()
+    };
 }
