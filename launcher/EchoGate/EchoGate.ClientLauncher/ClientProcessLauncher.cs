@@ -21,7 +21,9 @@ internal static class ClientProcessLauncher
             cb = (uint)System.Runtime.InteropServices.Marshal.SizeOf<NativeMethods.STARTUPINFO>()
         };
 
-        string commandLine = token.LaunchArgument;
+        string commandLine = $"{CommandLineArguments.Quote(options.GamePath)}{token.LaunchArgument}";
+        log?.Invoke("game_command_line_style=application_name_plus_launch_argument");
+        log?.Invoke($"game_command_line_length={commandLine.Length}");
         log?.Invoke("create_process_start=true");
         bool success = NativeMethods.CreateProcess(
             options.GamePath,
