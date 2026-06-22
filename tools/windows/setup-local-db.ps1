@@ -41,15 +41,19 @@ if ($db.AdminPass -eq "") {
 }
 
 if (-not $NoImport) {
-    $importArgs = @("-AdminUser", $db.AdminUser)
-    if ($Drop) { $importArgs += "-Drop" }
-    if ($db.AdminPass -ne "") { $importArgs += @("-AdminPassword", $db.AdminPass) }
+    $importArgs = @{
+        AdminUser = $db.AdminUser
+    }
+    if ($Drop) { $importArgs.Drop = $true }
+    if ($db.AdminPass -ne "") { $importArgs.AdminPassword = $db.AdminPass }
     & "$PSScriptRoot\import-db.ps1" @importArgs
 }
 
 if (-not $NoUser) {
-    $userArgs = @("-AdminUser", $db.AdminUser)
-    if ($db.AdminPass -ne "") { $userArgs += @("-AdminPassword", $db.AdminPass) }
+    $userArgs = @{
+        AdminUser = $db.AdminUser
+    }
+    if ($db.AdminPass -ne "") { $userArgs.AdminPassword = $db.AdminPass }
     & "$PSScriptRoot\create-db-user.ps1" @userArgs
 }
 
