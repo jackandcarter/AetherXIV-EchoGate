@@ -1102,6 +1102,18 @@ public sealed partial class MainWindow : Window
                     return;
                 }
 
+                if (values.TryGetValue("helper_error_message", out string? helperErrorMessage)
+                    || values.TryGetValue("helper_error", out helperErrorMessage))
+                {
+                    string helperErrorType = values.TryGetValue("helper_error_type", out string? errorType)
+                        ? $"{errorType}: "
+                        : "";
+                    AppendLog($"Launch helper error: {helperErrorType}{helperErrorMessage}");
+                    HomeLoginStatus.Text = $"Launch helper error: {helperErrorMessage}";
+                    HomeProgressBar.Value = 0;
+                    return;
+                }
+
                 if (values.TryGetValue("exited_during_observation", out string? observedExit)
                     && bool.TryParse(observedExit, out bool exitedDuringObservation)
                     && !exitedDuringObservation)

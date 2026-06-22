@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Sockets;
+using System.Runtime.InteropServices;
 using EchoGate.Core;
 
 namespace EchoGate.ClientLauncher;
@@ -30,6 +31,10 @@ internal static class Program
             Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(options.LogPath)) ?? ".");
 
             File.AppendAllText(options.LogPath, $"helper_started_at={DateTimeOffset.Now:O}{Environment.NewLine}");
+            File.AppendAllText(options.LogPath, $"helper_process_architecture={RuntimeInformation.ProcessArchitecture}{Environment.NewLine}");
+            File.AppendAllText(options.LogPath, $"helper_os_architecture={RuntimeInformation.OSArchitecture}{Environment.NewLine}");
+            File.AppendAllText(options.LogPath, $"helper_is_64bit_process={Environment.Is64BitProcess}{Environment.NewLine}");
+            File.AppendAllText(options.LogPath, $"helper_framework={RuntimeInformation.FrameworkDescription}{Environment.NewLine}");
             File.AppendAllText(options.LogPath, $"game={options.GamePath}{Environment.NewLine}");
             File.AppendAllText(options.LogPath, $"working_directory={options.WorkingDirectory}{Environment.NewLine}");
             File.AppendAllText(options.LogPath, $"server_host={options.ServerHost}{Environment.NewLine}");
@@ -45,14 +50,21 @@ internal static class Program
             File.AppendAllText(options.LogPath, $"token_length={token.Token.Length}{Environment.NewLine}");
             File.AppendAllText(options.LogPath, $"launch_argument_length={token.LaunchArgument.Length}{Environment.NewLine}");
 
-            ClientLaunchResult launchResult = ClientProcessLauncher.Launch(options, token, lobbyHost);
+            ClientLaunchResult launchResult = ClientProcessLauncher.Launch(
+                options,
+                token,
+                lobbyHost,
+                message => AppendLog(options.LogPath, message));
 
             File.AppendAllText(options.LogPath, $"process_id={launchResult.ProcessId}{Environment.NewLine}");
             File.AppendAllText(options.LogPath, $"thread_id={launchResult.ThreadId}{Environment.NewLine}");
             File.AppendAllText(options.LogPath, $"exited_during_observation={launchResult.ExitedDuringObservation}{Environment.NewLine}");
 
             if (launchResult.ExitCode is not null)
+            {
                 File.AppendAllText(options.LogPath, $"exit_code={launchResult.ExitCode}{Environment.NewLine}");
+                File.AppendAllText(options.LogPath, $"exit_code_hex=0x{launchResult.ExitCode.Value:X8}{Environment.NewLine}");
+            }
 
             if (launchResult.ExitedDuringObservation)
             {
@@ -70,10 +82,17 @@ internal static class Program
         }
         catch (Exception ex)
         {
+            File.AppendAllText(options.LogPath, $"helper_error_type={ex.GetType().FullName}{Environment.NewLine}");
+            File.AppendAllText(options.LogPath, $"helper_error_message={ex.Message}{Environment.NewLine}");
             File.AppendAllText(options.LogPath, $"helper_error={ex}{Environment.NewLine}");
             Console.Error.WriteLine(ex.Message);
             return 1;
         }
+    }
+
+    private static void AppendLog(string logPath, string message)
+    {
+        File.AppendAllText(logPath, $"{message}{Environment.NewLine}");
     }
 
     private static string ResolveLobbyHost(string host)
