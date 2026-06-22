@@ -169,6 +169,34 @@ jobs:
           path: artifacts/*
           if-no-files-found: error
 
+  windows-tools:
+    name: Windows tool validation
+    runs-on: windows-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Parse Windows PowerShell scripts
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          foreach ($file in Get-ChildItem tools/windows -Filter *.ps1) {
+            $tokens = $null
+            $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile($file.FullName, [ref]$tokens, [ref]$errors) | Out-Null
+            if ($errors.Count -gt 0) {
+              $errors | Format-List | Out-String | Write-Error
+              throw "PowerShell parse failed: $($file.FullName)"
+            }
+            Write-Host "ok: $($file.FullName)"
+          }
+
+      - name: Run prerequisite check in dry mode
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          .\tools\windows\install-prereqs.ps1 -Mode Build
+
   server-core:
     name: MeteorXIV Server Core
     runs-on: ubuntu-latest
@@ -220,6 +248,7 @@ jobs:
              tools/smoke-local.sh \
              tools/audit-env.sh \
              "$package_root/tools/"
+          cp -R tools/windows "$package_root/tools/windows"
 
           cp README.md CHANGELOG.md .env.defaults "$package_root/"
           cp -R docs "$package_root/docs"
@@ -240,6 +269,7 @@ jobs:
 
           mkdir -p artifacts
           tar -czf "artifacts/MeteorXIV-Server-Core-${label}.tar.gz" -C dist server-core
+          (cd dist && zip -qr "../artifacts/MeteorXIV-Server-Core-${label}.zip" server-core)
 
       - name: Upload server artifact
         uses: actions/upload-artifact@v4
@@ -255,6 +285,7 @@ jobs:
       - echo-gate-linux
       - echo-gate-macos
       - echo-gate-windows
+      - windows-tools
       - server-core
     if: ${{ always() && !cancelled() && !contains(needs.*.result, 'failure') && (github.event_name == 'push' || inputs.publish_release) }}
     steps:
