@@ -79,7 +79,15 @@ If an installer asks for a restart or the next step still cannot find a newly in
 .\tools\windows\run-local-stack.ps1
 ```
 
-This opens one PowerShell window for each service:
+This opens one PowerShell window for each service and waits for each service to
+listen before starting the next one. If a slower machine needs more time, pass a
+larger timeout:
+
+```powershell
+.\tools\windows\run-local-stack.ps1 -StartupTimeoutSeconds 90
+```
+
+Service ports:
 
 ```text
 launcher HTTP: 8080
@@ -235,7 +243,15 @@ Copy configs, scripts, and `staticactors.bin`:
 .\tools\windows\copy-runtime-data.ps1 -ClientDir "C:\Path\To\FINAL FANTASY XIV"
 ```
 
-Start services one at a time:
+Start the local stack:
+
+```powershell
+.\tools\windows\run-local-stack.ps1
+```
+
+If you need to debug a single service, you can still start services one at a
+time. Wait until each process reports that it is listening before starting the
+next service:
 
 ```powershell
 .\tools\windows\run-web.ps1

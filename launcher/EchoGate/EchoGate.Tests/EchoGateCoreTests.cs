@@ -130,9 +130,9 @@ public sealed class EchoGateCoreTests
         File.WriteAllText(x64Helper, "");
         File.WriteAllText(arm64Helper, "");
 
-        Assert.Equal(x86Helper, ClientLaunchHelperLocator.Find(root));
-        Assert.Equal(x86Helper, ClientLaunchHelperLocator.FindLaunchHelper(root));
-        Assert.Equal(x86Helper, ClientLaunchHelperLocator.FindLaunchHelper(ClientLaunchHelperMode.Automatic, root));
+        Assert.Equal(x64Helper, ClientLaunchHelperLocator.Find(root));
+        Assert.Equal(x64Helper, ClientLaunchHelperLocator.FindLaunchHelper(root));
+        Assert.Equal(x64Helper, ClientLaunchHelperLocator.FindLaunchHelper(ClientLaunchHelperMode.Automatic, root));
         Assert.Equal(x86Helper, ClientLaunchHelperLocator.FindLaunchHelper(ClientLaunchHelperMode.X86, root));
         Assert.Equal(x64Helper, ClientLaunchHelperLocator.FindLaunchHelper(ClientLaunchHelperMode.X64, root));
         Assert.Equal(arm64Helper, ClientLaunchHelperLocator.FindLaunchHelper(ClientLaunchHelperMode.Arm64, root));
