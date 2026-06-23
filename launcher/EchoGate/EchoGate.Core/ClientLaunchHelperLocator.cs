@@ -4,16 +4,16 @@ public static class ClientLaunchHelperLocator
 {
     private static readonly string[] ProbeCandidateRelativePaths =
     {
-        Path.Combine("Helpers", "win-x86", "EchoGate.ClientLauncher.exe"),
         Path.Combine("Helpers", "win-x64", "EchoGate.ClientLauncher.exe"),
+        Path.Combine("Helpers", "win-x86", "EchoGate.ClientLauncher.exe"),
         Path.Combine("Helpers", "win-arm64", "EchoGate.ClientLauncher.exe"),
         "EchoGate.ClientLauncher.exe"
     };
 
     private static readonly string[] LaunchCandidateRelativePaths =
     {
-        Path.Combine("Helpers", "win-x86", "EchoGate.ClientLauncher.exe"),
         Path.Combine("Helpers", "win-x64", "EchoGate.ClientLauncher.exe"),
+        Path.Combine("Helpers", "win-x86", "EchoGate.ClientLauncher.exe"),
         Path.Combine("Helpers", "win-arm64", "EchoGate.ClientLauncher.exe"),
         "EchoGate.ClientLauncher.exe"
     };
