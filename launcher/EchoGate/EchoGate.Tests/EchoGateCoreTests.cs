@@ -546,10 +546,11 @@ public sealed class EchoGateCoreTests
             PatchLibraryInspectionMode.PresenceOnly);
 
         Assert.True(report.IsPatchChainReady);
-        Assert.False(report.IsComplete);
+        Assert.True(report.IsComplete);
         Assert.EndsWith("ffxiv_patches", report.PatchBasePath);
         Assert.Equal(52, report.PresentPatchCount);
         Assert.Equal(0, report.PresentMetainfoCount);
+        Assert.Contains("optional metainfo 0/52", report.Summary);
     }
 
     [Fact]

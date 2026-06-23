@@ -4,6 +4,23 @@ namespace EchoGate.ClientLauncher;
 
 internal static partial class NativeMethods
 {
+    [DllImport("kernel32.dll")]
+    internal static extern uint GetTickCount();
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    internal static extern IntPtr GetCurrentProcess();
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    internal static extern bool GetProcessAffinityMask(
+        IntPtr hProcess,
+        out UIntPtr lpProcessAffinityMask,
+        out UIntPtr lpSystemAffinityMask);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    internal static extern bool SetProcessAffinityMask(
+        IntPtr hProcess,
+        UIntPtr dwProcessAffinityMask);
+
     [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
     internal static extern bool WriteProcessMemory(
         IntPtr hProcess,
@@ -11,6 +28,14 @@ internal static partial class NativeMethods
         byte[] lpBuffer,
         uint nSize,
         out int lpNumberOfBytesWritten);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    internal static extern bool ReadProcessMemory(
+        IntPtr hProcess,
+        IntPtr lpBaseAddress,
+        byte[] lpBuffer,
+        uint nSize,
+        out int lpNumberOfBytesRead);
 
     [DllImport("kernel32.dll", SetLastError = true)]
     internal static extern bool VirtualProtectEx(

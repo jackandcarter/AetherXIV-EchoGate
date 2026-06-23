@@ -1094,10 +1094,13 @@ public sealed partial class MainWindow : Window
                     string exitDetail = values.TryGetValue("exit_code", out string? exitCode)
                         ? $" ({exitCode})"
                         : "";
-                    AppendLog($"Launch helper reported: {launchError}{exitDetail}");
+                    string detail = values.TryGetValue("launch_error_detail", out string? launchErrorDetail)
+                        ? $" [{launchErrorDetail}]"
+                        : "";
+                    AppendLog($"Launch helper reported: {launchError}{exitDetail}{detail}");
                     HomeLoginStatus.Text = launchError == "game_exited_during_observation"
-                        ? $"Game exited during startup{exitDetail}."
-                        : $"Launch helper reported {launchError}{exitDetail}.";
+                        ? $"Game exited during startup{exitDetail}{detail}."
+                        : $"Launch helper reported {launchError}{exitDetail}{detail}.";
                     HomeProgressBar.Value = 0;
                     return;
                 }
@@ -1315,7 +1318,7 @@ public sealed partial class MainWindow : Window
         AppendLog($"Metainfo base: {report.MetainfoBasePath}");
 
         LogMissingEntries("Missing patch", report.MissingPatchFiles);
-        LogMissingEntries("Missing metainfo", report.MissingMetainfoFiles);
+        LogOptionalMetainfo(report);
         LogInvalidEntries(report.InvalidPatchFiles);
     }
 
@@ -1933,6 +1936,17 @@ public sealed partial class MainWindow : Window
 
         if (entries.Count > 3)
             AppendLog($"{label}: {entries.Count - 3} more");
+    }
+
+    private void LogOptionalMetainfo(PatchLibraryReport report)
+    {
+        if (report.MissingMetainfoFiles.Count == 0)
+            return;
+
+        AppendLog(
+            "Optional metainfo missing: "
+            + $"{report.MissingMetainfoFiles.Count} torrent files. "
+            + "Patch apply does not require them.");
     }
 
     private void LogInvalidEntries(IReadOnlyList<PatchFileReport> entries)
