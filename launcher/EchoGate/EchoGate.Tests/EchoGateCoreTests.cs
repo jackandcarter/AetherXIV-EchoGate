@@ -26,6 +26,19 @@ public sealed class EchoGateCoreTests
     }
 
     [Fact]
+    public void DemiDevUnitDefaultProfileUsesPublicDeveloperServer()
+    {
+        LauncherProfile profile = LauncherProfile.DemiDevUnitDefault();
+
+        Assert.Equal("https://launcher.dev.demidevunit.com/launcher", profile.LauncherServiceUrl);
+        Assert.Equal("Demi Dev Unit Developer Server", profile.ServerProfile.Name);
+        Assert.Equal("game.dev.demidevunit.com", profile.ServerProfile.Host);
+        Assert.Equal(54994, profile.ServerProfile.LobbyPort);
+        Assert.Equal(54992, profile.ServerProfile.WorldPort);
+        Assert.Equal(1989, profile.ServerProfile.MapPort);
+    }
+
+    [Fact]
     public void StaticActorsLocatorFindsClientScriptFile()
     {
         string root = CreateTempDirectory();
@@ -118,8 +131,8 @@ public sealed class EchoGateCoreTests
         File.WriteAllText(arm64Helper, "");
 
         Assert.Equal(x86Helper, ClientLaunchHelperLocator.Find(root));
-        Assert.Equal(x64Helper, ClientLaunchHelperLocator.FindLaunchHelper(root));
-        Assert.Equal(x64Helper, ClientLaunchHelperLocator.FindLaunchHelper(ClientLaunchHelperMode.Automatic, root));
+        Assert.Equal(x86Helper, ClientLaunchHelperLocator.FindLaunchHelper(root));
+        Assert.Equal(x86Helper, ClientLaunchHelperLocator.FindLaunchHelper(ClientLaunchHelperMode.Automatic, root));
         Assert.Equal(x86Helper, ClientLaunchHelperLocator.FindLaunchHelper(ClientLaunchHelperMode.X86, root));
         Assert.Equal(x64Helper, ClientLaunchHelperLocator.FindLaunchHelper(ClientLaunchHelperMode.X64, root));
         Assert.Equal(arm64Helper, ClientLaunchHelperLocator.FindLaunchHelper(ClientLaunchHelperMode.Arm64, root));
@@ -150,6 +163,7 @@ public sealed class EchoGateCoreTests
         Assert.Contains("Z:", plan.Arguments);
         Assert.Contains("EchoGate.ClientLauncher.exe", plan.Arguments);
         Assert.Contains("--session", plan.Arguments);
+        Assert.Contains("--observe-seconds 15", plan.Arguments);
         Assert.Contains("127.0.0.1", plan.Arguments);
         Assert.Equal(Path.Combine(root, "launch.helper.log"), plan.HelperLogPath);
         Assert.Equal("/tmp/echo-gate-prefix", plan.Environment["WINEPREFIX"]);
@@ -179,6 +193,7 @@ public sealed class EchoGateCoreTests
         Assert.Equal(helper, plan.WindowsExecutablePath);
         Assert.DoesNotContain("Z:", plan.Arguments);
         Assert.Contains("--session", plan.Arguments);
+        Assert.Contains("--observe-seconds 15", plan.Arguments);
     }
 
     [Fact]
@@ -533,10 +548,11 @@ public sealed class EchoGateCoreTests
             PatchLibraryInspectionMode.PresenceOnly);
 
         Assert.True(report.IsPatchChainReady);
-        Assert.False(report.IsComplete);
+        Assert.True(report.IsComplete);
         Assert.EndsWith("ffxiv_patches", report.PatchBasePath);
         Assert.Equal(52, report.PresentPatchCount);
         Assert.Equal(0, report.PresentMetainfoCount);
+        Assert.Contains("optional metainfo 0/52", report.Summary);
     }
 
     [Fact]
@@ -621,23 +637,50 @@ public sealed class EchoGateCoreTests
     }
 
     [Fact]
-    public void LegacyPatchApplierAppendsMultiChunkFileEntry()
+    public void LegacyPatchApplierUsesFinalMultiItemPayload()
     {
         string root = CreateTempDirectory();
         string patchPath = Path.Combine(CreateTempDirectory(), "multi.patch");
-        byte[] first = Encoding.ASCII.GetBytes("first ");
-        byte[] second = Encoding.ASCII.GetBytes("second");
-        byte[] expected = [.. first, .. second];
+        byte[] expected = Encoding.ASCII.GetBytes("second");
 
         WritePatchFileChunks(
             patchPath,
             "client/script/staticactors.bin",
-            (0x41, first, false, (uint)expected.Length),
-            (0x4D, second, true, (uint)expected.Length));
+            (0x41, [], false, 0),
+            (0x4D, expected, true, (uint)expected.Length));
 
         LegacyPatchApplier.ApplyPatchFile(root, patchPath);
 
         Assert.Equal(expected, File.ReadAllBytes(Path.Combine(root, "client", "script", "staticactors.bin")));
+    }
+
+    [Fact]
+    public void LegacyPatchApplierRejectsNonFinalMultiItemPayload()
+    {
+        string root = CreateTempDirectory();
+        string patchPath = Path.Combine(CreateTempDirectory(), "bad-multi.patch");
+
+        WritePatchFileChunks(
+            patchPath,
+            "client/script/staticactors.bin",
+            (0x41, Encoding.ASCII.GetBytes("first"), false, 5),
+            (0x4D, Encoding.ASCII.GetBytes("second"), true, 6));
+
+        Assert.Throws<InvalidDataException>(() => LegacyPatchApplier.ApplyPatchFile(root, patchPath));
+    }
+
+    [Fact]
+    public void LegacyPatchApplierRejectsPatchedSizeMismatch()
+    {
+        string root = CreateTempDirectory();
+        string patchPath = Path.Combine(CreateTempDirectory(), "size-mismatch.patch");
+
+        WritePatchFileChunks(
+            patchPath,
+            "client/script/staticactors.bin",
+            (0x41, Encoding.ASCII.GetBytes("short"), false, 99));
+
+        Assert.Throws<InvalidDataException>(() => LegacyPatchApplier.ApplyPatchFile(root, patchPath));
     }
 
     [Fact]
@@ -1212,30 +1255,29 @@ public sealed class EchoGateCoreTests
     {
         Directory.CreateDirectory(Path.GetDirectoryName(patchPath)!);
         using FileStream stream = File.Create(patchPath);
-        stream.Write([0x91, (byte)'Z', (byte)'I', (byte)'P', (byte)'A', (byte)'T', (byte)'C', (byte)'H']);
-        stream.Write(new byte[8]);
-        WriteCommand(stream, "ETRY");
+        stream.Write([0x91, (byte)'Z', (byte)'I', (byte)'P', (byte)'A', (byte)'T', (byte)'C', (byte)'H', 0x0D, 0x0A, 0x1A, 0x0A]);
 
+        using MemoryStream body = new();
         byte[] pathBytes = Encoding.UTF8.GetBytes(relativePath);
-        WriteUInt32BigEndian(stream, (uint)pathBytes.Length);
-        stream.Write(pathBytes);
-        WriteUInt32BigEndian(stream, (uint)chunks.Length);
+        WriteUInt32BigEndian(body, (uint)pathBytes.Length);
+        body.Write(pathBytes);
+        WriteUInt32BigEndian(body, (uint)chunks.Length);
 
         foreach ((uint mode, byte[] payload, bool compressed, uint newFileSize) in chunks)
         {
-            WriteUInt32LittleEndian(stream, mode);
-            stream.Write(new byte[0x14]);
-            stream.Write(new byte[0x14]);
+            WriteUInt32LittleEndian(body, mode);
+            body.Write(new byte[0x14]);
+            body.Write(payload.Length == 0 ? new byte[0x14] : SHA1.HashData(payload));
 
             byte[] storedPayload = compressed ? CompressZlib(payload) : payload;
-            WriteUInt32LittleEndian(stream, compressed ? 0x5Au : 0x4Eu);
-            WriteUInt32BigEndian(stream, (uint)storedPayload.Length);
-            WriteUInt32BigEndian(stream, 0);
-            WriteUInt32BigEndian(stream, newFileSize);
-            stream.Write(storedPayload);
+            WriteUInt32LittleEndian(body, compressed ? 0x5Au : 0x4Eu);
+            WriteUInt32BigEndian(body, (uint)storedPayload.Length);
+            WriteUInt32BigEndian(body, 0);
+            WriteUInt32BigEndian(body, newFileSize);
+            body.Write(storedPayload);
         }
 
-        stream.Write(new byte[8]);
+        WritePatchChunk(stream, "ETRY", body.ToArray());
     }
 
     private static byte[] CompressZlib(byte[] payload)
@@ -1249,9 +1291,12 @@ public sealed class EchoGateCoreTests
         return output.ToArray();
     }
 
-    private static void WriteCommand(Stream stream, string command)
+    private static void WritePatchChunk(Stream stream, string command, byte[] body)
     {
+        WriteUInt32BigEndian(stream, (uint)body.Length);
         stream.Write(Encoding.ASCII.GetBytes(command));
+        stream.Write(body);
+        stream.Write(new byte[4]);
     }
 
     private static void WriteUInt32BigEndian(Stream stream, uint value)

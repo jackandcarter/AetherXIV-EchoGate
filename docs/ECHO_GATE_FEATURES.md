@@ -22,6 +22,7 @@ News posts are served from the `launcher_news` database table through `/launcher
 - Stores the patch base URL when a self-hosted patch manifest is available.
 - Stores a profile name, server host, lobby port, and world port.
 - Defaults to a local server profile at `127.0.0.1`.
+- Includes a Demi Dev Unit developer server preset for public test connections.
 - Refreshes service metadata without requiring users to edit INI files by hand.
 
 ## Client And Patch Handling

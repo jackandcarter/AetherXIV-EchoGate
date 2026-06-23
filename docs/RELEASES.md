@@ -17,6 +17,7 @@ Use this for:
 - CI smoke coverage for packaging
 - repeatable launcher archives for each platform
 - a server core package that contains built server outputs plus SQL/PHP/config/docs
+- Windows PowerShell setup helpers in `tools/windows/` for database setup, runtime data copy, smoke checks, and local service startup
 
 GitHub artifacts are temporary workflow outputs unless they are attached to a GitHub Release.
 
@@ -35,6 +36,7 @@ EchoGate-win-x86-v1.2.zip
 EchoGate-win-x64-v1.2.zip
 EchoGate-win-arm64-v1.2.zip
 MeteorXIV-Server-Core-v1.2.tar.gz
+MeteorXIV-Server-Core-v1.2.zip
 ```
 
 The recommended release tag is:
@@ -63,6 +65,15 @@ Use the platform guides when setting up a machine for real playtests:
 - [Linux ARM/x86](guides/LINUX_ARM_X86.md)
 - [Windows ARM/x86](guides/WINDOWS_ARM_X86.md)
 - [Steam Deck experimental](guides/STEAM_DECK_EXPERIMENTAL.md)
+
+Windows release users can start from the extracted server core package with:
+
+```powershell
+Set-ExecutionPolicy -Scope Process Bypass
+.\tools\windows\install-prereqs.ps1 -Mode Run
+.\tools\windows\setup-release.ps1 -ClientDir "C:\Path\To\FINAL FANTASY XIV"
+.\tools\windows\run-local-stack.ps1
+```
 
 ## macOS Gatekeeper Notes
 

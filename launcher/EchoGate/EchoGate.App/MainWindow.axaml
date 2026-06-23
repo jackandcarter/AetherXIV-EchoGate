@@ -192,7 +192,7 @@
             <TextBlock Text="Server preset" VerticalAlignment="Center" />
             <ComboBox x:Name="ServerPresetBox" Grid.Column="1" SelectedIndex="0" SelectionChanged="ServerPreset_SelectionChanged">
               <ComboBoxItem>Localhost</ComboBoxItem>
-              <ComboBoxItem IsEnabled="False">Demi Dev Unit Server</ComboBoxItem>
+              <ComboBoxItem>Demi Dev Unit Developer Server</ComboBoxItem>
               <ComboBoxItem>Custom Server Setup</ComboBoxItem>
             </ComboBox>
 

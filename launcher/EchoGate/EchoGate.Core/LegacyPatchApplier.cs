@@ -1,6 +1,7 @@
 using System.Buffers.Binary;
 using System.Diagnostics;
 using System.IO.Compression;
+using System.Security.Cryptography;
 using System.Text;
 
 namespace EchoGate.Core;
@@ -21,7 +22,7 @@ public sealed record PatchApplyResult(int AppliedPatchCount, IReadOnlyList<strin
 
 public static class LegacyPatchApplier
 {
-    private static readonly byte[] PatchHeaderPrefix =
+    private static readonly byte[] PatchMagic =
     [
         0x91,
         (byte)'Z',
@@ -30,7 +31,11 @@ public static class LegacyPatchApplier
         (byte)'A',
         (byte)'T',
         (byte)'C',
-        (byte)'H'
+        (byte)'H',
+        0x0D,
+        0x0A,
+        0x1A,
+        0x0A
     ];
 
     public static PatchApplyResult ApplyPatchChain(
@@ -118,45 +123,48 @@ public static class LegacyPatchApplier
             stream.Length,
             stream.Length);
 
-        byte[] header = ReadExact(stream, 0x10);
-        if (!header.AsSpan(0, PatchHeaderPrefix.Length).SequenceEqual(PatchHeaderPrefix))
+        byte[] header = ReadExact(stream, PatchMagic.Length);
+        if (!header.SequenceEqual(PatchMagic))
             throw new InvalidDataException("Invalid ZiPatch header.");
 
         while (stream.Position < stream.Length)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            byte[] commandData = ReadExactOrEnd(stream, 4);
-            if (commandData.Length == 0)
+            byte[] chunkSizeData = ReadExactOrEnd(stream, 4);
+            if (chunkSizeData.Length == 0)
                 break;
 
-            if (commandData.Length != 4)
-                throw new EndOfStreamException("Unexpected end of patch command.");
+            if (chunkSizeData.Length != 4)
+                throw new EndOfStreamException("Unexpected end of patch chunk size.");
 
-            string command = Encoding.ASCII.GetString(commandData);
+            uint chunkSize = BinaryPrimitives.ReadUInt32BigEndian(chunkSizeData);
+            string command = Encoding.ASCII.GetString(ReadExact(stream, 4));
+            using LimitedReadStream chunkBody = new(stream, chunkSize);
             switch (command)
             {
                 case "FHDR":
-                    ExecuteFixedPayload(stream, 4);
-                    break;
                 case "DIFF":
                 case "HIST":
                 case "APLY":
-                    ExecuteFixedPayload(stream, 20);
+                case "APFS":
                     break;
                 case "ADIR":
-                    ExecuteDirectoryCreate(stream, normalizedRoot, messages, progress, localContext);
+                    ExecuteDirectoryCreate(chunkBody, normalizedRoot, messages, progress, localContext);
                     break;
                 case "DLED":
                 case "DELD":
-                    ExecuteDirectoryDelete(stream, normalizedRoot, messages, progress, localContext);
+                    ExecuteDirectoryDelete(chunkBody, normalizedRoot, messages, progress, localContext);
                     break;
                 case "ETRY":
-                    ExecuteFileEntry(stream, normalizedRoot, messages, progress, localContext, cancellationToken);
+                    ExecuteFileEntry(chunkBody, normalizedRoot, messages, progress, localContext, cancellationToken);
                     break;
                 default:
                     throw new InvalidDataException($"Unhandled ZiPatch command '{command}'.");
             }
+
+            chunkBody.SkipRemaining();
+            ReadExact(stream, 4);
 
             ReportProgress(
                 progress,
@@ -167,11 +175,6 @@ public static class LegacyPatchApplier
         }
     }
 
-    private static void ExecuteFixedPayload(Stream stream, int length)
-    {
-        ReadExact(stream, length);
-    }
-
     private static void ExecuteDirectoryCreate(
         Stream stream,
         string clientRoot,
@@ -180,8 +183,6 @@ public static class LegacyPatchApplier
         PatchApplyContext context)
     {
         string directoryPath = ReadPatchPath(stream, clientRoot);
-        ReadExact(stream, 8);
-        ReadBlockTrailer(stream);
         ReportProgress(progress, context, stream.Position, $"Create directory {ToDisplayPath(clientRoot, directoryPath)}", false);
 
         if (Directory.Exists(directoryPath))
@@ -201,8 +202,6 @@ public static class LegacyPatchApplier
         PatchApplyContext context)
     {
         string directoryPath = ReadPatchPath(stream, clientRoot);
-        ReadExact(stream, 8);
-        ReadBlockTrailer(stream);
         ReportProgress(progress, context, stream.Position, $"Delete directory {ToDisplayPath(clientRoot, directoryPath)}", false);
 
         if (!Directory.Exists(directoryPath))
@@ -211,7 +210,7 @@ public static class LegacyPatchApplier
             return;
         }
 
-        Directory.Delete(directoryPath, false);
+        Directory.Delete(directoryPath, true);
     }
 
     private static void ExecuteFileEntry(
@@ -226,9 +225,8 @@ public static class LegacyPatchApplier
         string displayPath = ToDisplayPath(clientRoot, filePath);
 
         uint itemCount = ReadUInt32BigEndian(input);
-        FileStream? output = null;
         uint? expectedFileSize = null;
-        bool deleteRequested = false;
+        byte[]? expectedHash = null;
 
         ReportProgress(
             progress,
@@ -246,7 +244,7 @@ public static class LegacyPatchApplier
                 throw new InvalidDataException($"Unknown ZiPatch entry mode 0x{entryMode:X2}.");
 
             ReadExact(input, 0x14);
-            ReadExact(input, 0x14);
+            byte[] destinationHash = ReadExact(input, 0x14);
 
             byte compressionMode = ReadFourByteMode(input, "compression mode");
             uint compressedSize = ReadUInt32BigEndian(input);
@@ -256,12 +254,23 @@ public static class LegacyPatchApplier
 
             if (entryMode == 0x44)
             {
-                deleteRequested = true;
                 SkipPayload(input, compressedSize, cancellationToken);
+                if (File.Exists(filePath))
+                    File.Delete(filePath);
+                else
+                    messages?.Add($"File not found for deletion: {filePath}");
+
                 continue;
             }
 
-            output ??= CreateOutputFile(filePath);
+            if (index != itemCount - 1 && compressedSize != 0)
+                throw new InvalidDataException($"Non-final ZiPatch entry contains file data: {displayPath}.");
+
+            if (compressedSize == 0)
+                continue;
+
+            expectedHash = destinationHash;
+            using FileStream output = CreateOutputFile(filePath);
 
             if (compressionMode == 0x4E)
             {
@@ -298,27 +307,21 @@ public static class LegacyPatchApplier
             }
         }
 
-        output?.Dispose();
-
-        if (deleteRequested)
-        {
-            if (File.Exists(filePath))
-            {
-                File.Delete(filePath);
-            }
-            else
-            {
-                messages?.Add($"File not found for deletion: {filePath}");
-            }
-        }
-        else if (expectedFileSize.HasValue && File.Exists(filePath))
+        if (expectedFileSize.HasValue && File.Exists(filePath))
         {
             long actualSize = new FileInfo(filePath).Length;
             if (actualSize != expectedFileSize.Value)
-                messages?.Add($"Patched file size differs from manifest: {filePath}");
+                throw new InvalidDataException(
+                    $"Patched file size differs from manifest for {displayPath}: expected {expectedFileSize.Value}, got {actualSize}.");
         }
 
-        ReadBlockTrailer(input);
+        if (expectedHash is not null && !IsAllZero(expectedHash) && File.Exists(filePath))
+        {
+            using FileStream verifyInput = File.OpenRead(filePath);
+            byte[] actualHash = SHA1.HashData(verifyInput);
+            if (!actualHash.SequenceEqual(expectedHash))
+                throw new InvalidDataException($"Patched file hash differs from manifest for {displayPath}.");
+        }
     }
 
     private static string ReadPatchPath(Stream stream, string clientRoot)
@@ -344,13 +347,6 @@ public static class LegacyPatchApplier
         return File.Create(filePath);
     }
 
-    private static void ReadBlockTrailer(Stream stream)
-    {
-        ReadExact(stream, 4);
-        if (stream.Position < stream.Length)
-            ReadExact(stream, 4);
-    }
-
     private static byte ReadFourByteMode(Stream stream, string label)
     {
         byte[] data = ReadExact(stream, 4);
@@ -358,6 +354,17 @@ public static class LegacyPatchApplier
             throw new InvalidDataException($"Invalid ZiPatch {label} bytes.");
 
         return data[0];
+    }
+
+    private static bool IsAllZero(byte[] data)
+    {
+        foreach (byte value in data)
+        {
+            if (value != 0)
+                return false;
+        }
+
+        return true;
     }
 
     private static void SkipPayload(Stream stream, uint byteCount, CancellationToken cancellationToken)
@@ -557,7 +564,7 @@ internal sealed class LimitedReadStream : Stream
 
     public override long Position
     {
-        get => throw new NotSupportedException();
+        get => totalBytesRead;
         set => throw new NotSupportedException();
     }
 

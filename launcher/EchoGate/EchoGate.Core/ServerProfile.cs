@@ -16,6 +16,13 @@ public sealed record ServerProfile(
         1989,
         "http://127.0.0.1:8080/login/index.php");
 
+    public static ServerProfile DemiDevUnitDefault() => new(
+        "Demi Dev Unit Developer Server",
+        "game.dev.demidevunit.com",
+        54994,
+        54992,
+        1989);
+
     public void Validate()
     {
         if (string.IsNullOrWhiteSpace(Name))

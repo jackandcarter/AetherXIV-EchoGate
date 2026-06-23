@@ -86,23 +86,25 @@ public sealed record PatchLibraryReport(
 
     public bool IsPatchChainReady => HasAllPatchFiles && HasValidPatchFiles;
 
-    public bool IsComplete => HasAllPatchFiles && HasAllMetainfoFiles && HasValidPatchFiles;
+    public bool IsComplete => HasAllPatchFiles && HasValidPatchFiles;
 
     public string Summary => IsComplete
         ? InspectionMode switch
         {
-            PatchLibraryInspectionMode.Checksum => $"complete: {ExpectedPatchCount} patches verified by CRC32 and metainfo files",
-            PatchLibraryInspectionMode.Size => $"complete: {ExpectedPatchCount} patches with expected sizes and metainfo files",
-            _ => $"complete: {ExpectedPatchCount} patches and metainfo files"
+            PatchLibraryInspectionMode.Checksum => FormatReadySummary("ready", "verified by CRC32"),
+            PatchLibraryInspectionMode.Size => FormatReadySummary("ready", "with expected sizes"),
+            _ => FormatReadySummary("ready", "")
         }
-        : IsPatchChainReady
-            ? InspectionMode switch
-            {
-                PatchLibraryInspectionMode.Checksum => $"patch-ready: {ExpectedPatchCount} patches verified by CRC32, metainfo {PresentMetainfoCount}/{ExpectedPatchCount}",
-                PatchLibraryInspectionMode.Size => $"patch-ready: {ExpectedPatchCount} patches with expected sizes, metainfo {PresentMetainfoCount}/{ExpectedPatchCount}",
-                _ => $"patch-ready: {ExpectedPatchCount} patches, metainfo {PresentMetainfoCount}/{ExpectedPatchCount}"
-            }
         : $"patches {PresentPatchCount}/{ExpectedPatchCount}, metainfo {PresentMetainfoCount}/{ExpectedPatchCount}, invalid {InvalidPatchFiles.Count}";
+
+    private string FormatReadySummary(string state, string verification)
+    {
+        string verified = string.IsNullOrWhiteSpace(verification) ? "" : $" {verification}";
+        string optionalMetainfo = HasAllMetainfoFiles
+            ? ", optional metainfo present"
+            : $", optional metainfo {PresentMetainfoCount}/{ExpectedPatchCount}";
+        return $"{state}: {ExpectedPatchCount} patches{verified}{optionalMetainfo}";
+    }
 }
 
 public static class LegacyPatchManifest

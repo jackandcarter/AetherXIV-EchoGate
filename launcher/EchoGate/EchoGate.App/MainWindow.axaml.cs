@@ -128,7 +128,7 @@ public sealed partial class MainWindow : Window
         if (ServerPresetBox.SelectedIndex == ServerPresetLocalhost)
             ApplyLocalhostServerPreset();
         else if (ServerPresetBox.SelectedIndex == ServerPresetDemiDevUnit)
-            ServerPresetStatus.Text = "Demi Dev Unit Server will be enabled when the public VPS address is configured.";
+            ApplyDemiDevUnitServerPreset();
         else
             ServerPresetStatus.Text = "Custom server setup. Edit the service URL, host, and ports below.";
 
@@ -149,19 +149,46 @@ public sealed partial class MainWindow : Window
         ServerPresetStatus.Text = "Local testing on this machine.";
     }
 
+    private void ApplyDemiDevUnitServerPreset()
+    {
+        LauncherProfile devUnitProfile = LauncherProfile.DemiDevUnitDefault();
+        ServerProfile devUnitServer = devUnitProfile.ServerProfile;
+
+        LauncherServiceUrlBox.Text = devUnitProfile.LauncherServiceUrl;
+        PatchBaseUrlBox.Text = devUnitProfile.PatchBaseUrl;
+        ServerNameBox.Text = devUnitServer.Name;
+        ServerHostBox.Text = devUnitServer.Host;
+        LobbyPortBox.Value = devUnitServer.LobbyPort;
+        WorldPortBox.Value = devUnitServer.WorldPort;
+        ServerPresetStatus.Text = "Public Demi Dev Unit developer server.";
+    }
+
     private void SelectServerPresetForProfile(LauncherProfile profile)
     {
         LauncherProfile localProfile = LauncherProfile.LocalDefault();
         ServerProfile localServer = localProfile.ServerProfile;
+        LauncherProfile devUnitProfile = LauncherProfile.DemiDevUnitDefault();
+        ServerProfile devUnitServer = devUnitProfile.ServerProfile;
         bool isLocalProfile =
             IsSameText(profile.LauncherServiceUrl, localProfile.LauncherServiceUrl)
             && IsSameText(profile.ServerProfile.Host, localServer.Host)
             && profile.ServerProfile.LobbyPort == localServer.LobbyPort
             && profile.ServerProfile.WorldPort == localServer.WorldPort;
+        bool isDevUnitProfile =
+            IsSameText(profile.LauncherServiceUrl, devUnitProfile.LauncherServiceUrl)
+            && IsSameText(profile.ServerProfile.Host, devUnitServer.Host)
+            && profile.ServerProfile.LobbyPort == devUnitServer.LobbyPort
+            && profile.ServerProfile.WorldPort == devUnitServer.WorldPort;
 
-        ServerPresetBox.SelectedIndex = isLocalProfile ? ServerPresetLocalhost : ServerPresetCustom;
+        ServerPresetBox.SelectedIndex = isLocalProfile
+            ? ServerPresetLocalhost
+            : isDevUnitProfile
+                ? ServerPresetDemiDevUnit
+                : ServerPresetCustom;
         if (isLocalProfile)
             ApplyLocalhostServerPreset();
+        else if (isDevUnitProfile)
+            ApplyDemiDevUnitServerPreset();
         else
             ServerPresetStatus.Text = "Custom server setup. Edit the service URL, host, and ports below.";
 
@@ -1033,7 +1060,9 @@ public sealed partial class MainWindow : Window
             AppendLog($"Launch log: {result.LogPath}");
             if (!string.IsNullOrWhiteSpace(plan.HelperLogPath))
                 AppendLog($"Launch helper log: {plan.HelperLogPath}");
-            HomeLoginStatus.Text = "Launch sent to Wine. Watch for the game window.";
+            HomeLoginStatus.Text = platform.RequiresCompatibilityRuntime
+                ? "Launch sent to Wine. Watch for the game window."
+                : "Launch sent to Windows. Watch for the game window.";
             HomeProgressBar.Value = 100;
             _ = MonitorLaunchHelperAsync(plan.HelperLogPath);
         }
@@ -1055,7 +1084,7 @@ public sealed partial class MainWindow : Window
 
         try
         {
-            for (int attempt = 0; attempt < 24; attempt++)
+            for (int attempt = 0; attempt < 40; attempt++)
             {
                 await Task.Delay(500);
                 if (!File.Exists(helperLogPath))
@@ -1067,10 +1096,25 @@ public sealed partial class MainWindow : Window
                     string exitDetail = values.TryGetValue("exit_code", out string? exitCode)
                         ? $" ({exitCode})"
                         : "";
-                    AppendLog($"Launch helper reported: {launchError}{exitDetail}");
+                    string detail = values.TryGetValue("launch_error_detail", out string? launchErrorDetail)
+                        ? $" [{launchErrorDetail}]"
+                        : "";
+                    AppendLog($"Launch helper reported: {launchError}{exitDetail}{detail}");
                     HomeLoginStatus.Text = launchError == "game_exited_during_observation"
-                        ? $"Game exited during startup{exitDetail}."
-                        : $"Launch helper reported {launchError}{exitDetail}.";
+                        ? $"Game exited during startup{exitDetail}{detail}."
+                        : $"Launch helper reported {launchError}{exitDetail}{detail}.";
+                    HomeProgressBar.Value = 0;
+                    return;
+                }
+
+                if (values.TryGetValue("helper_error_message", out string? helperErrorMessage)
+                    || values.TryGetValue("helper_error", out helperErrorMessage))
+                {
+                    string helperErrorType = values.TryGetValue("helper_error_type", out string? errorType)
+                        ? $"{errorType}: "
+                        : "";
+                    AppendLog($"Launch helper error: {helperErrorType}{helperErrorMessage}");
+                    HomeLoginStatus.Text = $"Launch helper error: {helperErrorMessage}";
                     HomeProgressBar.Value = 0;
                     return;
                 }
@@ -1276,7 +1320,7 @@ public sealed partial class MainWindow : Window
         AppendLog($"Metainfo base: {report.MetainfoBasePath}");
 
         LogMissingEntries("Missing patch", report.MissingPatchFiles);
-        LogMissingEntries("Missing metainfo", report.MissingMetainfoFiles);
+        LogOptionalMetainfo(report);
         LogInvalidEntries(report.InvalidPatchFiles);
     }
 
@@ -1781,14 +1825,15 @@ public sealed partial class MainWindow : Window
 
     private void UpdateRuntimeUiState()
     {
+        bool isBusy = runtimeCancellation is not null;
+        LaunchHelperModeBox.IsEnabled = !isBusy;
+
         if (!platform.RequiresCompatibilityRuntime)
         {
-            LaunchHelperModeBox.IsEnabled = false;
             GraphicsTargetBox.IsEnabled = false;
             return;
         }
 
-        bool isBusy = runtimeCancellation is not null;
         RuntimeSelectionMode mode = ReadRuntimeMode();
         bool automatic = mode == RuntimeSelectionMode.AutomaticManaged;
         bool custom = mode == RuntimeSelectionMode.CustomRuntime;
@@ -1796,7 +1841,7 @@ public sealed partial class MainWindow : Window
         InstallRuntimeButton.IsEnabled = !isBusy && automatic && selectedRuntimeArtifact is not null;
         ValidateRuntimeButton.IsEnabled = !isBusy;
         ResetPrefixButton.IsEnabled = !isBusy;
-        LaunchHelperModeBox.IsEnabled = !isBusy && platform.RequiresCompatibilityRuntime;
+        LaunchHelperModeBox.IsEnabled = !isBusy;
         GraphicsTargetBox.IsEnabled = !isBusy && platform.RequiresCompatibilityRuntime;
         DetectedRuntimeBox.IsEnabled = !isBusy && automatic && runtimeCandidates.Count > 0;
         CustomRuntimeKindBox.IsEnabled = !isBusy && custom;
@@ -1893,6 +1938,17 @@ public sealed partial class MainWindow : Window
 
         if (entries.Count > 3)
             AppendLog($"{label}: {entries.Count - 3} more");
+    }
+
+    private void LogOptionalMetainfo(PatchLibraryReport report)
+    {
+        if (report.MissingMetainfoFiles.Count == 0)
+            return;
+
+        AppendLog(
+            "Optional metainfo missing: "
+            + $"{report.MissingMetainfoFiles.Count} torrent files. "
+            + "Patch apply does not require them.");
     }
 
     private void LogInvalidEntries(IReadOnlyList<PatchFileReport> entries)
