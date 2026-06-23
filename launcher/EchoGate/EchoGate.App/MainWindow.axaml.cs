@@ -1060,7 +1060,9 @@ public sealed partial class MainWindow : Window
             AppendLog($"Launch log: {result.LogPath}");
             if (!string.IsNullOrWhiteSpace(plan.HelperLogPath))
                 AppendLog($"Launch helper log: {plan.HelperLogPath}");
-            HomeLoginStatus.Text = "Launch sent to Wine. Watch for the game window.";
+            HomeLoginStatus.Text = platform.RequiresCompatibilityRuntime
+                ? "Launch sent to Wine. Watch for the game window."
+                : "Launch sent to Windows. Watch for the game window.";
             HomeProgressBar.Value = 100;
             _ = MonitorLaunchHelperAsync(plan.HelperLogPath);
         }
@@ -1082,7 +1084,7 @@ public sealed partial class MainWindow : Window
 
         try
         {
-            for (int attempt = 0; attempt < 24; attempt++)
+            for (int attempt = 0; attempt < 40; attempt++)
             {
                 await Task.Delay(500);
                 if (!File.Exists(helperLogPath))

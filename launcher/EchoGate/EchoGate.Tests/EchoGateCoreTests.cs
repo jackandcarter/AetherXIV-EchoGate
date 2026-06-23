@@ -163,6 +163,7 @@ public sealed class EchoGateCoreTests
         Assert.Contains("Z:", plan.Arguments);
         Assert.Contains("EchoGate.ClientLauncher.exe", plan.Arguments);
         Assert.Contains("--session", plan.Arguments);
+        Assert.Contains("--observe-seconds 15", plan.Arguments);
         Assert.Contains("127.0.0.1", plan.Arguments);
         Assert.Equal(Path.Combine(root, "launch.helper.log"), plan.HelperLogPath);
         Assert.Equal("/tmp/echo-gate-prefix", plan.Environment["WINEPREFIX"]);
@@ -192,6 +193,7 @@ public sealed class EchoGateCoreTests
         Assert.Equal(helper, plan.WindowsExecutablePath);
         Assert.DoesNotContain("Z:", plan.Arguments);
         Assert.Contains("--session", plan.Arguments);
+        Assert.Contains("--observe-seconds 15", plan.Arguments);
     }
 
     [Fact]

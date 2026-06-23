@@ -10,6 +10,8 @@ public sealed record LaunchPlan(
     string? HelperLogPath,
     IReadOnlyDictionary<string, string> Environment)
 {
+    private const int HelperObservationSeconds = 15;
+
     public static LaunchPlan Create(
         ClientInstall clientInstall,
         ServerProfile serverProfile,
@@ -85,7 +87,9 @@ public sealed record LaunchPlan(
             "--server-host",
             CommandLineArguments.Quote(serverProfile.Host),
             "--log",
-            CommandLineArguments.Quote(helperLogPath)
+            CommandLineArguments.Quote(helperLogPath),
+            "--observe-seconds",
+            HelperObservationSeconds.ToString()
         });
 
         Dictionary<string, string> environment = new(StringComparer.OrdinalIgnoreCase)

@@ -12,6 +12,25 @@ internal static class ClientProcessLauncher
     private const uint EncryptionTimePatchAddress = ImageBase + 0x9A15E3;
     private const uint LobbyHostNameAddress = ImageBase + 0xB90110;
     private const uint LobbyHostNamePatchSize = 0x14;
+    private const uint BootSkipPatchAddress = 0x403698;
+    private const uint LaunchFlag1PatchAddress = ImageBase + 0xBB952B;
+    private const uint LaunchFlag2PatchAddress = ImageBase + 0xBB95D3;
+
+    private static readonly byte[] EncryptionTimeOriginalBytes = [0xE8, 0x3D, 0x41, 0xC3, 0xFF];
+    private static readonly byte[] EncryptionTimePatchBytes = [0xB8, 0x12, 0xE8, 0xE0, 0x50];
+    private static readonly byte[] LobbyHostOriginalBytes = Encoding.ASCII.GetBytes("lobby01.ffxiv.com\0\0\0");
+    private static readonly byte[] BootSkipOriginalBytes =
+    [
+        0x6A, 0xFF, 0xFF, 0x15, 0xCC, 0xE1, 0xF3, 0x00,
+        0x50, 0xFF, 0x15, 0xA8, 0xE1, 0xF3, 0x00, 0x6A,
+        0xFF, 0xFF, 0x15, 0xAC, 0xE1, 0xF3, 0x00, 0x50,
+        0xFF, 0x15, 0xB0, 0xE1, 0xF3, 0x00
+    ];
+    private static readonly byte[] BootSkipPatchBytes = Enumerable.Repeat<byte>(0x90, 30).ToArray();
+    private static readonly byte[] LaunchFlag1OriginalBytes = [0x00, 0xD0];
+    private static readonly byte[] LaunchFlag2OriginalBytes = [0x00, 0x00];
+    private static readonly byte[] LaunchFlagPatchBytes = [0xB5, 0x01];
+
     public static ClientLaunchResult Launch(
         LaunchOptions options,
         GameLaunchToken token,
@@ -52,12 +71,15 @@ internal static class ClientProcessLauncher
         try
         {
             log?.Invoke("memory_patch_sequence_start=true");
+            log?.Invoke($"assumed_image_base=0x{ImageBase:X8}");
             ApplyPatches(processInfo.hProcess, lobbyHost, log);
             log?.Invoke("memory_patch_sequence_complete=true");
 
             log?.Invoke("resume_thread_start=true");
             uint resumeResult = NativeMethods.ResumeThread(processInfo.hThread);
             log?.Invoke($"resume_thread_result={resumeResult}");
+            if (resumeResult == NativeMethods.ResumeThreadFailed)
+                throw new Win32Exception();
 
             log?.Invoke("observation_wait_start=true");
             uint waitResult = NativeMethods.WaitForSingleObject(
@@ -66,9 +88,11 @@ internal static class ClientProcessLauncher
             launchStopwatch.Stop();
             log?.Invoke($"observation_wait_result=0x{waitResult:X8}");
             log?.Invoke($"observation_elapsed_ms={launchStopwatch.ElapsedMilliseconds}");
-            if (waitResult == NativeMethods.WaitObject0
-                && NativeMethods.GetExitCodeProcess(processInfo.hProcess, out uint exitCode))
+            if (waitResult == NativeMethods.WaitObject0)
             {
+                if (!NativeMethods.GetExitCodeProcess(processInfo.hProcess, out uint exitCode))
+                    throw new Win32Exception();
+
                 log?.Invoke($"observed_exit_code={exitCode}");
                 log?.Invoke($"observed_exit_code_hex=0x{exitCode:X8}");
                 return new ClientLaunchResult(
@@ -77,6 +101,12 @@ internal static class ClientProcessLauncher
                     true,
                     exitCode);
             }
+
+            if (waitResult == NativeMethods.WaitFailed)
+                throw new Win32Exception();
+
+            if (waitResult != NativeMethods.WaitTimeout)
+                throw new InvalidOperationException($"Unexpected WaitForSingleObject result 0x{waitResult:X8}.");
 
             log?.Invoke("game_still_running_after_observation=true");
             return new ClientLaunchResult(
@@ -215,7 +245,8 @@ internal static class ClientProcessLauncher
             processHandle,
             "encryption_time",
             EncryptionTimePatchAddress,
-            new byte[] { 0xB8, 0x12, 0xE8, 0xE0, 0x50 },
+            EncryptionTimePatchBytes,
+            EncryptionTimeOriginalBytes,
             log);
 
         if ((uint)lobbyHost.Length + 1 > LobbyHostNamePatchSize)
@@ -225,11 +256,11 @@ internal static class ClientProcessLauncher
         byte[] lobbyHostPatch = new byte[LobbyHostNamePatchSize];
         byte[] lobbyHostBytes = Encoding.ASCII.GetBytes(lobbyHost);
         Buffer.BlockCopy(lobbyHostBytes, 0, lobbyHostPatch, 0, lobbyHostBytes.Length);
-        ApplyPatch(processHandle, "lobby_host", LobbyHostNameAddress, lobbyHostPatch, log);
+        ApplyPatch(processHandle, "lobby_host", LobbyHostNameAddress, lobbyHostPatch, LobbyHostOriginalBytes, log);
 
-        ApplyPatch(processHandle, "boot_skip", 0x403698, Enumerable.Repeat<byte>(0x90, 30).ToArray(), log);
-        ApplyPatch(processHandle, "launch_flag_1", ImageBase + 0xBB952B, new byte[] { 0xB5, 0x01 }, log);
-        ApplyPatch(processHandle, "launch_flag_2", ImageBase + 0xBB95D3, new byte[] { 0xB5, 0x01 }, log);
+        ApplyPatch(processHandle, "boot_skip", BootSkipPatchAddress, BootSkipPatchBytes, BootSkipOriginalBytes, log);
+        ApplyPatch(processHandle, "launch_flag_1", LaunchFlag1PatchAddress, LaunchFlagPatchBytes, LaunchFlag1OriginalBytes, log);
+        ApplyPatch(processHandle, "launch_flag_2", LaunchFlag2PatchAddress, LaunchFlagPatchBytes, LaunchFlag2OriginalBytes, log);
     }
 
     private static void ApplyPatch(
@@ -237,12 +268,14 @@ internal static class ClientProcessLauncher
         string patchName,
         uint address,
         byte[] patchBytes,
+        byte[] expectedOriginalBytes,
         Action<string>? log)
     {
         log?.Invoke($"patch_start={patchName}");
         log?.Invoke($"patch_address=0x{address:X8}");
         log?.Invoke($"patch_length={patchBytes.Length}");
         byte[] beforeBytes = ReadPatchBytes(processHandle, address, patchBytes.Length, patchName, "before", log);
+        ValidatePatchSignature(patchName, beforeBytes, expectedOriginalBytes, patchBytes, log);
         log?.Invoke($"virtual_protect_start={patchName}");
         if (!NativeMethods.VirtualProtectEx(
             processHandle,
@@ -322,6 +355,32 @@ internal static class ClientProcessLauncher
 
         log?.Invoke($"patch_{phase}_bytes={patchName}:{ToHex(bytes)}");
         return bytes;
+    }
+
+    private static void ValidatePatchSignature(
+        string patchName,
+        byte[] actualBytes,
+        byte[] expectedOriginalBytes,
+        byte[] patchBytes,
+        Action<string>? log)
+    {
+        if (actualBytes.SequenceEqual(expectedOriginalBytes))
+        {
+            log?.Invoke($"patch_signature={patchName}:original");
+            return;
+        }
+
+        if (actualBytes.SequenceEqual(patchBytes))
+        {
+            log?.Invoke($"patch_signature={patchName}:already_patched");
+            return;
+        }
+
+        log?.Invoke($"patch_signature={patchName}:unexpected");
+        log?.Invoke($"patch_expected_original_bytes={patchName}:{ToHex(expectedOriginalBytes)}");
+        throw new InvalidOperationException(
+            $"Unexpected client bytes at {patchName} patch location. "
+            + "Verify this is the supported FFXIV 1.23b client executable.");
     }
 
     private static string ToHex(byte[] bytes)
