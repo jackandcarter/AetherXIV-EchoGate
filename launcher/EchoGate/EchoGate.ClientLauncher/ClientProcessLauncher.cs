@@ -75,6 +75,13 @@ internal static class ClientProcessLauncher
             ApplyPatches(processInfo.hProcess, lobbyHost, log);
             log?.Invoke("memory_patch_sequence_complete=true");
 
+            if (options.Umbra.Enabled)
+            {
+                log?.Invoke("umbra_injection_start=true");
+                bool umbraInjected = UmbraInjector.TryInject(processInfo.hProcess, options, log);
+                log?.Invoke($"umbra_injected={umbraInjected}");
+            }
+
             log?.Invoke("resume_thread_start=true");
             uint resumeResult = NativeMethods.ResumeThread(processInfo.hThread);
             log?.Invoke($"resume_thread_result={resumeResult}");

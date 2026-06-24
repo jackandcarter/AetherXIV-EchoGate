@@ -70,8 +70,7 @@ Windows release users can start from the extracted server core package with:
 
 ```powershell
 Set-ExecutionPolicy -Scope Process Bypass
-.\tools\windows\install-prereqs.ps1 -Mode Run
-.\tools\windows\setup-release.ps1 -ClientDir "C:\Path\To\FINAL FANTASY XIV"
+.\tools\windows\setup.ps1 -InstallMissing -ClientDir "C:\Path\To\FINAL FANTASY XIV"
 .\tools\windows\run-local-stack.ps1
 ```
 

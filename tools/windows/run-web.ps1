@@ -7,7 +7,7 @@ param(
 $root = Get-MeteorRoot
 Import-MeteorEnv $root
 $db = Get-DbSettings
-$php = Find-RequiredCommand -Names @("php.exe", "php") -FriendlyName "PHP"
+$php = Get-PhpCommand
 if ($Bind -eq "") { $Bind = Get-EnvValue "WEB_BIND" "127.0.0.1" }
 if ($Port -eq "") { $Port = Get-EnvValue "WEB_PORT" "8080" }
 

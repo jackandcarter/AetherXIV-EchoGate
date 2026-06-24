@@ -57,6 +57,29 @@ public sealed class LauncherApiClient
         return GetAsync<RuntimeCatalog>($"{endpoint}{separator}platform={encoded}", cancellationToken);
     }
 
+    public Task<UmbraFrameworkCatalog?> GetUmbraFrameworkCatalogAsync(
+        string platformRid,
+        CancellationToken cancellationToken = default)
+    {
+        return GetUmbraFrameworkCatalogAsync(platformRid, null, cancellationToken);
+    }
+
+    public Task<UmbraFrameworkCatalog?> GetUmbraFrameworkCatalogAsync(
+        string platformRid,
+        string? catalogPath,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(platformRid))
+            throw new ArgumentException("Platform runtime identifier is required.", nameof(platformRid));
+
+        string encoded = Uri.EscapeDataString(platformRid);
+        string endpoint = string.IsNullOrWhiteSpace(catalogPath)
+            ? "umbra/framework-catalog"
+            : catalogPath.TrimStart('/');
+        char separator = endpoint.Contains('?', StringComparison.Ordinal) ? '&' : '?';
+        return GetAsync<UmbraFrameworkCatalog>($"{endpoint}{separator}platform={encoded}", cancellationToken);
+    }
+
     public Task<LauncherAuthResponse?> LoginAsync(
         LauncherAuthRequest request,
         string? loginPath,

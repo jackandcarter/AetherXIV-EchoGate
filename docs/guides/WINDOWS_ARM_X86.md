@@ -8,7 +8,7 @@ Windows helper scripts live in:
 tools/windows/
 ```
 
-Run the commands below from PowerShell in either a full source checkout or the extracted `MeteorXIV-Server-Core` release package.
+Run the commands below from PowerShell in either a full source checkout or the extracted `MeteorXIV-Server-Core` release package. New users should start with `tools/windows/setup.ps1`; older script names are kept as compatibility wrappers.
 
 ## Quick Path For Windows x86
 
@@ -34,25 +34,21 @@ cd C:\MeteorXIV\server-core
 Set-ExecutionPolicy -Scope Process Bypass
 ```
 
-4. Check Windows prerequisites.
+4. Run Windows setup.
 
 ```powershell
-.\tools\windows\install-prereqs.ps1 -Mode Run
+.\tools\windows\setup.ps1 -InstallMissing -ClientDir "C:\Path\To\FINAL FANTASY XIV"
 ```
 
-If anything needed for the release path is missing, install it with:
+`-InstallMissing` asks Windows for administrator permission when needed. The setup script installs/verifies prerequisites, prepares the database, prepares local client-derived runtime data, runs smoke checks, and writes an environment report to Echo Gate app data. It does not move or copy your client install folder.
+
+If you only want to inspect the machine without installing anything:
 
 ```powershell
-.\tools\windows\install-prereqs.ps1 -Mode Run -Install
+.\tools\windows\doctor.ps1 -ClientDir "C:\Path\To\FINAL FANTASY XIV"
 ```
 
-The installer uses `winget` when available and refreshes `PATH` for the current PowerShell process after the install pass.
-
-5. Run the release setup.
-
-```powershell
-.\tools\windows\setup-release.ps1 -ClientDir "C:\Path\To\FINAL FANTASY XIV"
-```
+The setup uses `winget` where it is reliable, installs Echo Gate's managed PHP from the official Windows PHP build when PHP is missing, verifies the PHP zip checksum, refreshes `PATH` for the current PowerShell process, and enables PHP `mysqli` automatically.
 
 The default local database settings are:
 
@@ -65,21 +61,27 @@ hosts: localhost, 127.0.0.1
 
 The setup script asks for your MariaDB admin password so it can create the database, import `Data/sql/*.sql`, grant the local app user access, prepare runtime data, and run a smoke check. Leaving the prompt blank is fine only if your MariaDB root/admin account has no password.
 
-If you want the setup wrapper to attempt prerequisite installs first, use:
-
-```powershell
-.\tools\windows\setup-release.ps1 -InstallMissing -ClientDir "C:\Path\To\FINAL FANTASY XIV"
-```
-
-If an installer asks for a restart or the next step still cannot find a newly installed tool, open a new PowerShell window and rerun `setup-release.ps1`.
-
-6. Start the local stack.
+5. Start the local hosting stack.
 
 ```powershell
 .\tools\windows\run-local-stack.ps1
 ```
 
-This opens one PowerShell window for each service:
+This opens one PowerShell window for each service. The launcher web service starts by default because it is required for local hosting. It is checked by port, then Lobby, Map, and World each write a readiness signal after their own startup path finishes. The stack waits for that signal before starting the next server and updates the launcher status row to `online` after all game services are ready.
+
+If a slower machine needs more time, pass a larger timeout:
+
+```powershell
+.\tools\windows\run-local-stack.ps1 -StartupTimeoutSeconds 90
+```
+
+If an expert is using an external launcher web service and only wants game services:
+
+```powershell
+.\tools\windows\run-local-stack.ps1 -SkipWeb
+```
+
+Service ports:
 
 ```text
 launcher HTTP: 8080
@@ -88,7 +90,7 @@ map server: 1989
 world server: 54992
 ```
 
-7. Extract `EchoGate-win-x86-v1.2.zip`, then run:
+6. Extract `EchoGate-win-x86-v1.2.zip`, then run:
 
 ```text
 publish\EchoGate.App.exe
@@ -148,11 +150,10 @@ From the repository root:
 
 ```powershell
 Set-ExecutionPolicy -Scope Process Bypass
-.\tools\windows\install-prereqs.ps1 -Mode Build -Install
-.\tools\windows\bootstrap-windows.ps1 -Runtime win-x86 -ClientDir "C:\Path\To\FINAL FANTASY XIV"
+.\tools\windows\setup.ps1 -Mode Build -Runtime win-x86 -InstallMissing -ClientDir "C:\Path\To\FINAL FANTASY XIV"
 ```
 
-The bootstrap script:
+The setup script:
 
 - Creates/imports the local MariaDB database.
 - Creates/updates the `meteor` database user.
@@ -164,10 +165,10 @@ The bootstrap script:
 Useful bootstrap switches:
 
 ```powershell
-.\tools\windows\bootstrap-windows.ps1 -Runtime win-x86 -InstallMissing
-.\tools\windows\bootstrap-windows.ps1 -Runtime win-x86 -SkipDatabase
-.\tools\windows\bootstrap-windows.ps1 -Runtime win-x86 -SkipBuild
-.\tools\windows\bootstrap-windows.ps1 -Runtime win-x86 -SkipLauncher
+.\tools\windows\setup.ps1 -Mode Build -Runtime win-x86 -InstallMissing
+.\tools\windows\setup.ps1 -Mode Build -Runtime win-x86 -SkipDatabase
+.\tools\windows\setup.ps1 -Mode Build -Runtime win-x86 -SkipBuild
+.\tools\windows\setup.ps1 -Mode Build -Runtime win-x86 -SkipLauncher
 ```
 
 ## Individual Windows Helpers
@@ -191,10 +192,16 @@ Check or install source-build prerequisites:
 .\tools\windows\install-prereqs.ps1 -Mode Build -Install
 ```
 
-One-command release setup after prerequisites are installed:
+One-command release setup:
 
 ```powershell
-.\tools\windows\setup-release.ps1 -ClientDir "C:\Path\To\FINAL FANTASY XIV"
+.\tools\windows\setup.ps1 -InstallMissing -ClientDir "C:\Path\To\FINAL FANTASY XIV"
+```
+
+Write a setup report without changing anything:
+
+```powershell
+.\tools\windows\doctor.ps1 -ClientDir "C:\Path\To\FINAL FANTASY XIV"
 ```
 
 Database only:
@@ -235,7 +242,15 @@ Copy configs, scripts, and `staticactors.bin`:
 .\tools\windows\copy-runtime-data.ps1 -ClientDir "C:\Path\To\FINAL FANTASY XIV"
 ```
 
-Start services one at a time:
+Start the local stack:
+
+```powershell
+.\tools\windows\run-local-stack.ps1
+```
+
+The local stack starts the launcher web service by default. If you need to debug a single service, you can still start services one at a
+time. For the full stack, prefer `run-local-stack.ps1` because it waits for the
+managed server readiness signals in order:
 
 ```powershell
 .\tools\windows\run-web.ps1
@@ -282,13 +297,15 @@ If PowerShell blocks a script, run:
 Set-ExecutionPolicy -Scope Process Bypass
 ```
 
-If `php.exe` is missing, add the PHP install folder to your Windows `PATH`, then open a new PowerShell window.
+If `php.exe` is missing, rerun setup with `-InstallMissing`. Echo Gate installs a managed PHP runtime under app data. Experts can still set `PHP_BIN` to the full `php.exe` path.
 
-If `php mysqli` is missing, run `php --ini`, open the active `php.ini`, and enable:
+If `php mysqli` is missing, rerun:
 
-```text
-extension=mysqli
+```powershell
+.\tools\windows\setup.ps1 -InstallMissing -ClientDir "C:\Path\To\FINAL FANTASY XIV"
 ```
+
+The setup script will try to create or update `php.ini` and enable `extension=mysqli`. If it still cannot repair PHP automatically, run `php --ini` and check the active `php.ini` manually.
 
 If `winget` says `No newer package versions are available` while installing MariaDB/MySQL, it usually means the package is already installed. Open a new PowerShell window and rerun the prerequisite check. If MariaDB/MySQL is still not detected, set `MYSQL_BIN` to the full path of `mariadb.exe` or `mysql.exe`.
 

@@ -23,6 +23,9 @@ switch($route)
 	case "runtime-catalog":
 		require(__DIR__ . "/runtime-catalog.php");
 		break;
+	case "framework-catalog":
+		require(__DIR__ . "/umbra-framework-catalog.php");
+		break;
 	case "login":
 		require(__DIR__ . "/login.php");
 		break;

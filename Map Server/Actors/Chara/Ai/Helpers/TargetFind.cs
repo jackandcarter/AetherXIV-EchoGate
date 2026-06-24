@@ -380,6 +380,9 @@ namespace MeteorXIV.Core.Map.actors.chara.ai
             if ((validTarget & ValidTarget.Enemy) == 0 && target.allegiance != owner.allegiance)
                 return false;
 
+            if ((validTarget & (ValidTarget.Enemy | ValidTarget.EnemyOnly)) != 0 && !target.CanBeAttackedBy(owner))
+                return false;
+
             //This skill must be used on an enemy and target is an ally
             if ((validTarget & ValidTarget.EnemyOnly) != 0 && target.allegiance == owner.allegiance)
                 return false;

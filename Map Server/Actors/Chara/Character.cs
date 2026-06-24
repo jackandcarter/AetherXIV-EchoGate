@@ -489,12 +489,28 @@ namespace MeteorXIV.Core.Map.Actors
 
         public virtual bool IsValidTarget(Character target, ValidTarget validTarget)
         {
+            if (target == null)
+                return false;
+
+            if ((validTarget & ValidTarget.Enemy) != 0 && !target.CanBeAttackedBy(this))
+                return false;
+
             return !target.isStatic;
         }
 
         public virtual bool CanAttack()
         {
             return true;
+        }
+
+        public virtual bool IsBattleActor()
+        {
+            return this is Player || this is BattleNpc;
+        }
+
+        public virtual bool CanBeAttackedBy(Character attacker)
+        {
+            return IsBattleActor();
         }
 
         public virtual bool CanUse(Character target, BattleCommand skill, CommandResult error = null)

@@ -125,6 +125,14 @@ namespace MeteorXIV.Core.Lobby
             Program.Log.Info("CLIENT VERSION: {0}", clientVersion);
 
             uint userId = Database.GetUserIdFromSession(sessionPacket.session);
+            DevDiagnostics.Trace(
+                userId == 0 ? "lobby.session.rejected" : "lobby.session.accepted",
+                "remote", client.GetAddress(),
+                "sessionLength", sessionPacket.session == null ? 0 : sessionPacket.session.Length,
+                "sessionFingerprint", FingerprintSessionToken(sessionPacket.session),
+                "version", clientVersion,
+                "sequence", sessionPacket.sequence,
+                "userId", userId);
             client.currentUserId = userId;
             client.currentSessionToken = sessionPacket.session; ;
 
@@ -152,6 +160,19 @@ namespace MeteorXIV.Core.Lobby
             BasePacket basePacket = BasePacket.CreatePacket(listPacket.BuildPackets(), true, false);
             BasePacket.EncryptPacket(client.blowfish, basePacket);
             client.QueuePacket(basePacket);
+        }
+
+        private static string FingerprintSessionToken(string sessionToken)
+        {
+            if (String.IsNullOrEmpty(sessionToken))
+                return "";
+
+            using (SHA256 sha256 = SHA256.Create())
+            {
+                byte[] hash = sha256.ComputeHash(Encoding.ASCII.GetBytes(sessionToken));
+                string hex = BitConverter.ToString(hash).Replace("-", "").ToLowerInvariant();
+                return hex.Length <= 12 ? hex : hex.Substring(0, 12);
+            }
         }
 
         private void ProcessGetCharacters(ClientConnection client, SubPacket packet)

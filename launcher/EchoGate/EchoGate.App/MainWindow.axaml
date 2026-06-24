@@ -304,6 +304,26 @@
         </ScrollViewer>
       </TabItem>
 
+      <TabItem Header="Umbra">
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+          <Grid Margin="4,18,4,4" ColumnDefinitions="180,*" RowDefinitions="Auto,Auto" RowSpacing="10" ColumnSpacing="12">
+            <TextBlock Text="Umbra" VerticalAlignment="Center" />
+            <CheckBox x:Name="UmbraEnabledBox"
+                      Grid.Column="1"
+                      Content="Enable Umbra for the FFXIV client"
+                      IsCheckedChanged="UmbraSettings_Changed" />
+
+            <TextBlock Grid.Row="1" Text="Framework" VerticalAlignment="Center" />
+            <Button x:Name="InstallUmbraButton"
+                    Grid.Row="1"
+                    Grid.Column="1"
+                    Content="Update Umbra Framework"
+                    HorizontalAlignment="Left"
+                    Click="InstallUmbra_Click" />
+          </Grid>
+        </ScrollViewer>
+      </TabItem>
+
       <TabItem x:Name="RuntimeTab" Header="Runtime">
         <ScrollViewer VerticalScrollBarVisibility="Auto">
           <Grid Margin="4,18,4,4" ColumnDefinitions="180,*,Auto" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="10" ColumnSpacing="12">

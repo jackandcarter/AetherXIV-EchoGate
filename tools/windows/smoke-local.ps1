@@ -16,7 +16,7 @@ function Report($Name, $Status) {
 
 Write-Host "Smoke baseline"
 try { $mysql = Get-MySqlCommand; Report "mysql client" "ok: $mysql" } catch { Report "mysql client" "missing" }
-$php = Find-OptionalCommand -Names @("php.exe", "php")
+$php = Find-PhpCommand
 if ($null -ne $php) {
     Report "php" "ok: $php"
     if (Test-PhpMysqli -Php $php) {

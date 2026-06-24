@@ -186,15 +186,22 @@ namespace MeteorXIV.Core.Map.actors.chara.ai.state
 
         private bool CanAttack()
         {
-            if (!owner.isAutoAttackEnabled || target.allegiance == owner.allegiance)
-            {
-                TraceAutoAttack("blocked", !owner.isAutoAttackEnabled ? "auto attack disabled" : "same allegiance");
-                return false;
-            }
-
             if (target == null)
             {
                 TraceAutoAttack("blocked", "target missing");
+                return false;
+            }
+
+            if (!target.CanBeAttackedBy(owner))
+            {
+                owner.aiContainer.ChangeTarget(null);
+                TraceAutoAttack("blocked", "target is not attackable");
+                return false;
+            }
+
+            if (!owner.isAutoAttackEnabled || target.allegiance == owner.allegiance)
+            {
+                TraceAutoAttack("blocked", !owner.isAutoAttackEnabled ? "auto attack disabled" : "same allegiance");
                 return false;
             }
 

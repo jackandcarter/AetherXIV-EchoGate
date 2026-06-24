@@ -10,27 +10,14 @@ param(
 
 . "$PSScriptRoot\common.ps1"
 
-if ($InstallMissing) {
-    & "$PSScriptRoot\install-prereqs.ps1" -Mode Run -Install -Yes:$Yes
-}
+$setupArgs = @("-Mode", "Run")
+if ($ClientDir -ne "") { $setupArgs += @("-ClientDir", $ClientDir) }
+if ($InstallMissing) { $setupArgs += "-InstallMissing" }
+if ($Yes) { $setupArgs += "-Yes" }
+if ($SkipDatabase) { $setupArgs += "-SkipDatabase" }
+if ($SkipRuntimeData) { $setupArgs += "-SkipRuntimeData" }
+if ($SkipSmoke) { $setupArgs += "-SkipSmoke" }
+if ($AllowMissingStaticActors) { $setupArgs += "-AllowMissingStaticActors" }
 
-if (-not $SkipDatabase) {
-    & "$PSScriptRoot\setup-local-db.ps1"
-}
-
-if (-not $SkipRuntimeData) {
-    $copyArgs = @()
-    if ($ClientDir -ne "") { $copyArgs += @("-ClientDir", $ClientDir) }
-    & "$PSScriptRoot\copy-runtime-data.ps1" @copyArgs
-}
-
-if (-not $SkipSmoke) {
-    $smokeArgs = @()
-    if ($AllowMissingStaticActors) { $smokeArgs += "-AllowMissingStaticActors" }
-    & "$PSScriptRoot\smoke-local.ps1" @smokeArgs
-}
-
-Write-Host
-Write-Host "Release setup complete."
-Write-Host "Start the local stack with:"
-Write-Host "  .\tools\windows\run-local-stack.ps1"
+Write-Host "setup-release.ps1 is a compatibility wrapper. New users should run tools\windows\setup.ps1."
+& "$PSScriptRoot\setup.ps1" @setupArgs

@@ -45,6 +45,21 @@ internal static partial class NativeMethods
         uint flNewProtect,
         out uint lpflOldProtect);
 
+    [DllImport("kernel32.dll", SetLastError = true)]
+    internal static extern IntPtr VirtualAllocEx(
+        IntPtr hProcess,
+        IntPtr lpAddress,
+        UIntPtr dwSize,
+        AllocationType flAllocationType,
+        MemoryProtectionFlags flProtect);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    internal static extern bool VirtualFreeEx(
+        IntPtr hProcess,
+        IntPtr lpAddress,
+        UIntPtr dwSize,
+        FreeType dwFreeType);
+
     [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
     internal static extern bool CreateProcess(
         string lpApplicationName,
@@ -60,6 +75,22 @@ internal static partial class NativeMethods
 
     [DllImport("kernel32.dll", SetLastError = true)]
     internal static extern uint ResumeThread(IntPtr hThread);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    internal static extern IntPtr CreateRemoteThread(
+        IntPtr hProcess,
+        IntPtr lpThreadAttributes,
+        uint dwStackSize,
+        IntPtr lpStartAddress,
+        IntPtr lpParameter,
+        uint dwCreationFlags,
+        out uint lpThreadId);
+
+    [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+    internal static extern IntPtr GetModuleHandle(string lpModuleName);
+
+    [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Ansi)]
+    internal static extern IntPtr GetProcAddress(IntPtr hModule, string lpProcName);
 
     [DllImport("kernel32.dll", SetLastError = true)]
     internal static extern bool CloseHandle(IntPtr hObject);
@@ -84,6 +115,19 @@ internal static partial class NativeMethods
     internal enum MemoryProtectionFlags : uint
     {
         PAGE_READWRITE = 0x04
+    }
+
+    [Flags]
+    internal enum AllocationType : uint
+    {
+        MEM_COMMIT = 0x00001000,
+        MEM_RESERVE = 0x00002000
+    }
+
+    [Flags]
+    internal enum FreeType : uint
+    {
+        MEM_RELEASE = 0x00008000
     }
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]

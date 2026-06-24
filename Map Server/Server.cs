@@ -115,6 +115,7 @@ namespace MeteorXIV.Core.Map
             Console.ForegroundColor = ConsoleColor.Gray;
 
             mProcessor = new PacketProcessor(this);
+            StartupReadySignal.TryWrite("Map", String.Format("{0}:{1}", (mServerSocket.LocalEndPoint as IPEndPoint).Address, (mServerSocket.LocalEndPoint as IPEndPoint).Port));
 
             //mGameThread = new Thread(new ThreadStart(mProcessor.update));
             //mGameThread.Start();

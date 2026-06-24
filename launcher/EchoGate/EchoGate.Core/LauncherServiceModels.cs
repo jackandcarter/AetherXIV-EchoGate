@@ -14,7 +14,9 @@ public sealed record LauncherConfig(
     [property: JsonPropertyName("client_login_url")] string? ClientLoginUrl,
     [property: JsonPropertyName("patch_base_url")] string? PatchBaseUrl,
     [property: JsonPropertyName("target_boot_version")] string TargetBootVersion,
-    [property: JsonPropertyName("target_game_version")] string TargetGameVersion);
+    [property: JsonPropertyName("target_game_version")] string TargetGameVersion,
+    [property: JsonPropertyName("client_plugin_framework_catalog_url")] string? ClientPluginFrameworkCatalogUrl = null,
+    [property: JsonPropertyName("plugin_catalog_urls")] IReadOnlyList<string>? PluginCatalogUrls = null);
 
 public sealed record LauncherAuthRequest(
     [property: JsonPropertyName("username")] string Username,

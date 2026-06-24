@@ -18,6 +18,9 @@ public sealed partial class MainWindow : Window
     private RuntimeCatalog? runtimeCatalog;
     private RuntimeArtifact? selectedRuntimeArtifact;
     private ManagedRuntimeInstall? managedRuntimeInstall;
+    private UmbraFrameworkCatalog? umbraFrameworkCatalog;
+    private UmbraFrameworkArtifact? selectedUmbraFrameworkArtifact;
+    private UmbraFrameworkInstall? umbraFrameworkInstall;
     private IReadOnlyList<RuntimeCandidate> runtimeCandidates = Array.Empty<RuntimeCandidate>();
     private string? currentSessionId;
     private string? currentSessionUsername;
@@ -26,6 +29,7 @@ public sealed partial class MainWindow : Window
     private bool isInitialized;
     private bool isLoadingProfile;
     private bool runtimeSetupPromptShown;
+    private CancellationTokenSource? umbraCancellation;
 
     private const int ServerPresetLocalhost = 0;
     private const int ServerPresetDemiDevUnit = 1;
@@ -42,6 +46,7 @@ public sealed partial class MainWindow : Window
         AppendLog("EchoGate initialized.");
         ScanRuntimeCandidates(false);
         RefreshInstalledManagedRuntimeStatus();
+        RefreshInstalledUmbraFrameworkStatus();
         ValidateClientIfSelected();
         UpdateHomeState();
         ApplyWindowSizeForSelectedTab();
@@ -784,18 +789,14 @@ public sealed partial class MainWindow : Window
         string username = (LoginUserBox.Text ?? "").Trim();
         string password = LoginPasswordBox.Text ?? "";
 
-        if (!string.IsNullOrWhiteSpace(currentSessionId)
-            && string.Equals(currentSessionUsername, username, StringComparison.Ordinal))
-        {
-            return currentSessionId;
-        }
-
         if (string.IsNullOrWhiteSpace(username))
             throw new InvalidOperationException("Username is required.");
         if (string.IsNullOrWhiteSpace(password))
             throw new InvalidOperationException("Password is required.");
 
-        HomeLoginStatus.Text = "Signing in...";
+        HomeLoginStatus.Text = string.IsNullOrWhiteSpace(currentSessionId)
+            ? "Signing in..."
+            : "Refreshing session...";
         LauncherApiClient client = new(httpClient, LauncherServiceUrlBox.Text ?? "");
         LauncherAuthResponse? response = await client.LoginAsync(
             new LauncherAuthRequest(username, password),
@@ -972,6 +973,20 @@ public sealed partial class MainWindow : Window
         SaveCurrentProfile();
     }
 
+    private void UmbraSettings_Changed(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        if (!isInitialized || isLoadingProfile)
+            return;
+
+        SaveCurrentProfile();
+    }
+
+    private async void InstallUmbra_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        await RefreshUmbraFrameworkCatalogAsync();
+        await InstallSelectedUmbraFrameworkAsync();
+    }
+
     private async void LaunchGame_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
         if (launchInProgress)
@@ -1023,6 +1038,13 @@ public sealed partial class MainWindow : Window
 
             SetLaunchInProgress("Launching game...", "Launching game...");
             ClientLaunchHelperMode helperMode = ReadLaunchHelperMode();
+            UmbraLaunchOptions umbraLaunchOptions = await ResolveUmbraLaunchOptionsForLaunchAsync(clientInstall);
+            if (umbraLaunchOptions.Enabled && helperMode != ClientLaunchHelperMode.Automatic && helperMode != ClientLaunchHelperMode.X86)
+            {
+                AppendLog("Umbra requires the 32-bit launch helper; using x86 helper for this launch.");
+                helperMode = ClientLaunchHelperMode.X86;
+            }
+
             if (platform.RequiresCompatibilityRuntime)
             {
                 SetLaunchInProgress("Configuring Wine...", "Configuring Wine runtime...");
@@ -1051,7 +1073,8 @@ public sealed partial class MainWindow : Window
                 runtimeProfile,
                 helperPath,
                 sessionId,
-                platform.RequiresCompatibilityRuntime);
+                platform.RequiresCompatibilityRuntime,
+                umbraOptions: umbraLaunchOptions);
             ProcessStartInfo startInfo = BuildProcessStartInfo(plan);
             RuntimeLaunchResult result = RuntimeLaunchDiagnostics.StartWithLogging(startInfo, plan.LogPath);
             AppendLog($"Launch helper: {FormatLaunchHelperMode(helperMode)} ({helperPath})");
@@ -1133,6 +1156,92 @@ public sealed partial class MainWindow : Window
         {
             AppendLog($"Launch helper monitor failed: {ex.Message}");
         }
+    }
+
+    private async Task<UmbraLaunchOptions> ResolveUmbraLaunchOptionsForLaunchAsync(ClientInstall clientInstall)
+    {
+        UmbraSettings settings = ReadUmbraSettings();
+        if (!settings.Enabled)
+            return UmbraLaunchOptions.Disabled;
+
+        if (!File.Exists(clientInstall.DirectGameExecutablePath))
+        {
+            AppendLog("Umbra disabled for this launch: ffxivgame.exe was not found.");
+            return UmbraLaunchOptions.Disabled;
+        }
+
+        string gameSha256 = UmbraCompatibility.ComputeSha256(clientInstall.DirectGameExecutablePath);
+        if (!UmbraCompatibility.IsKnownGameHash(gameSha256))
+        {
+            AppendLog($"Umbra disabled for this launch: unsupported ffxivgame.exe SHA256 {gameSha256}.");
+            return UmbraLaunchOptions.Disabled;
+        }
+
+        Directory.CreateDirectory(settings.PluginDirectory);
+        Directory.CreateDirectory(UmbraInstallStore.LogsRoot);
+
+        UmbraFrameworkInstall? install = await EnsureUmbraFrameworkForLaunchAsync(gameSha256);
+        if (install is null)
+        {
+            AppendLog("Umbra disabled for this launch: no verified framework is installed.");
+            return UmbraLaunchOptions.Disabled;
+        }
+
+        string logPath = UmbraInstallStore.CreateLogPath("umbra-launch");
+        AppendLog($"Umbra enabled for launch: {install.Name} {install.Version}");
+        AppendLog($"Umbra log: {logPath}");
+
+        return new UmbraLaunchOptions(
+            true,
+            settings.SafeMode,
+            settings.LoadDelayMilliseconds,
+            install.BootstrapPath,
+            install.FrameworkPath,
+            settings.PluginDirectory,
+            logPath,
+            UmbraRepositoryOptions.BuildEffectiveRepositoryUrls(settings));
+    }
+
+    private async Task<UmbraFrameworkInstall?> EnsureUmbraFrameworkForLaunchAsync(string gameSha256)
+    {
+        using CancellationTokenSource timeout = new(TimeSpan.FromSeconds(5));
+        await RefreshUmbraFrameworkCatalogAsync(timeout.Token);
+
+        if (selectedUmbraFrameworkArtifact is not null
+            && selectedUmbraFrameworkArtifact.SupportsGameHash(gameSha256))
+        {
+            UmbraFrameworkInstall? selectedInstall = UmbraInstallStore.FindInstalled(selectedUmbraFrameworkArtifact);
+            if (selectedInstall is not null)
+            {
+                umbraFrameworkInstall = selectedInstall;
+                RefreshInstalledUmbraFrameworkStatus();
+                return selectedInstall;
+            }
+
+            UmbraFrameworkInstall? installed = await InstallSelectedUmbraFrameworkAsync();
+            if (installed is not null && installed.SupportsGameHash(gameSha256))
+                return installed;
+        }
+
+        UmbraFrameworkInstall? latest = UmbraInstallStore.FindLatestInstalled();
+        if (latest is not null && latest.SupportsGameHash(gameSha256))
+        {
+            umbraFrameworkInstall = latest;
+            RefreshInstalledUmbraFrameworkStatus();
+            AppendLog($"Umbra using installed framework fallback: {latest.Name} {latest.Version}");
+            return latest;
+        }
+
+        UmbraFrameworkInstall? bundled = UmbraInstallStore.FindBundled();
+        if (bundled is not null && bundled.SupportsGameHash(gameSha256))
+        {
+            umbraFrameworkInstall = bundled;
+            RefreshInstalledUmbraFrameworkStatus();
+            AppendLog($"Umbra using bundled framework fallback: {bundled.Name} {bundled.Version}");
+            return bundled;
+        }
+
+        return null;
     }
 
     private static Dictionary<string, string> ReadKeyValueLog(string path)
@@ -1426,6 +1535,102 @@ public sealed partial class MainWindow : Window
         }
     }
 
+    private async Task RefreshUmbraFrameworkCatalogAsync(CancellationToken cancellationToken = default)
+    {
+        string serviceUrl = LauncherServiceUrlBox.Text ?? "";
+        if (string.IsNullOrWhiteSpace(serviceUrl))
+        {
+            RefreshInstalledUmbraFrameworkStatus();
+            return;
+        }
+
+        try
+        {
+            AppendLog("Umbra framework package check started.");
+            LauncherApiClient client = new(httpClient, serviceUrl);
+            umbraFrameworkCatalog = await client.GetUmbraFrameworkCatalogAsync(
+                "win-x86",
+                launcherConfig?.ClientPluginFrameworkCatalogUrl,
+                cancellationToken);
+            selectedUmbraFrameworkArtifact = umbraFrameworkCatalog?.SelectDefault();
+
+            if (selectedUmbraFrameworkArtifact is null)
+            {
+                AppendLog("Umbra framework package check: no package is available.");
+                RefreshInstalledUmbraFrameworkStatus();
+            }
+            else
+            {
+                AppendLog($"Umbra framework package available: {FormatUmbraFrameworkArtifact(selectedUmbraFrameworkArtifact)}");
+                RefreshInstalledUmbraFrameworkStatus();
+            }
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            AppendLog($"Umbra framework package check failed: {ex.Message}");
+            RefreshInstalledUmbraFrameworkStatus();
+        }
+        finally
+        {
+            UpdateUmbraUiState();
+        }
+    }
+
+    private async Task<UmbraFrameworkInstall?> InstallSelectedUmbraFrameworkAsync()
+    {
+        if (umbraCancellation is not null)
+            return null;
+
+        if (selectedUmbraFrameworkArtifact is null)
+            await RefreshUmbraFrameworkCatalogAsync();
+
+        if (selectedUmbraFrameworkArtifact is null)
+        {
+            AppendLog("Umbra framework install blocked: catalog did not provide a package.");
+            return null;
+        }
+
+        umbraCancellation = new CancellationTokenSource();
+        SetUmbraBusy(true);
+
+        try
+        {
+            Progress<UmbraFrameworkDownloadProgress> progress = new(update =>
+            {
+                if (update.LogMessage)
+                    AppendLog(update.Message);
+            });
+
+            UmbraFrameworkDownloadResult result = await UmbraFrameworkDownloadService.DownloadAndInstallAsync(
+                selectedUmbraFrameworkArtifact,
+                httpClient,
+                progress,
+                umbraCancellation.Token);
+
+            umbraFrameworkInstall = result.Install;
+            foreach (string message in result.Messages)
+                AppendLog(message);
+            return result.Install;
+        }
+        catch (OperationCanceledException)
+        {
+            AppendLog("Umbra framework install cancelled.");
+            return null;
+        }
+        catch (Exception ex)
+        {
+            AppendLog($"Umbra framework install failed: {ex.Message}");
+            return null;
+        }
+        finally
+        {
+            umbraCancellation.Dispose();
+            umbraCancellation = null;
+            SetUmbraBusy(false);
+            UpdateUmbraUiState();
+        }
+    }
+
     private async Task ShowRuntimeSetupPromptIfNeededAsync()
     {
         if (runtimeSetupPromptShown
@@ -1617,6 +1822,7 @@ public sealed partial class MainWindow : Window
             ApplyGraphicsTarget(profile.GraphicsTarget);
             ApplyRuntimeMode(profile.RuntimeMode);
             ApplyRuntimeProfile(profile.RuntimeProfile);
+            ApplyUmbraSettings(profile.EffectiveUmbra);
         }
         catch (Exception ex)
         {
@@ -1625,6 +1831,7 @@ public sealed partial class MainWindow : Window
             ApplyGraphicsTarget(LauncherProfile.LocalDefault().GraphicsTarget);
             ApplyRuntimeMode(LauncherProfile.LocalDefault().RuntimeMode);
             ApplyRuntimeProfile(LauncherProfile.LocalDefault().RuntimeProfile);
+            ApplyUmbraSettings(LauncherProfile.LocalDefault().EffectiveUmbra);
             SelectServerPresetForProfile(LauncherProfile.LocalDefault());
         }
         finally
@@ -1678,6 +1885,12 @@ public sealed partial class MainWindow : Window
         };
     }
 
+    private void ApplyUmbraSettings(UmbraSettings settings)
+    {
+        UmbraSettings normalized = settings.Normalize();
+        UmbraEnabledBox.IsChecked = normalized.Enabled;
+    }
+
     private void SaveCurrentProfile()
     {
         try
@@ -1693,13 +1906,27 @@ public sealed partial class MainWindow : Window
                 ReadLaunchHelperMode(),
                 ReadGraphicsTarget(),
                 RememberUsernameBox.IsChecked == true ? (LoginUserBox.Text ?? "").Trim() : "",
-                RememberUsernameBox.IsChecked == true);
+                RememberUsernameBox.IsChecked == true,
+                ReadUmbraSettings());
             ProfileStore.SaveDefault(profile);
         }
         catch (Exception ex)
         {
             AppendLog($"Profile save failed: {ex.Message}");
         }
+    }
+
+    private UmbraSettings ReadUmbraSettings()
+    {
+        return new UmbraSettings
+        {
+            Enabled = UmbraEnabledBox.IsChecked == true,
+            PluginDirectory = UmbraInstallStore.PluginsRoot,
+            SafeMode = false,
+            LoadDelayMilliseconds = UmbraSettings.DefaultLoadDelayMilliseconds,
+            UseOfficialRepository = true,
+            CustomRepositoryUrls = Array.Empty<string>()
+        }.Normalize();
     }
 
     private void ScanRuntimeCandidates(bool appendLog)
@@ -1786,6 +2013,17 @@ public sealed partial class MainWindow : Window
             info.Environment[pair.Key] = pair.Value;
         info.Environment["ECHO_GATE_SERVER_XML"] = RuntimeInstallStore.ServerProfilePath;
         info.Environment["ECHO_GATE_LAUNCH_LOG"] = plan.LogPath;
+        if (plan.Umbra.Enabled)
+        {
+            info.Environment["METEOR_UMBRA_ENABLED"] = "1";
+            info.Environment["METEOR_UMBRA_BOOTSTRAP"] = plan.Umbra.BootstrapPath;
+            info.Environment["METEOR_UMBRA_FRAMEWORK"] = plan.Umbra.FrameworkPath;
+            info.Environment["METEOR_UMBRA_PLUGIN_DIR"] = plan.Umbra.PluginDirectory;
+            info.Environment["METEOR_UMBRA_LOG"] = plan.Umbra.LogPath;
+            info.Environment["METEOR_UMBRA_SAFE_MODE"] = plan.Umbra.SafeMode ? "1" : "0";
+            info.Environment["METEOR_UMBRA_LOAD_DELAY_MS"] = plan.Umbra.LoadDelayMilliseconds.ToString();
+            info.Environment["METEOR_UMBRA_REPOSITORY_URLS"] = string.Join(";", plan.Umbra.RepositoryUrls);
+        }
 
         return info;
     }
@@ -1810,6 +2048,24 @@ public sealed partial class MainWindow : Window
         UpdateRuntimeUiState();
     }
 
+    private void RefreshInstalledUmbraFrameworkStatus()
+    {
+        if (selectedUmbraFrameworkArtifact is not null)
+            umbraFrameworkInstall = UmbraInstallStore.FindInstalled(selectedUmbraFrameworkArtifact)
+                ?? UmbraInstallStore.FindLatestInstalled()
+                ?? UmbraInstallStore.FindBundled();
+        else
+            umbraFrameworkInstall = UmbraInstallStore.FindLatestInstalled()
+                ?? UmbraInstallStore.FindBundled();
+
+        if (umbraFrameworkInstall is null)
+            AppendLog("Umbra framework: not installed.");
+        else
+            AppendLog($"Umbra framework: installed {umbraFrameworkInstall.Name} {umbraFrameworkInstall.Version}.");
+
+        UpdateUmbraUiState();
+    }
+
     private void SetRuntimeBusy(bool isBusy)
     {
         InstallRuntimeButton.IsEnabled = !isBusy && selectedRuntimeArtifact is not null;
@@ -1821,6 +2077,12 @@ public sealed partial class MainWindow : Window
         RuntimeNameBox.IsEnabled = !isBusy;
         RuntimeCommandBox.IsEnabled = !isBusy;
         RuntimeValueBox.IsEnabled = !isBusy;
+    }
+
+    private void SetUmbraBusy(bool isBusy)
+    {
+        InstallUmbraButton.IsEnabled = !isBusy;
+        UmbraEnabledBox.IsEnabled = !isBusy;
     }
 
     private void UpdateRuntimeUiState()
@@ -1853,7 +2115,19 @@ public sealed partial class MainWindow : Window
             RuntimeCatalogStatus.Text = "Approved runtime mode is waiting for a package.";
     }
 
+    private void UpdateUmbraUiState()
+    {
+        bool isBusy = umbraCancellation is not null;
+        InstallUmbraButton.IsEnabled = !isBusy;
+        UmbraEnabledBox.IsEnabled = !isBusy;
+    }
+
     private static string FormatRuntimeArtifact(RuntimeArtifact artifact)
+    {
+        return $"{artifact.Name} {artifact.Version} ({artifact.PlatformRid}, {artifact.SizeBytes} bytes)";
+    }
+
+    private static string FormatUmbraFrameworkArtifact(UmbraFrameworkArtifact artifact)
     {
         return $"{artifact.Name} {artifact.Version} ({artifact.PlatformRid}, {artifact.SizeBytes} bytes)";
     }

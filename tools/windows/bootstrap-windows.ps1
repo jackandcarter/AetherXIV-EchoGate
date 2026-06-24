@@ -11,32 +11,14 @@ param(
 )
 
 . "$PSScriptRoot\common.ps1"
-$root = Get-MeteorRoot
-Import-MeteorEnv $root
 
-if ($InstallMissing) {
-    & "$PSScriptRoot\install-prereqs.ps1" -Mode Build -Install -Yes:$Yes
-}
+$setupArgs = @("-Mode", "Build", "-Runtime", $Runtime, "-Configuration", $Configuration, "-SkipSmoke")
+if ($ClientDir -ne "") { $setupArgs += @("-ClientDir", $ClientDir) }
+if ($SkipBuild) { $setupArgs += "-SkipBuild" }
+if ($SkipDatabase) { $setupArgs += "-SkipDatabase" }
+if ($SkipLauncher) { $setupArgs += "-SkipLauncher" }
+if ($InstallMissing) { $setupArgs += "-InstallMissing" }
+if ($Yes) { $setupArgs += "-Yes" }
 
-if (-not $SkipDatabase) {
-    & "$PSScriptRoot\setup-local-db.ps1"
-}
-
-if (-not $SkipBuild) {
-    & "$PSScriptRoot\build-legacy.ps1" -Configuration $Configuration
-}
-
-$copyArgs = @("-Configuration", $Configuration)
-if ($ClientDir -ne "") { $copyArgs += @("-ClientDir", $ClientDir) }
-& "$PSScriptRoot\copy-runtime-data.ps1" @copyArgs
-
-if (-not $SkipLauncher) {
-    & "$PSScriptRoot\build-echo-gate.ps1" -Runtime $Runtime -Configuration $Configuration
-}
-
-Write-Host
-Write-Host "Windows bootstrap complete."
-Write-Host "Start the stack with:"
-Write-Host "  .\tools\windows\run-local-stack.ps1 -Configuration $Configuration"
-Write-Host "Then configure Echo Gate server URL:"
-Write-Host "  http://127.0.0.1:8080/launcher"
+Write-Host "bootstrap-windows.ps1 is a compatibility wrapper. New users should run tools\windows\setup.ps1 -Mode Build."
+& "$PSScriptRoot\setup.ps1" @setupArgs

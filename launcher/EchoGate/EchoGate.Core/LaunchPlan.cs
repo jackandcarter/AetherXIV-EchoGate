@@ -8,6 +8,7 @@ public sealed record LaunchPlan(
     string Arguments,
     string LogPath,
     string? HelperLogPath,
+    UmbraLaunchOptions Umbra,
     IReadOnlyDictionary<string, string> Environment)
 {
     private const int HelperObservationSeconds = 15;
@@ -41,6 +42,7 @@ public sealed record LaunchPlan(
             runtimeProfile.BuildArguments(clientInstall.GameExecutablePath),
             logPath ?? RuntimeLaunchDiagnostics.CreateLogPath(),
             null,
+            UmbraLaunchOptions.Disabled,
             environment);
     }
 
@@ -51,7 +53,8 @@ public sealed record LaunchPlan(
         string helperExecutablePath,
         string sessionId,
         bool mapClientPathsForWine,
-        string? logPath = null)
+        string? logPath = null,
+        UmbraLaunchOptions? umbraOptions = null)
     {
         ArgumentNullException.ThrowIfNull(clientInstall);
         ArgumentNullException.ThrowIfNull(serverProfile);
@@ -76,7 +79,8 @@ public sealed record LaunchPlan(
             ? WinePathMapper.ToWindowsPath(helperOutputLogPath)
             : helperOutputLogPath;
 
-        string helperArguments = string.Join(" ", new[]
+        UmbraLaunchOptions normalizedUmbra = NormalizeUmbraLaunchOptions(umbraOptions, mapClientPathsForWine);
+        List<string> helperParts = new()
         {
             "--game",
             CommandLineArguments.Quote(gamePath),
@@ -90,7 +94,9 @@ public sealed record LaunchPlan(
             CommandLineArguments.Quote(helperLogPath),
             "--observe-seconds",
             HelperObservationSeconds.ToString()
-        });
+        };
+        AppendUmbraArguments(helperParts, normalizedUmbra);
+        string helperArguments = string.Join(" ", helperParts);
 
         Dictionary<string, string> environment = new(StringComparer.OrdinalIgnoreCase)
         {
@@ -124,6 +130,50 @@ public sealed record LaunchPlan(
             arguments,
             outputLogPath,
             helperOutputLogPath,
+            normalizedUmbra,
             environment);
+    }
+
+    private static UmbraLaunchOptions NormalizeUmbraLaunchOptions(
+        UmbraLaunchOptions? options,
+        bool mapClientPathsForWine)
+    {
+        if (options is null || !options.Enabled)
+            return UmbraLaunchOptions.Disabled;
+
+        UmbraLaunchOptions normalized = options.Normalize();
+        if (!mapClientPathsForWine)
+            return normalized;
+
+        return normalized with
+        {
+            BootstrapPath = WinePathMapper.ToWindowsPath(normalized.BootstrapPath),
+            FrameworkPath = WinePathMapper.ToWindowsPath(normalized.FrameworkPath),
+            PluginDirectory = WinePathMapper.ToWindowsPath(normalized.PluginDirectory),
+            LogPath = WinePathMapper.ToWindowsPath(normalized.LogPath)
+        };
+    }
+
+    private static void AppendUmbraArguments(List<string> parts, UmbraLaunchOptions options)
+    {
+        if (!options.Enabled)
+            return;
+
+        parts.Add("--umbra-enabled");
+        parts.Add("true");
+        parts.Add("--umbra-bootstrap");
+        parts.Add(CommandLineArguments.Quote(options.BootstrapPath));
+        parts.Add("--umbra-framework");
+        parts.Add(CommandLineArguments.Quote(options.FrameworkPath));
+        parts.Add("--umbra-plugin-dir");
+        parts.Add(CommandLineArguments.Quote(options.PluginDirectory));
+        parts.Add("--umbra-log");
+        parts.Add(CommandLineArguments.Quote(options.LogPath));
+        parts.Add("--umbra-safe-mode");
+        parts.Add(options.SafeMode ? "true" : "false");
+        parts.Add("--umbra-load-delay-ms");
+        parts.Add(options.LoadDelayMilliseconds.ToString());
+        parts.Add("--umbra-repository-urls");
+        parts.Add(CommandLineArguments.Quote(string.Join(";", options.RepositoryUrls)));
     }
 }

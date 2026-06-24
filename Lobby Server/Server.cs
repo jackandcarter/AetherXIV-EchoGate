@@ -105,6 +105,7 @@ namespace MeteorXIV.Core.Lobby
             Console.ForegroundColor = ConsoleColor.Gray;
 
             mProcessor = new PacketProcessor();
+            StartupReadySignal.TryWrite("Lobby", String.Format("{0}:{1}", (mServerSocket.LocalEndPoint as IPEndPoint).Address, (mServerSocket.LocalEndPoint as IPEndPoint).Port));
 
             return true;
         }

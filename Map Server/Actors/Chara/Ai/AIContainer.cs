@@ -328,6 +328,24 @@ namespace MeteorXIV.Core.Map.actors.chara.ai
                 return false;
             }
 
+            if (!target.CanBeAttackedBy(owner) || !owner.IsValidTarget(target, ValidTarget.Enemy))
+            {
+                DevDiagnostics.Trace(
+                    "battle.engage.blocked",
+                    "reason", !target.CanBeAttackedBy(owner) ? "target is not attackable" : "invalid enemy target",
+                    "actor", String.Format("0x{0:X}", owner.actorId),
+                    "actorName", owner.customDisplayName != null ? owner.customDisplayName : owner.actorName,
+                    "target", String.Format("0x{0:X}", target.actorId),
+                    "targetName", target.customDisplayName != null ? target.customDisplayName : target.actorName,
+                    "targetType", target.GetType().Name,
+                    "currentTarget", String.Format("0x{0:X}", owner.currentTarget),
+                    "currentLockedTarget", String.Format("0x{0:X}", owner.currentLockedTarget),
+                    "currentState", GetCurrentState() == null ? "" : GetCurrentState().GetType().Name,
+                    "mainState", String.Format("0x{0:X}", owner.currentMainState));
+                ChangeTarget(null);
+                return false;
+            }
+
             var currentAttackState = GetCurrentState() as AttackState;
             if (currentAttackState != null)
             {

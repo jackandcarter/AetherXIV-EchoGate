@@ -11,7 +11,8 @@ public sealed record LauncherProfile(
     ClientLaunchHelperMode LaunchHelperMode = ClientLaunchHelperMode.Automatic,
     ClientGraphicsTarget GraphicsTarget = ClientGraphicsTarget.OpenGLCompatibility,
     string SavedUsername = "",
-    bool RememberUsername = false)
+    bool RememberUsername = false,
+    UmbraSettings? Umbra = null)
 {
     public const string DemiDevUnitLauncherServiceUrl = "https://launcher.dev.demidevunit.com/launcher";
 
@@ -33,7 +34,8 @@ public sealed record LauncherProfile(
         ClientLaunchHelperMode.Automatic,
         ClientGraphicsTarget.OpenGLCompatibility,
         "",
-        false);
+        false,
+        UmbraSettings.Default);
 
     public static LauncherProfile DemiDevUnitDefault() => LocalDefault() with
     {
@@ -41,4 +43,6 @@ public sealed record LauncherProfile(
         PatchBaseUrl = "",
         ServerProfile = ServerProfile.DemiDevUnitDefault()
     };
+
+    public UmbraSettings EffectiveUmbra => (Umbra ?? UmbraSettings.Default).Normalize();
 }

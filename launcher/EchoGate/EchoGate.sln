@@ -11,6 +11,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EchoGate.Tests", "EchoGate.
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EchoGate.ClientLauncher", "EchoGate.ClientLauncher\EchoGate.ClientLauncher.csproj", "{EA474826-0882-41DC-9247-9B8C65100ED4}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Meteor.Umbra.PluginApi", "..\Umbra\Meteor.Umbra.PluginApi\Meteor.Umbra.PluginApi.csproj", "{6C033D78-94E8-4A2A-A4A0-A604B449333A}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Meteor.Umbra.Framework", "..\Umbra\Meteor.Umbra.Framework\Meteor.Umbra.Framework.csproj", "{0A335482-F912-44C5-B71A-20B4825479C2}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -69,6 +73,30 @@ Global
 		{EA474826-0882-41DC-9247-9B8C65100ED4}.Release|x64.Build.0 = Release|Any CPU
 		{EA474826-0882-41DC-9247-9B8C65100ED4}.Release|x86.ActiveCfg = Release|Any CPU
 		{EA474826-0882-41DC-9247-9B8C65100ED4}.Release|x86.Build.0 = Release|Any CPU
+		{6C033D78-94E8-4A2A-A4A0-A604B449333A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6C033D78-94E8-4A2A-A4A0-A604B449333A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6C033D78-94E8-4A2A-A4A0-A604B449333A}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{6C033D78-94E8-4A2A-A4A0-A604B449333A}.Debug|x64.Build.0 = Debug|Any CPU
+		{6C033D78-94E8-4A2A-A4A0-A604B449333A}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{6C033D78-94E8-4A2A-A4A0-A604B449333A}.Debug|x86.Build.0 = Debug|Any CPU
+		{6C033D78-94E8-4A2A-A4A0-A604B449333A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6C033D78-94E8-4A2A-A4A0-A604B449333A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6C033D78-94E8-4A2A-A4A0-A604B449333A}.Release|x64.ActiveCfg = Release|Any CPU
+		{6C033D78-94E8-4A2A-A4A0-A604B449333A}.Release|x64.Build.0 = Release|Any CPU
+		{6C033D78-94E8-4A2A-A4A0-A604B449333A}.Release|x86.ActiveCfg = Release|Any CPU
+		{6C033D78-94E8-4A2A-A4A0-A604B449333A}.Release|x86.Build.0 = Release|Any CPU
+		{0A335482-F912-44C5-B71A-20B4825479C2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0A335482-F912-44C5-B71A-20B4825479C2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0A335482-F912-44C5-B71A-20B4825479C2}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{0A335482-F912-44C5-B71A-20B4825479C2}.Debug|x64.Build.0 = Debug|Any CPU
+		{0A335482-F912-44C5-B71A-20B4825479C2}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{0A335482-F912-44C5-B71A-20B4825479C2}.Debug|x86.Build.0 = Debug|Any CPU
+		{0A335482-F912-44C5-B71A-20B4825479C2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0A335482-F912-44C5-B71A-20B4825479C2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0A335482-F912-44C5-B71A-20B4825479C2}.Release|x64.ActiveCfg = Release|Any CPU
+		{0A335482-F912-44C5-B71A-20B4825479C2}.Release|x64.Build.0 = Release|Any CPU
+		{0A335482-F912-44C5-B71A-20B4825479C2}.Release|x86.ActiveCfg = Release|Any CPU
+		{0A335482-F912-44C5-B71A-20B4825479C2}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

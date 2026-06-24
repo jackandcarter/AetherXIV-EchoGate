@@ -13,6 +13,8 @@ try
 		"news_url" => "news",
 		"patch_manifest_url" => "patch-manifest",
 		"runtime_catalog_url" => "runtime-catalog",
+		"client_plugin_framework_catalog_url" => $config["client_plugin_framework_catalog_url"] ?? "umbra/framework-catalog",
+		"plugin_catalog_urls" => launcher_config_list($config["plugin_catalog_urls"] ?? ""),
 		"login_url" => $config["login_url"] ?? "login",
 		"account_create_url" => $config["account_create_url"] ?? "create-account",
 		"client_login_url" => $config["client_login_url"] ?? "../login/index.php",

@@ -4,6 +4,7 @@ using System.Security.Cryptography;
 using System.Xml.Linq;
 using System.Text;
 using System.Text.Json;
+using System.Net;
 using EchoGate.Core;
 
 namespace EchoGate.Tests;
@@ -130,9 +131,9 @@ public sealed class EchoGateCoreTests
         File.WriteAllText(x64Helper, "");
         File.WriteAllText(arm64Helper, "");
 
-        Assert.Equal(x86Helper, ClientLaunchHelperLocator.Find(root));
-        Assert.Equal(x86Helper, ClientLaunchHelperLocator.FindLaunchHelper(root));
-        Assert.Equal(x86Helper, ClientLaunchHelperLocator.FindLaunchHelper(ClientLaunchHelperMode.Automatic, root));
+        Assert.Equal(x64Helper, ClientLaunchHelperLocator.Find(root));
+        Assert.Equal(x64Helper, ClientLaunchHelperLocator.FindLaunchHelper(root));
+        Assert.Equal(x64Helper, ClientLaunchHelperLocator.FindLaunchHelper(ClientLaunchHelperMode.Automatic, root));
         Assert.Equal(x86Helper, ClientLaunchHelperLocator.FindLaunchHelper(ClientLaunchHelperMode.X86, root));
         Assert.Equal(x64Helper, ClientLaunchHelperLocator.FindLaunchHelper(ClientLaunchHelperMode.X64, root));
         Assert.Equal(arm64Helper, ClientLaunchHelperLocator.FindLaunchHelper(ClientLaunchHelperMode.Arm64, root));
@@ -194,6 +195,109 @@ public sealed class EchoGateCoreTests
         Assert.DoesNotContain("Z:", plan.Arguments);
         Assert.Contains("--session", plan.Arguments);
         Assert.Contains("--observe-seconds 15", plan.Arguments);
+    }
+
+    [Fact]
+    public void LaunchPlanWithHelperCarriesUmbraArgumentsAndMapsWinePaths()
+    {
+        string root = CreateTempDirectory();
+        File.WriteAllText(Path.Combine(root, "ffxivgame.exe"), "");
+        ClientInstall client = ClientInstall.FromPath(root);
+        ServerProfile server = ServerProfile.LocalDefault();
+        WineRuntimeProfile runtime = WineRuntimeProfile.WinePrefix("Wine", "/tmp/echo-gate-prefix");
+        string helper = Path.Combine(root, "EchoGate.ClientLauncher.exe");
+        UmbraLaunchOptions umbra = new(
+            true,
+            false,
+            500,
+            Path.Combine(root, "Umbra", "Framework", "Meteor.Umbra.Bootstrap.x86.dll"),
+            Path.Combine(root, "Umbra", "Framework", "Managed", "Meteor.Umbra.Framework.dll"),
+            Path.Combine(root, "Umbra", "Plugins"),
+            Path.Combine(root, "Umbra", "Logs", "umbra.log"),
+            new[] { UmbraRepositoryOptions.OfficialRepositoryUrl });
+
+        LaunchPlan plan = LaunchPlan.CreateWithHelper(
+            client,
+            server,
+            runtime,
+            helper,
+            new string('b', 56),
+            mapClientPathsForWine: true,
+            logPath: Path.Combine(root, "launch.log"),
+            umbraOptions: umbra);
+
+        Assert.True(plan.Umbra.Enabled);
+        Assert.Contains("--umbra-enabled true", plan.Arguments);
+        Assert.Contains("--umbra-bootstrap", plan.Arguments);
+        Assert.Contains("Z:", plan.Arguments);
+        Assert.Contains("Meteor.Umbra.Bootstrap.x86.dll", plan.Arguments);
+        Assert.Contains("--umbra-load-delay-ms 500", plan.Arguments);
+        Assert.Contains("--umbra-repository-urls", plan.Arguments);
+    }
+
+    [Fact]
+    public void LauncherProfileCarriesUmbraSettings()
+    {
+        LauncherProfile profile = LauncherProfile.LocalDefault() with
+        {
+            Umbra = new UmbraSettings
+            {
+                Enabled = true,
+                LoadDelayMilliseconds = UmbraSettings.MaximumLoadDelayMilliseconds + 1,
+                CustomRepositoryUrls = new[] { "https://example.com/umbra/index.json" }
+            }
+        };
+
+        UmbraSettings settings = profile.EffectiveUmbra;
+
+        Assert.True(settings.Enabled);
+        Assert.Equal(UmbraSettings.MaximumLoadDelayMilliseconds, settings.LoadDelayMilliseconds);
+        Assert.Contains("https://example.com/umbra/index.json", settings.CustomRepositoryUrls);
+    }
+
+    [Fact]
+    public void UmbraRepositoryOptionsAllowHttpsAndLocalhostOnly()
+    {
+        IReadOnlyList<string> urls = UmbraRepositoryOptions.NormalizeCustomRepositoryUrls(new[]
+        {
+            "https://example.com/umbra/index.json",
+            "http://localhost:8080/umbra/index.json",
+            "http://127.0.0.1:8080/umbra/index.json"
+        });
+
+        Assert.Equal(3, urls.Count);
+        Assert.Throws<ArgumentException>(() =>
+            UmbraRepositoryOptions.NormalizeCustomRepositoryUrls(new[] { "http://example.com/umbra/index.json" }));
+    }
+
+    [Fact]
+    public void UmbraPluginManifestRejectsEscapingEntry()
+    {
+        UmbraPluginManifest manifest = new(
+            "dev.bad",
+            "Bad",
+            "0.1.0",
+            "1.0",
+            "../Bad.dll",
+            "0.1.0",
+            false);
+
+        Assert.Throws<InvalidDataException>(() => manifest.Validate());
+    }
+
+    [Fact]
+    public void UmbraPluginManifestAllowsDottedAssemblyNames()
+    {
+        UmbraPluginManifest manifest = new(
+            "dev.good",
+            "Good",
+            "0.1.0",
+            "1.0",
+            "Company.Plugin.dll",
+            "0.1.0",
+            true);
+
+        manifest.Validate();
     }
 
     [Fact]
@@ -976,6 +1080,42 @@ public sealed class EchoGateCoreTests
     }
 
     [Fact]
+    public async Task UmbraFrameworkDownloadInstallsVerifiedArchive()
+    {
+        byte[] archive = CreateRuntimeArchive(
+            ("Meteor.Umbra.Bootstrap.x86.dll", Encoding.ASCII.GetBytes("bootstrap")),
+            ("Managed/Meteor.Umbra.Framework.dll", Encoding.ASCII.GetBytes("framework")));
+        UmbraFrameworkArtifact artifact = CreateUmbraArtifact(archive);
+        string root = CreateTempDirectory();
+
+        UmbraFrameworkDownloadResult result = await UmbraFrameworkDownloadService.DownloadAndInstallAsync(
+            artifact,
+            new HttpClient(new StaticPatchHandler(archive)),
+            frameworksRoot: Path.Combine(root, "frameworks"),
+            cacheRoot: Path.Combine(root, "cache"));
+
+        Assert.True(File.Exists(result.Install.BootstrapPath));
+        Assert.True(File.Exists(result.Install.FrameworkPath));
+        Assert.True(File.Exists(UmbraInstallStore.ManifestPathFor(result.Install.InstallPath)));
+        Assert.True(result.Install.SupportsGameHash(UmbraCompatibility.Known123bGameSha256));
+    }
+
+    [Fact]
+    public async Task UmbraFrameworkDownloadRejectsPathTraversalArchive()
+    {
+        byte[] archive = CreateRuntimeArchive(("../escape.txt", Encoding.ASCII.GetBytes("nope")));
+        UmbraFrameworkArtifact artifact = CreateUmbraArtifact(archive);
+        string root = CreateTempDirectory();
+
+        await Assert.ThrowsAsync<InvalidDataException>(() =>
+            UmbraFrameworkDownloadService.DownloadAndInstallAsync(
+                artifact,
+                new HttpClient(new StaticPatchHandler(archive)),
+                frameworksRoot: Path.Combine(root, "frameworks"),
+                cacheRoot: Path.Combine(root, "cache")));
+    }
+
+    [Fact]
     public void RuntimeInstallManifestRoundTrips()
     {
         string root = CreateTempDirectory();
@@ -1343,6 +1483,25 @@ public sealed class EchoGateCoreTests
             "bin/wine",
             "win64",
             new Dictionary<string, string> { ["WINEDEBUG"] = "-all" },
+            true,
+            true,
+            10);
+    }
+
+    private static UmbraFrameworkArtifact CreateUmbraArtifact(byte[] archive)
+    {
+        return new UmbraFrameworkArtifact(
+            "Meteor Umbra",
+            "0.1.0",
+            "1.0",
+            "win-x86",
+            "https://cdn.example.test/umbra.zip",
+            "zip",
+            archive.Length,
+            Convert.ToHexString(SHA256.HashData(archive)),
+            "Meteor.Umbra.Bootstrap.x86.dll",
+            "Managed/Meteor.Umbra.Framework.dll",
+            new[] { UmbraCompatibility.Known123bGameSha256 },
             true,
             true,
             10);

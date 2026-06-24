@@ -2780,6 +2780,21 @@ namespace MeteorXIV.Core.Map.Actors
             // enemy only
             if ((validTarget & ValidTarget.Enemy) != 0)
             {
+                if (!target.CanBeAttackedBy(this))
+                {
+                    // That command cannot be performed on the current target.
+                    SendGameMessage(Server.GetWorldManager().GetActor(), 32547, 0x20);
+                    DevDiagnostics.Trace(
+                        "battle.target.blocked",
+                        "reason", "target is not attackable",
+                        "actor", String.Format("0x{0:X}", actorId),
+                        "actorName", customDisplayName != null ? customDisplayName : actorName,
+                        "target", String.Format("0x{0:X}", target.actorId),
+                        "targetName", target.customDisplayName != null ? target.customDisplayName : target.actorName,
+                        "targetType", target.GetType().Name);
+                    return false;
+                }
+
                 // todo: this seems ambiguous
                 if (target.isStatic)
                 {

@@ -11,6 +11,8 @@ Release/
 build/
 packages/
 .tools/
+.dotnet-home/
+.tmp/
 TestResult*/
 *.user
 *.DS_Store

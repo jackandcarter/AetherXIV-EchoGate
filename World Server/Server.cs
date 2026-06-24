@@ -106,6 +106,7 @@ namespace MeteorXIV.Core.World
             Console.ForegroundColor = ConsoleColor.White;
             Program.Log.Info("World Server accepting connections @ {0}:{1}", (mServerSocket.LocalEndPoint as IPEndPoint).Address, (mServerSocket.LocalEndPoint as IPEndPoint).Port);
             Console.ForegroundColor = ConsoleColor.Gray;            
+            StartupReadySignal.TryWrite("World", String.Format("{0}:{1}", (mServerSocket.LocalEndPoint as IPEndPoint).Address, (mServerSocket.LocalEndPoint as IPEndPoint).Port));
 
             return true;
         }

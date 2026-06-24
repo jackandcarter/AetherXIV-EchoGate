@@ -19,6 +19,8 @@ INSERT INTO `launcher_config` (`config_key`, `config_value`) VALUES
   ('account_create_url', 'create-account'),
   ('client_login_url', '../login/index.php'),
   ('runtime_catalog_url', 'runtime-catalog'),
+  ('client_plugin_framework_catalog_url', 'umbra/framework-catalog'),
+  ('plugin_catalog_urls', ''),
   ('target_boot_version', '2010.09.18.0000'),
   ('target_game_version', '2012.09.19.0001');
 
@@ -130,4 +132,27 @@ CREATE TABLE `launcher_runtime_artifacts` (
   `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   KEY `idx_launcher_runtime_artifacts_platform` (`platform_rid`, `is_active`, `is_default`, `sort_order`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+DROP TABLE IF EXISTS `launcher_umbra_framework_artifacts`;
+CREATE TABLE `launcher_umbra_framework_artifacts` (
+  `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
+  `name` varchar(120) NOT NULL,
+  `version` varchar(64) NOT NULL,
+  `api_version` varchar(32) NOT NULL DEFAULT '1.0',
+  `platform_rid` varchar(32) NOT NULL DEFAULT 'win-x86',
+  `archive_url` varchar(500) NOT NULL,
+  `archive_format` varchar(16) NOT NULL DEFAULT 'zip',
+  `size_bytes` bigint(20) NOT NULL,
+  `sha256` char(64) NOT NULL,
+  `bootstrap_relative_path` varchar(255) NOT NULL DEFAULT 'Meteor.Umbra.Bootstrap.x86.dll',
+  `framework_relative_path` varchar(255) NOT NULL DEFAULT 'Managed/Meteor.Umbra.Framework.exe',
+  `supported_game_sha256` text NULL,
+  `is_default` tinyint(1) NOT NULL DEFAULT 0,
+  `is_active` tinyint(1) NOT NULL DEFAULT 1,
+  `sort_order` int(11) NOT NULL DEFAULT 0,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_launcher_umbra_framework_platform` (`platform_rid`, `is_active`, `is_default`, `sort_order`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;

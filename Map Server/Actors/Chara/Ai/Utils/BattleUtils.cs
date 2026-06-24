@@ -327,6 +327,22 @@ namespace MeteorXIV.Core.Map.actors.chara.ai.utils
         {
             if (defender != null)
             {
+                if (!defender.CanBeAttackedBy(attacker))
+                {
+                    action.amount = 0;
+                    DevDiagnostics.Trace(
+                        "battle.damage.blocked",
+                        "reason", "defender is not attackable",
+                        "attacker", String.Format("0x{0:X}", attacker.actorId),
+                        "attackerName", attacker.customDisplayName != null ? attacker.customDisplayName : attacker.actorName,
+                        "defender", String.Format("0x{0:X}", defender.actorId),
+                        "defenderName", defender.customDisplayName != null ? defender.customDisplayName : defender.actorName,
+                        "defenderType", defender.GetType().Name,
+                        "commandId", skill == null ? 0 : skill.id,
+                        "commandName", skill == null ? "" : skill.name);
+                    return;
+                }
+
                 short beforeHp = defender.GetHP();
 
                 //Bugfix, mobs that instantly died were insta disappearing due to lastAttacker == null.

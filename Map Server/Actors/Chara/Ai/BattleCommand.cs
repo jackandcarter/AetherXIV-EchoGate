@@ -292,6 +292,12 @@ namespace MeteorXIV.Core.Map.actors.chara.ai
                 return false;
             }
 
+            if ((mainTarget & (ValidTarget.Enemy | ValidTarget.EnemyOnly)) != 0 && !target.CanBeAttackedBy(user))
+            {
+                error?.SetTextId(32547);
+                return false;
+            }
+
             //This skill must be used on an enemy and target is an ally
             if ((mainTarget & ValidTarget.EnemyOnly) != 0 && target.allegiance == user.allegiance)
             {

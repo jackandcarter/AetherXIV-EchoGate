@@ -30,4 +30,15 @@ function launcher_json($payload)
 	echo json_encode($payload, JSON_UNESCAPED_SLASHES);
 }
 
+function launcher_config_list($value)
+{
+	$items = array();
+	foreach(preg_split("/[\r\n;]+/", $value ?? "") as $item)
+	{
+		$item = trim($item);
+		if($item !== "") $items[] = $item;
+	}
+	return array_values(array_unique($items));
+}
+
 ?>

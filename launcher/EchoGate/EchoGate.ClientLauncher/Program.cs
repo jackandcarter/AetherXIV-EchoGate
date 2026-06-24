@@ -12,7 +12,7 @@ internal static class Program
     {
         if (args.Length == 1 && string.Equals(args[0], "--probe", StringComparison.OrdinalIgnoreCase))
         {
-            Console.WriteLine("ECHO_GATE_CLIENT_HELPER_OK x86-compatible");
+            Console.WriteLine("ECHO_GATE_CLIENT_HELPER_OK x86-compatible umbra-capable");
             return 0;
         }
 
@@ -45,6 +45,17 @@ internal static class Program
             File.AppendAllText(options.LogPath, $"server_host={options.ServerHost}{Environment.NewLine}");
             File.AppendAllText(options.LogPath, $"observe_ms={options.ObservationTimeoutMilliseconds}{Environment.NewLine}");
             File.AppendAllText(options.LogPath, $"session_length={options.SessionId.Length}{Environment.NewLine}");
+            File.AppendAllText(options.LogPath, $"umbra_requested={options.Umbra.Enabled}{Environment.NewLine}");
+            if (options.Umbra.Enabled)
+            {
+                File.AppendAllText(options.LogPath, $"umbra_bootstrap={options.Umbra.BootstrapPath}{Environment.NewLine}");
+                File.AppendAllText(options.LogPath, $"umbra_framework={options.Umbra.FrameworkPath}{Environment.NewLine}");
+                File.AppendAllText(options.LogPath, $"umbra_plugin_dir={options.Umbra.PluginDirectory}{Environment.NewLine}");
+                File.AppendAllText(options.LogPath, $"umbra_log={options.Umbra.LogPath}{Environment.NewLine}");
+                File.AppendAllText(options.LogPath, $"umbra_safe_mode={options.Umbra.SafeMode}{Environment.NewLine}");
+                File.AppendAllText(options.LogPath, $"umbra_load_delay_ms={options.Umbra.LoadDelayMilliseconds}{Environment.NewLine}");
+                File.AppendAllText(options.LogPath, $"umbra_repository_count={options.Umbra.RepositoryUrls.Count}{Environment.NewLine}");
+            }
             AppendFileProbe(options.LogPath, options.GamePath);
             AppendInstallProbe(options.LogPath, options.WorkingDirectory);
 
@@ -207,7 +218,8 @@ internal sealed record LaunchOptions(
     string SessionId,
     string ServerHost,
     string LogPath,
-    uint ObservationTimeoutMilliseconds)
+    uint ObservationTimeoutMilliseconds,
+    UmbraLaunchOptions Umbra)
 {
     private const uint DefaultObservationTimeoutMilliseconds = 5000;
 
@@ -234,7 +246,8 @@ internal sealed record LaunchOptions(
             Required(values, "session"),
             Required(values, "server-host"),
             Required(values, "log"),
-            ParseObservationTimeout(values));
+            ParseObservationTimeout(values),
+            ParseUmbraOptions(values));
     }
 
     private static string Required(IReadOnlyDictionary<string, string> values, string key)
@@ -254,5 +267,48 @@ internal sealed record LaunchOptions(
             throw new ArgumentException("Invalid --observe-seconds value.");
 
         return seconds * 1000;
+    }
+
+    private static UmbraLaunchOptions ParseUmbraOptions(IReadOnlyDictionary<string, string> values)
+    {
+        if (!ParseBoolean(values, "umbra-enabled"))
+            return UmbraLaunchOptions.Disabled;
+
+        return new UmbraLaunchOptions(
+            true,
+            ParseBoolean(values, "umbra-safe-mode"),
+            ParseInt(values, "umbra-load-delay-ms", 0, 0, UmbraSettings.MaximumLoadDelayMilliseconds),
+            Required(values, "umbra-bootstrap"),
+            Required(values, "umbra-framework"),
+            Required(values, "umbra-plugin-dir"),
+            Required(values, "umbra-log"),
+            UmbraRepositoryOptions.ParseRepositoryList(values.TryGetValue("umbra-repository-urls", out string? urls) ? urls : ""))
+            .Normalize();
+    }
+
+    private static bool ParseBoolean(IReadOnlyDictionary<string, string> values, string key)
+    {
+        if (!values.TryGetValue(key, out string? value) || string.IsNullOrWhiteSpace(value))
+            return false;
+
+        return string.Equals(value, "1", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(value, "true", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(value, "yes", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static int ParseInt(
+        IReadOnlyDictionary<string, string> values,
+        string key,
+        int defaultValue,
+        int minimum,
+        int maximum)
+    {
+        if (!values.TryGetValue(key, out string? value) || string.IsNullOrWhiteSpace(value))
+            return defaultValue;
+
+        if (!int.TryParse(value, out int result))
+            throw new ArgumentException($"Invalid --{key} value.");
+
+        return Math.Clamp(result, minimum, maximum);
     }
 }

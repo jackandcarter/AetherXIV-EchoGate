@@ -34,9 +34,78 @@ env:
   DOTNET_VERSION: 10.0.x
 
 jobs:
+  umbra-framework:
+    name: Umbra client framework
+    runs-on: windows-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Set up MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Build Umbra framework bundle
+        shell: pwsh
+        env:
+          RELEASE_LABEL: ${{ github.event_name == 'push' && github.ref_name || inputs.version_label }}
+        run: |
+          $ErrorActionPreference = "Stop"
+          $label = $env:RELEASE_LABEL
+          if ([string]::IsNullOrWhiteSpace($label)) { $label = "manual-build" }
+          if ($label.StartsWith("release-")) { $label = $label.Substring(8) }
+          $label = $label.Replace("/", "-")
+          $version = $label.TrimStart("v")
+          if ([string]::IsNullOrWhiteSpace($version)) { $version = "0.1.0" }
+
+          $frameworkProject = "launcher/Umbra/Meteor.Umbra.Framework/Meteor.Umbra.Framework.csproj"
+          $bootstrapProject = "launcher/Umbra/Meteor.Umbra.Bootstrap/Meteor.Umbra.Bootstrap.vcxproj"
+          $bundleRoot = "build/umbra-framework/Umbra/Framework"
+          $managedOutput = "$bundleRoot/Managed"
+          New-Item -ItemType Directory -Force -Path $managedOutput | Out-Null
+
+          dotnet publish $frameworkProject --configuration $env:CONFIGURATION --runtime win-x86 --self-contained true --output $managedOutput /p:PublishSingleFile=false /p:UseAppHost=true
+          msbuild $bootstrapProject /p:Configuration=Release /p:Platform=Win32 /p:OutDir="$bundleRoot\\" /p:TargetName=Meteor.Umbra.Bootstrap.x86
+
+          Copy-Item "launcher/Umbra/assets/umbra-icon.svg" "$bundleRoot/umbra-icon.svg" -Force
+          Set-Content -Path "$bundleRoot/version.txt" -Value $version
+
+          $manifest = [ordered]@{
+            name = "Meteor Umbra"
+            version = $version
+            api_version = "1.0"
+            platform_rid = "win-x86"
+            bootstrap_relative_path = "Meteor.Umbra.Bootstrap.x86.dll"
+            framework_relative_path = "Managed/Meteor.Umbra.Framework.exe"
+            supported_game_sha256 = @("9341f2b4567440b310a4d494f5cc5599ca334ba51c8042247317ff466492f2e9")
+          }
+          $manifest | ConvertTo-Json -Depth 8 | Set-Content -Path "$bundleRoot/umbra-framework.json"
+
+          New-Item -ItemType Directory -Force -Path artifacts | Out-Null
+          Compress-Archive -Path "build/umbra-framework/Umbra" -DestinationPath "artifacts/MeteorXIV-Umbra-Framework-$label.zip" -Force
+
+      - name: Upload internal Umbra bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: umbra-framework-bundle
+          path: build/umbra-framework/Umbra
+          if-no-files-found: error
+
+      - name: Upload Umbra release asset
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-MeteorXIV-Umbra-Framework
+          path: artifacts/*
+          if-no-files-found: error
+
   echo-gate-linux:
     name: Echo Gate Linux ${{ matrix.rid }}
     runs-on: ubuntu-latest
+    needs: umbra-framework
     strategy:
       fail-fast: false
       matrix:
@@ -52,12 +121,20 @@ jobs:
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
+      - name: Download Umbra framework bundle
+        uses: actions/download-artifact@v4
+        with:
+          name: umbra-framework-bundle
+          path: umbra-framework-bundle
+
       - name: Build launcher
         env:
           RELEASE_LABEL: ${{ github.event_name == 'push' && github.ref_name || inputs.version_label }}
         run: |
           set -euo pipefail
           ./tools/bootstrap-ubuntu-build.sh --no-install --launcher-only --no-wine --rid "${{ matrix.rid }}"
+          rm -rf "build/echo-gate/${{ matrix.rid }}/publish/Umbra"
+          cp -R "umbra-framework-bundle" "build/echo-gate/${{ matrix.rid }}/publish/Umbra"
           label="${RELEASE_LABEL:-manual-build}"
           label="${label#release-}"
           label="${label//\//-}"
@@ -74,6 +151,7 @@ jobs:
   echo-gate-macos:
     name: EchoGate macOS ${{ matrix.rid }}
     runs-on: macos-latest
+    needs: umbra-framework
     strategy:
       fail-fast: false
       matrix:
@@ -89,6 +167,12 @@ jobs:
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
+      - name: Download Umbra framework bundle
+        uses: actions/download-artifact@v4
+        with:
+          name: umbra-framework-bundle
+          path: umbra-framework-bundle
+
       - name: Build app bundle
         env:
           RELEASE_LABEL: ${{ github.event_name == 'push' && github.ref_name || inputs.version_label }}
@@ -100,6 +184,8 @@ jobs:
           VERSION="${label#v}" RUNTIME_IDENTIFIER="${{ matrix.rid }}" ./tools/build-echo-gate-macos.sh
           mkdir -p artifacts
           build_root="build/echo-gate/macos-${{ matrix.rid }}"
+          rm -rf "$build_root/EchoGate.app/Contents/MacOS/Umbra"
+          cp -R "umbra-framework-bundle" "$build_root/EchoGate.app/Contents/MacOS/Umbra"
           ditto -c -k --sequesterRsrc --keepParent "$build_root/EchoGate.app" "artifacts/EchoGate-${{ matrix.rid }}-${label}.zip"
 
       - name: Upload launcher artifact
@@ -112,6 +198,7 @@ jobs:
   echo-gate-windows:
     name: Echo Gate Windows ${{ matrix.rid }}
     runs-on: windows-latest
+    needs: umbra-framework
     strategy:
       fail-fast: false
       matrix:
@@ -127,6 +214,12 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Download Umbra framework bundle
+        uses: actions/download-artifact@v4
+        with:
+          name: umbra-framework-bundle
+          path: umbra-framework-bundle
 
       - name: Build launcher
         shell: pwsh
@@ -158,6 +251,9 @@ jobs:
           foreach ($helperRid in $helperRids) {
             dotnet publish $helperProject --configuration $env:CONFIGURATION --runtime $helperRid --self-contained true --output "$output/Helpers/$helperRid" /p:PublishSingleFile=false /p:UseAppHost=true
           }
+
+          if (Test-Path "$output/Umbra") { Remove-Item "$output/Umbra" -Recurse -Force }
+          Copy-Item "umbra-framework-bundle" "$output/Umbra" -Recurse -Force
 
           New-Item -ItemType Directory -Force -Path artifacts | Out-Null
           Compress-Archive -Path "$bundle/publish" -DestinationPath "artifacts/EchoGate-$rid-$label.zip" -Force
@@ -282,6 +378,7 @@ jobs:
     name: Publish GitHub Release
     runs-on: ubuntu-latest
     needs:
+      - umbra-framework
       - echo-gate-linux
       - echo-gate-macos
       - echo-gate-windows

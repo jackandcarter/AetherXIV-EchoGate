@@ -12,15 +12,23 @@ function Requirement {
         [string]$Name,
         [scriptblock]$Test,
         [string]$WingetId = "",
+        [string[]]$WingetIds = @(),
         [string]$WingetOverride = "",
+        [scriptblock]$Repair = $null,
         [string]$Hint = ""
     )
+
+    if ($WingetId -ne "" -and $WingetIds.Count -eq 0) {
+        $WingetIds = @($WingetId)
+    }
 
     [pscustomobject]@{
         Name = $Name
         Test = $Test
         WingetId = $WingetId
+        WingetIds = $WingetIds
         WingetOverride = $WingetOverride
+        Repair = $Repair
         Hint = $Hint
     }
 }
@@ -114,11 +122,15 @@ function Test-Requirement {
 
 $runRequirements = @(
     (Requirement -Name "MariaDB or MySQL client/server" -Test { $null -ne (Find-MySqlCommand) } -WingetId "MariaDB.Server" -Hint "Required for local database setup. If it is installed but not detected, open a new PowerShell window or set MYSQL_BIN to the full mariadb.exe/mysql.exe path.")
-    (Requirement -Name "PHP" -Test { $null -ne (Find-OptionalCommand -Names @("php.exe", "php")) } -WingetId "PHP.PHP" -Hint "Required for the launcher HTTP service.")
+    (Requirement -Name "Microsoft Visual C++ x64 runtime" -Test { Test-VcRedistX64 } -WingetId "Microsoft.VCRedist.2015+.x64" -Hint "Required by the managed PHP runtime from windows.php.net.")
+    (Requirement -Name "PHP" -Test { $null -ne (Find-PhpCommand) } -Repair { Install-ManagedPhp } -Hint "Required only when hosting the local launcher HTTP service. Setup installs Echo Gate's managed PHP when missing, or set PHP_BIN to the full php.exe path.")
     (Requirement -Name "PHP mysqli extension" -Test {
-            $php = Find-OptionalCommand -Names @("php.exe", "php")
+            $php = Find-PhpCommand
             Test-PhpMysqli -Php $php
-        } -Hint "Enable extension=mysqli in php.ini. Run 'php --ini' to find the active php.ini.")
+        } -Repair {
+            $php = Find-PhpCommand
+            Enable-PhpMysqli -Php $php
+        } -Hint "Required by the launcher HTTP service database calls. The installer can enable extension=mysqli in php.ini when PHP is detected.")
     (Requirement -Name ".NET Framework 4.7.2 or newer" -Test { Test-DotNetFramework472 } -Hint "Required by the legacy server executables. Modern Windows 10/11 usually already has a newer .NET Framework.")
 )
 
@@ -157,21 +169,43 @@ foreach ($requirement in $requirements) {
         Write-Host "  $($requirement.Hint)"
     }
 
-    if ($Install -and $requirement.WingetId -ne "") {
-        $installed = Install-WingetPackage -Name $requirement.Name -Id $requirement.WingetId -Override $requirement.WingetOverride
-        if ($installed) {
-            Update-ProcessPath
+    if ($Install) {
+        $handled = $false
+
+        if ($requirement.WingetIds.Count -gt 0) {
+            foreach ($wingetId in $requirement.WingetIds) {
+                $handled = $true
+                $installed = Install-WingetPackage -Name $requirement.Name -Id $wingetId -Override $requirement.WingetOverride
+                Update-ProcessPath
+                if ($installed -and (Test-Requirement -Requirement $requirement)) {
+                    break
+                }
+            }
+        }
+
+        if (-not (Test-Requirement -Requirement $requirement) -and $null -ne $requirement.Repair) {
+            $handled = $true
+            try {
+                Write-Host "Attempting automatic repair for $($requirement.Name)"
+                & $requirement.Repair | Out-Null
+                Update-ProcessPath
+            } catch {
+                Write-Warning "Automatic repair failed for $($requirement.Name): $($_.Exception.Message)"
+            }
+        }
+
+        if ($handled) {
             if (Test-Requirement -Requirement $requirement) {
                 "{0,-36} ok" -f $requirement.Name
             } else {
-                Write-Warning "$($requirement.Name) was installed or already present, but it still was not detected in this PowerShell session."
+                Write-Warning "$($requirement.Name) was installed, repaired, or already present, but it still was not detected in this PowerShell session."
                 if ($requirement.Hint -ne "") {
                     Write-Host "  $($requirement.Hint)"
                 }
             }
+        } else {
+            Write-Host "  Automatic install is not available for this check."
         }
-    } elseif ($Install -and $requirement.WingetId -eq "") {
-        Write-Host "  Automatic install is not available for this check."
     }
 }
 

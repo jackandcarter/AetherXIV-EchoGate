@@ -278,7 +278,22 @@ namespace MeteorXIV.Core.Map
                             player.isAutoAttackEnabled = true;
                             if (targetActor != null)
                             {
-                                player.aiContainer.Engage(targetActor);
+                                if (targetActor.CanBeAttackedBy(player))
+                                {
+                                    player.aiContainer.Engage(targetActor);
+                                }
+                                else
+                                {
+                                    DevDiagnostics.Trace(
+                                        "battle.engage.blocked",
+                                        "reason", "target packet target is not attackable",
+                                        "actor", String.Format("0x{0:X}", player.actorId),
+                                        "actorName", player.customDisplayName != null ? player.customDisplayName : player.actorName,
+                                        "requestedTarget", String.Format("0x{0:X}", setTarget.actorID),
+                                        "targetName", targetActor.customDisplayName != null ? targetActor.customDisplayName : targetActor.actorName,
+                                        "targetType", targetActor.GetType().Name,
+                                        "attackTarget", String.Format("0x{0:X}", setTarget.attackTarget));
+                                }
                             }
                             else
                             {
