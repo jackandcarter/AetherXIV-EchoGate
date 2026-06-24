@@ -11,7 +11,8 @@ CREATE TABLE `launcher_config` (
 
 INSERT INTO `launcher_config` (`config_key`, `config_value`) VALUES
   ('service_version', '1'),
-  ('server_name', 'MeteorXIV Core v1.2'),
+  ('launcher_version', '1.3'),
+  ('server_name', 'MeteorXIV Core v1.3'),
   ('server_state', 'offline'),
   ('server_message', 'Launcher service is installed. Game services are not reporting status yet.'),
   ('patch_base_url', ''),

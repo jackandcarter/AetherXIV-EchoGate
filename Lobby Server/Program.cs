@@ -52,8 +52,8 @@ namespace MeteorXIV.Core.Lobby
             DevDiagnostics.Configure("Lobby", args);
 
             Log.Info("==================================");
-            Log.Info("MeteorXIV Core v1.2: Lobby Server");
-            Log.Info("Version: 1.2");
+            Log.Info("MeteorXIV Core v1.3: Lobby Server");
+            Log.Info("Version: 1.3");
             Log.Info("==================================");
 
             try

@@ -48,8 +48,8 @@ namespace MeteorXIV.Core.World
             Log = LogManager.GetCurrentClassLogger();
 
             Log.Info("==================================");
-            Log.Info("MeteorXIV Core v1.2: World Server");
-            Log.Info("Version: 1.2");
+            Log.Info("MeteorXIV Core v1.3: World Server");
+            Log.Info("Version: 1.3");
             Log.Info("==================================");
 
 #if DEBUG

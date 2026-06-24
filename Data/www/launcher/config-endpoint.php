@@ -8,7 +8,8 @@ try
 	$config = launcher_config_map($db);
 	launcher_json(array(
 		"service_version" => intval($config["service_version"] ?? "1"),
-		"server_name" => $config["server_name"] ?? "MeteorXIV Core v1.2",
+		"launcher_version" => $config["launcher_version"] ?? "1.3",
+		"server_name" => $config["server_name"] ?? "MeteorXIV Core v1.3",
 		"server_status_url" => "status",
 		"news_url" => "news",
 		"patch_manifest_url" => "patch-manifest",

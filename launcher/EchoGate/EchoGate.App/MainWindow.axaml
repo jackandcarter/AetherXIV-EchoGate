@@ -102,7 +102,7 @@
                Height="42"
                Stretch="Uniform" />
         <TextBlock Grid.Column="1" Text="EchoGate Launcher v1.2" FontSize="24" FontWeight="SemiBold" />
-        <TextBlock Grid.Row="1" Grid.Column="1" Text="MeteorXIV Core v1.2" Foreground="{StaticResource MutedTextBrush}" FontSize="13" />
+        <TextBlock Grid.Row="1" Grid.Column="1" Text="MeteorXIV Core v1.3" Foreground="{StaticResource MutedTextBrush}" FontSize="13" />
         <TextBlock x:Name="HeaderServiceStatus"
                    Grid.Column="2"
                    Grid.RowSpan="2"

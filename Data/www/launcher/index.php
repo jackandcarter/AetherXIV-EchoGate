@@ -17,6 +17,9 @@ switch($route)
 	case "news":
 		require(__DIR__ . "/news.php");
 		break;
+	case "admin-news":
+		require(__DIR__ . "/admin-news.php");
+		break;
 	case "patch-manifest":
 		require(__DIR__ . "/patch-manifest.php");
 		break;
