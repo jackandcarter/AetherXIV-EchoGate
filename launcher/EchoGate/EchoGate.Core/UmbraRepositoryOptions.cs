@@ -2,7 +2,7 @@ namespace EchoGate.Core;
 
 public static class UmbraRepositoryOptions
 {
-    public const string OfficialRepositoryUrl = "https://launcher.dev.demidevunit.com/umbra/plugins/index.json";
+    public const string OfficialRepositoryUrl = "https://launcher.dev.demidevunit.com/launcher/umbra/plugin-catalog";
 
     public static IReadOnlyList<string> BuildEffectiveRepositoryUrls(UmbraSettings settings)
     {

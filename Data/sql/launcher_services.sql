@@ -20,7 +20,7 @@ INSERT INTO `launcher_config` (`config_key`, `config_value`) VALUES
   ('client_login_url', '../login/index.php'),
   ('runtime_catalog_url', 'runtime-catalog'),
   ('client_plugin_framework_catalog_url', 'umbra/framework-catalog'),
-  ('plugin_catalog_urls', ''),
+  ('plugin_catalog_urls', 'umbra/plugin-catalog'),
   ('target_boot_version', '2010.09.18.0000'),
   ('target_game_version', '2012.09.19.0001');
 
@@ -155,4 +155,48 @@ CREATE TABLE `launcher_umbra_framework_artifacts` (
   `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   KEY `idx_launcher_umbra_framework_platform` (`platform_rid`, `is_active`, `is_default`, `sort_order`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+DROP TABLE IF EXISTS `launcher_umbra_plugin_repositories`;
+CREATE TABLE `launcher_umbra_plugin_repositories` (
+  `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
+  `repository_key` varchar(64) NOT NULL,
+  `name` varchar(120) NOT NULL,
+  `description` varchar(500) NULL,
+  `is_active` tinyint(1) NOT NULL DEFAULT 1,
+  `sort_order` int(11) NOT NULL DEFAULT 0,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_launcher_umbra_plugin_repositories_key` (`repository_key`),
+  KEY `idx_launcher_umbra_plugin_repositories_active` (`is_active`, `sort_order`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+INSERT INTO `launcher_umbra_plugin_repositories` (`repository_key`, `name`, `description`, `sort_order`) VALUES
+  ('official', 'Meteor Umbra Plugins', 'Official Meteor Umbra plugin catalog.', 0);
+
+DROP TABLE IF EXISTS `launcher_umbra_plugin_releases`;
+CREATE TABLE `launcher_umbra_plugin_releases` (
+  `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
+  `repository_id` int(11) unsigned NOT NULL,
+  `plugin_key` varchar(120) NOT NULL,
+  `name` varchar(160) NOT NULL,
+  `version` varchar(64) NOT NULL,
+  `api_version` varchar(32) NOT NULL DEFAULT '1.0',
+  `author` varchar(160) NOT NULL DEFAULT '',
+  `description` varchar(1000) NOT NULL DEFAULT '',
+  `download_url` varchar(500) NOT NULL,
+  `size_bytes` bigint(20) NOT NULL,
+  `sha256` char(64) NOT NULL,
+  `minimum_framework_version` varchar(64) NOT NULL DEFAULT '0.1.0',
+  `is_active` tinyint(1) NOT NULL DEFAULT 1,
+  `sort_order` int(11) NOT NULL DEFAULT 0,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_launcher_umbra_plugin_releases_version` (`repository_id`, `plugin_key`, `version`),
+  KEY `idx_launcher_umbra_plugin_releases_active` (`repository_id`, `is_active`, `sort_order`),
+  CONSTRAINT `fk_launcher_umbra_plugin_releases_repository`
+    FOREIGN KEY (`repository_id`) REFERENCES `launcher_umbra_plugin_repositories` (`id`)
+    ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;

@@ -1041,15 +1041,15 @@ namespace MeteorXIV.Core.Map.Actors
 
         public void Logout()
         {
-            EndClientSession("logout", LogoutPacket.BuildPacket(actorId));
+            EndClientSession("logout", LogoutPacket.BuildPacket(actorId), true);
         }
 
         public void QuitGame()
         {
-            EndClientSession("quit", QuitPacket.BuildPacket(actorId));
+            EndClientSession("quit", QuitPacket.BuildPacket(actorId), false);
         }
 
-        private void EndClientSession(string reason, SubPacket clientTransitionPacket)
+        private void EndClientSession(string reason, SubPacket clientTransitionPacket, bool sendSessionEndConfirm)
         {
             DevDiagnostics.Trace(
                 "player.logout.request",
@@ -1078,6 +1078,17 @@ namespace MeteorXIV.Core.Map.Actors
                 "playerName", customDisplayName,
                 "reason", reason,
                 "session", playerSession.id);
+
+            if (!sendSessionEndConfirm)
+            {
+                DevDiagnostics.Trace(
+                    "player.logout.awaitDisconnect",
+                    "player", actorId,
+                    "playerName", customDisplayName,
+                    "reason", reason,
+                    "session", playerSession.id);
+                return;
+            }
 
             playerSession.QueuePacket(SessionEndConfirmPacket.BuildPacket(playerSession, 0));
 

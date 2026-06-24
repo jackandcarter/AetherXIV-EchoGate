@@ -20,6 +20,37 @@ evidence-led.
 This proves the launcher-to-helper-to-game-to-bootstrap-to-framework path without
 claiming that in-game rendering or plugin execution exists yet.
 
+## Catalog Model
+
+Umbra uses separate catalogs for separate trust boundaries.
+
+Framework catalog:
+
+- Endpoint: `/launcher/umbra/framework-catalog?platform=win-x86`
+- Backing table: `launcher_umbra_framework_artifacts`
+- Purpose: tells EchoGate which Umbra framework bundle can be installed.
+- Payload includes archive URL, archive size, SHA256, bootstrap DLL path,
+  managed framework path, supported game hashes, active/default flags, and sort
+  order.
+
+Plugin catalog:
+
+- Endpoint: `/launcher/umbra/plugin-catalog`
+- Backing tables: `launcher_umbra_plugin_repositories` and
+  `launcher_umbra_plugin_releases`
+- Purpose: lists optional plugin releases available to users.
+- Payload includes plugin id, name, version, API version, author, description,
+  download URL, size, SHA256, minimum framework version, and active flag.
+
+The launcher service config exposes:
+
+- `client_plugin_framework_catalog_url`
+- `plugin_catalog_urls`
+
+Framework bundles and plugin archives should never be trusted by URL alone.
+Every downloadable artifact must be checked against the size and SHA256 recorded
+in the catalog before installation.
+
 ## Plugin Manifest Convention
 
 Umbra scans:
@@ -53,4 +84,3 @@ The next mechanics need client/runtime evidence before implementation:
 
 Until those are known, Umbra's managed framework should stay in manifest and
 diagnostic mode rather than pretending to render or run plugins in-process.
-

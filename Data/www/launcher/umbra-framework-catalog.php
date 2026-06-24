@@ -8,6 +8,16 @@ try
 	if($platform === "") $platform = "win-x86";
 
 	$db = launcher_database();
+	$tableCheck = $db->query("SHOW TABLES LIKE 'launcher_umbra_framework_artifacts'");
+	if($tableCheck === false || $tableCheck->num_rows === 0)
+	{
+		launcher_json(array(
+			"platform" => $platform,
+			"artifacts" => array()
+		));
+		return;
+	}
+
 	$statement = $db->prepare(
 		"SELECT name, version, api_version, platform_rid, archive_url, archive_format, " .
 		"size_bytes, sha256, bootstrap_relative_path, framework_relative_path, " .
@@ -15,6 +25,15 @@ try
 		"FROM launcher_umbra_framework_artifacts " .
 		"WHERE platform_rid = ? AND is_active = 1 " .
 		"ORDER BY is_default DESC, sort_order ASC, id ASC");
+	if($statement === false)
+	{
+		launcher_json(array(
+			"platform" => $platform,
+			"artifacts" => array()
+		));
+		return;
+	}
+
 	$statement->bind_param("s", $platform);
 	$statement->execute();
 	$result = $statement->get_result();

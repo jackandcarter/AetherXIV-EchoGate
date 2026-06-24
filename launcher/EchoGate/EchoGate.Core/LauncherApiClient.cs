@@ -80,6 +80,16 @@ public sealed class LauncherApiClient
         return GetAsync<UmbraFrameworkCatalog>($"{endpoint}{separator}platform={encoded}", cancellationToken);
     }
 
+    public Task<UmbraPluginCatalog?> GetUmbraPluginCatalogAsync(
+        string catalogPath,
+        CancellationToken cancellationToken = default)
+    {
+        string endpoint = string.IsNullOrWhiteSpace(catalogPath)
+            ? "umbra/plugin-catalog"
+            : catalogPath.TrimStart('/');
+        return GetAsync<UmbraPluginCatalog>(endpoint, cancellationToken);
+    }
+
     public Task<LauncherAuthResponse?> LoginAsync(
         LauncherAuthRequest request,
         string? loginPath,
