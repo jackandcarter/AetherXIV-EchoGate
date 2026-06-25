@@ -65,12 +65,16 @@ jobs:
 
           $frameworkProject = "launcher/Umbra/Aether.Umbra.Framework/Aether.Umbra.Framework.csproj"
           $bootstrapProject = "launcher/Umbra/Aether.Umbra.Bootstrap/Aether.Umbra.Bootstrap.vcxproj"
+          $nativeInjectorProject = "launcher/EchoGate/EchoGate.NativeInjector/EchoGate.NativeInjector.vcxproj"
           $bundleRoot = "build/umbra-framework/Umbra/Framework"
           $managedOutput = "$bundleRoot/Managed"
+          $nativeInjectorOutput = "build/umbra-native-injector"
           New-Item -ItemType Directory -Force -Path $managedOutput | Out-Null
+          New-Item -ItemType Directory -Force -Path $nativeInjectorOutput | Out-Null
 
           dotnet publish $frameworkProject --configuration $env:CONFIGURATION --runtime win-x86 --self-contained true --output $managedOutput /p:PublishSingleFile=false /p:UseAppHost=true
           msbuild $bootstrapProject /p:Configuration=Release /p:Platform=Win32 /p:OutDir="$bundleRoot\\" /p:TargetName=Aether.Umbra.Bootstrap.x86
+          msbuild $nativeInjectorProject /p:Configuration=Release /p:Platform=Win32 /p:OutDir="$nativeInjectorOutput\\" /p:TargetName=Umbra.NativeInjector.x86
 
           Copy-Item "launcher/Umbra/assets/umbra-icon.svg" "$bundleRoot/umbra-icon.svg" -Force
           Set-Content -Path "$bundleRoot/version.txt" -Value $version
@@ -176,6 +180,13 @@ jobs:
           path: artifacts/*
           if-no-files-found: error
 
+      - name: Upload native x86 injector
+        uses: actions/upload-artifact@v4
+        with:
+          name: umbra-native-injector
+          path: build/umbra-native-injector/Umbra.NativeInjector.x86.exe
+          if-no-files-found: error
+
   echo-gate-linux:
     name: Echo Gate Linux ${{ matrix.rid }}
     runs-on: ubuntu-latest
@@ -201,6 +212,12 @@ jobs:
           name: umbra-framework-bundle
           path: umbra-framework-bundle
 
+      - name: Download native x86 injector
+        uses: actions/download-artifact@v4
+        with:
+          name: umbra-native-injector
+          path: umbra-native-injector
+
       - name: Build launcher
         env:
           RELEASE_LABEL: ${{ github.event_name == 'push' && github.ref_name || inputs.version_label }}
@@ -209,6 +226,12 @@ jobs:
           ./tools/bootstrap-ubuntu-build.sh --no-install --launcher-only --no-wine --rid "${{ matrix.rid }}"
           rm -rf "build/echo-gate/${{ matrix.rid }}/publish/Umbra"
           cp -R "umbra-framework-bundle" "build/echo-gate/${{ matrix.rid }}/publish/Umbra"
+          for helper_rid in win-x64 win-x86; do
+            helper_dir="build/echo-gate/${{ matrix.rid }}/publish/Helpers/$helper_rid"
+            if [[ -d "$helper_dir" ]]; then
+              cp "umbra-native-injector/Umbra.NativeInjector.x86.exe" "$helper_dir/Umbra.NativeInjector.x86.exe"
+            fi
+          done
           label="${RELEASE_LABEL:-manual-build}"
           label="${label#release-}"
           label="${label//\//-}"
@@ -247,6 +270,12 @@ jobs:
           name: umbra-framework-bundle
           path: umbra-framework-bundle
 
+      - name: Download native x86 injector
+        uses: actions/download-artifact@v4
+        with:
+          name: umbra-native-injector
+          path: umbra-native-injector
+
       - name: Build app bundle
         env:
           RELEASE_LABEL: ${{ github.event_name == 'push' && github.ref_name || inputs.version_label }}
@@ -255,11 +284,17 @@ jobs:
           label="${RELEASE_LABEL:-manual-build}"
           label="${label#release-}"
           label="${label//\//-}"
-          VERSION="${label#v}" RUNTIME_IDENTIFIER="${{ matrix.rid }}" ./tools/build-echo-gate-macos.sh
+          INCLUDE_UMBRA_DEV_FRAMEWORK=0 VERSION="${label#v}" RUNTIME_IDENTIFIER="${{ matrix.rid }}" ./tools/build-echo-gate-macos.sh
           mkdir -p artifacts
           build_root="build/echo-gate/macos-${{ matrix.rid }}"
           rm -rf "$build_root/EchoGate.app/Contents/MacOS/Umbra"
           cp -R "umbra-framework-bundle" "$build_root/EchoGate.app/Contents/MacOS/Umbra"
+          for helper_rid in win-x64 win-x86; do
+            helper_dir="$build_root/EchoGate.app/Contents/MacOS/Helpers/$helper_rid"
+            if [[ -d "$helper_dir" ]]; then
+              cp "umbra-native-injector/Umbra.NativeInjector.x86.exe" "$helper_dir/Umbra.NativeInjector.x86.exe"
+            fi
+          done
           ditto -c -k --sequesterRsrc --keepParent "$build_root/EchoGate.app" "artifacts/EchoGate-${{ matrix.rid }}-${label}.zip"
 
       - name: Upload launcher artifact
@@ -295,6 +330,12 @@ jobs:
           name: umbra-framework-bundle
           path: umbra-framework-bundle
 
+      - name: Download native x86 injector
+        uses: actions/download-artifact@v4
+        with:
+          name: umbra-native-injector
+          path: umbra-native-injector
+
       - name: Build launcher
         shell: pwsh
         env:
@@ -328,6 +369,12 @@ jobs:
 
           if (Test-Path "$output/Umbra") { Remove-Item "$output/Umbra" -Recurse -Force }
           Copy-Item "umbra-framework-bundle" "$output/Umbra" -Recurse -Force
+          foreach ($helperRid in @("win-x64", "win-x86")) {
+            $helperDir = "$output/Helpers/$helperRid"
+            if (Test-Path $helperDir) {
+              Copy-Item "umbra-native-injector/Umbra.NativeInjector.x86.exe" "$helperDir/Umbra.NativeInjector.x86.exe" -Force
+            }
+          }
 
           New-Item -ItemType Directory -Force -Path artifacts | Out-Null
           Compress-Archive -Path "$bundle/publish" -DestinationPath "artifacts/EchoGate-$rid-$label.zip" -Force

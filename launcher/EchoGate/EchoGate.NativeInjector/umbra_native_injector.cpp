@@ -8,8 +8,10 @@
 #include <windows.h>
 #include <tlhelp32.h>
 
+#include <cstdlib>
 #include <cstdint>
 #include <cstdio>
+#include <cwchar>
 #include <string>
 #include <vector>
 
