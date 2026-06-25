@@ -21,7 +21,7 @@ For a quick project overview:
 
 - [Echo Gate features](docs/ECHO_GATE_FEATURES.md)
 - [Launcher news guide](docs/guides/LAUNCHER_NEWS.md)
-- [AetherXIV server features](docs/METEORXIV_FEATURES.md)
+- [AetherXIV server features](docs/AETHERXIV_FEATURES.md)
 - [Current status matrix](docs/STATUS.md)
 - [Supported platforms](docs/SUPPORTED_PLATFORMS.md)
 - [Release builds](docs/RELEASES.md)
