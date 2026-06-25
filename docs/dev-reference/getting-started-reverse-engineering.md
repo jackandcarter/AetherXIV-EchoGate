@@ -1,6 +1,6 @@
 # Getting Started
 
-This page is the quick path for a developer who wants to understand what exists, reproduce a behavior, and make a change without getting lost in the whole Project Meteor codebase.
+This page is the quick path for a developer who wants to understand what exists, reproduce a behavior, and make a change without getting lost in the whole legacy server codebase.
 
 ## Mental Model
 

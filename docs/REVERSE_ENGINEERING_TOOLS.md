@@ -1,6 +1,6 @@
 # Reverse Engineering Tools
 
-MeteorXIV Core keeps reverse-engineering support separate from normal server behavior. Development diagnostics may record packet classifications, Lua coroutine flow, and event lifecycle state, but they must not force client behavior or become required for public server operation.
+AetherXIV Core keeps reverse-engineering support separate from normal server behavior. Development diagnostics may record packet classifications, Lua coroutine flow, and event lifecycle state, but they must not force client behavior or become required for public server operation.
 
 For a readable entry point into GM commands, known enemies, zone/spawn data, client UI hooks, and the battle/stat roadmap, start with [Developer Reference](dev-reference/README.md).
 

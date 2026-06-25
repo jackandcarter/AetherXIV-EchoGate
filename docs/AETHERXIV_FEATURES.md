@@ -1,6 +1,6 @@
-# MeteorXIV Server Features
+# AetherXIV Server Features
 
-MeteorXIV Core contains the legacy server stack needed by the FFXIV 1.x client. The current project focus is reliable local setup, cross-platform hosting, and enough gameplay/runtime coverage to make repeated playtests practical.
+AetherXIV Core contains the legacy server stack needed by the FFXIV 1.x client. The current project focus is reliable local setup, cross-platform hosting, and enough gameplay/runtime coverage to make repeated playtests practical.
 
 ## Lobby Server
 

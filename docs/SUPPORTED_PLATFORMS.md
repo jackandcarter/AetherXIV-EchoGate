@@ -1,6 +1,6 @@
 # Supported Platforms
 
-MeteorXIV Core has two runtime layers:
+AetherXIV Core has two runtime layers:
 
 - The server stack: MariaDB, PHP, Mono/MSBuild, and the legacy .NET Framework server projects.
 - Echo Gate: a modern cross-platform launcher that builds through .NET and launches the user-selected 1.23b client.

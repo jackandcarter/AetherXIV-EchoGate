@@ -1,8 +1,8 @@
-# MeteorXIV Core + Echo Gate
+# AetherXIV Core + Echo Gate
 
-MeteorXIV Core is a maintained fork and port of the original Project:Meteor stack for FFXIV 1.x private research and local playtest environments. It includes the legacy Lobby, World, and Map servers plus Echo Gate, a cross-platform launcher for configuring a local server, preparing local client-derived runtime data, and launching a user-owned FFXIV 1.23b client.
+AetherXIV Core is the FFXIV 1.x private research and local playtest stack. It includes the legacy Lobby, World, and Map servers plus Echo Gate, a cross-platform launcher for configuring a local server, preparing local client-derived runtime data, and launching a user-owned FFXIV 1.23b client.
 
-This project is independent from the original Project:Meteor team.
+This project is independent and is moving toward a new AetherXIV architecture.
 
 [Join the Discord](https://discord.gg/P9CwrCPWsA)
 
@@ -21,7 +21,7 @@ For a quick project overview:
 
 - [Echo Gate features](docs/ECHO_GATE_FEATURES.md)
 - [Launcher news guide](docs/guides/LAUNCHER_NEWS.md)
-- [MeteorXIV server features](docs/METEORXIV_FEATURES.md)
+- [AetherXIV server features](docs/AETHERXIV_FEATURES.md)
 - [Current status matrix](docs/STATUS.md)
 - [Supported platforms](docs/SUPPORTED_PLATFORMS.md)
 - [Release builds](docs/RELEASES.md)

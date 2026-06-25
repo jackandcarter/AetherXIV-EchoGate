@@ -1,4 +1,4 @@
-# MeteorXIV Playtest Bridge
+# AetherXIV Playtest Bridge
 
 The playtest bridge is a local reverse-engineering workbench. It gives you one place to start and stop the local servers, watch live diagnostics, capture evidence from a playtest, reset a test character, and expose a small localhost API that Codex or another helper can inspect while you are playing.
 
