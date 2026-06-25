@@ -4,29 +4,48 @@ public sealed record UmbraRuntimeOptions(
     string LogPath,
     string PluginDirectory,
     string CacheDirectory,
+    string DevBridgeDirectory,
+    string DevBridgeControlPath,
+    bool DevBridgeInitiallyEnabled,
+    int DevBridgePort,
     bool SafeMode,
     IReadOnlyList<string> RepositoryUrls,
     IReadOnlyList<UmbraRepositorySource> RepositorySources)
 {
+    public const int DefaultDevBridgePort = 8797;
+
     public static UmbraRuntimeOptions FromEnvironment()
     {
-        string logPath = Environment.GetEnvironmentVariable("METEOR_UMBRA_LOG") ?? "";
+        string logPath = GetUmbraEnvironment("LOG");
         if (string.IsNullOrWhiteSpace(logPath))
             logPath = Path.Combine(AppContext.BaseDirectory, "umbra-framework.log");
 
-        string pluginDirectory = Environment.GetEnvironmentVariable("METEOR_UMBRA_PLUGIN_DIR") ?? "";
+        string pluginDirectory = GetUmbraEnvironment("PLUGIN_DIR");
         if (string.IsNullOrWhiteSpace(pluginDirectory))
             pluginDirectory = Path.Combine(AppContext.BaseDirectory, "Plugins");
 
-        string cacheDirectory = Environment.GetEnvironmentVariable("METEOR_UMBRA_CACHE_DIR") ?? "";
+        string cacheDirectory = GetUmbraEnvironment("CACHE_DIR");
         if (string.IsNullOrWhiteSpace(cacheDirectory))
             cacheDirectory = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(pluginDirectory)) ?? AppContext.BaseDirectory, "Cache");
 
-        bool safeMode = IsTruthy(Environment.GetEnvironmentVariable("METEOR_UMBRA_SAFE_MODE"));
+        string devBridgeDirectory = GetUmbraEnvironment("DEV_BRIDGE_DIR");
+        if (string.IsNullOrWhiteSpace(devBridgeDirectory))
+            devBridgeDirectory = Path.Combine(cacheDirectory, "DevBridge");
+
+        string devBridgeControlPath = GetUmbraEnvironment("DEV_BRIDGE_CONTROL");
+        if (string.IsNullOrWhiteSpace(devBridgeControlPath))
+            devBridgeControlPath = Path.Combine(devBridgeDirectory, "control.json");
+
+        bool devBridgeInitiallyEnabled = IsTruthy(GetUmbraEnvironment("DEV_BRIDGE"));
+        int devBridgePort = ParsePort(
+            GetUmbraEnvironment("DEV_BRIDGE_PORT"),
+            DefaultDevBridgePort);
+
+        bool safeMode = IsTruthy(GetUmbraEnvironment("SAFE_MODE"));
         IReadOnlyList<string> repositories = ParseRepositoryUrls(
-            Environment.GetEnvironmentVariable("METEOR_UMBRA_REPOSITORY_URLS"));
+            GetUmbraEnvironment("REPOSITORY_URLS"));
         IReadOnlyList<UmbraRepositorySource> repositorySources = UmbraRepositorySource.FromJson(
-            Environment.GetEnvironmentVariable("METEOR_UMBRA_REPOSITORIES_JSON"));
+            GetUmbraEnvironment("REPOSITORIES_JSON"));
         if (repositorySources.Count == 0)
             repositorySources = UmbraRepositorySource.FromUrls(repositories, UmbraRepositorySource.Custom);
 
@@ -34,9 +53,22 @@ public sealed record UmbraRuntimeOptions(
             Path.GetFullPath(logPath),
             Path.GetFullPath(pluginDirectory),
             Path.GetFullPath(cacheDirectory),
+            Path.GetFullPath(devBridgeDirectory),
+            Path.GetFullPath(devBridgeControlPath),
+            devBridgeInitiallyEnabled,
+            devBridgePort,
             safeMode,
             repositorySources.Select(source => source.Url).ToArray(),
             repositorySources);
+    }
+
+    private static string GetUmbraEnvironment(string suffix)
+    {
+        string? value = Environment.GetEnvironmentVariable($"AETHER_UMBRA_{suffix}");
+        if (!string.IsNullOrWhiteSpace(value))
+            return value;
+
+        return Environment.GetEnvironmentVariable($"METEOR_UMBRA_{suffix}") ?? "";
     }
 
     private static bool IsTruthy(string? value)
@@ -55,5 +87,13 @@ public sealed record UmbraRuntimeOptions(
             .Split([';', '\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray();
+    }
+
+    private static int ParsePort(string? value, int defaultValue)
+    {
+        if (!int.TryParse(value, out int parsed))
+            return defaultValue;
+
+        return parsed is >= 1024 and <= 65535 ? parsed : defaultValue;
     }
 }

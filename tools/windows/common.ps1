@@ -523,13 +523,13 @@ function Get-DbSettings {
     $settings = [ordered]@{}
     $settings.DbHost = Get-EnvValue "DB_HOST" "localhost"
     $settings.DbPort = Get-EnvValue "DB_PORT" "3306"
-    $settings.DbName = Get-EnvValue "DB_NAME" (Get-EnvValue "METEOR_DB_NAME" "ffxiv_server")
+    $settings.DbName = Get-EnvValue "DB_NAME" (Get-EnvValue "AETHER_DB_NAME" (Get-EnvValue "METEOR_DB_NAME" "ffxiv_server"))
     $settings.AdminUser = Get-EnvValue "DB_ADMIN_USER" (Get-EnvValue "DB_USER" "root")
     $settings.AdminPass = Get-EnvValue "DB_ADMIN_PASS" (Get-EnvValue "DB_PASS" "")
-    $settings.AppHost = Get-EnvValue "DB_APP_HOST" (Get-EnvValue "METEOR_DB_HOST" "127.0.0.1")
-    $settings.AppPort = Get-EnvValue "DB_APP_PORT" (Get-EnvValue "METEOR_DB_PORT" "3306")
-    $settings.AppUser = Get-EnvValue "DB_APP_USER" (Get-EnvValue "METEOR_DB_USER" "meteor")
-    $settings.AppPass = Get-EnvValue "DB_APP_PASS" (Get-EnvValue "METEOR_DB_PASS" "meteor_dev")
+    $settings.AppHost = Get-EnvValue "DB_APP_HOST" (Get-EnvValue "AETHER_DB_HOST" (Get-EnvValue "METEOR_DB_HOST" "127.0.0.1"))
+    $settings.AppPort = Get-EnvValue "DB_APP_PORT" (Get-EnvValue "AETHER_DB_PORT" (Get-EnvValue "METEOR_DB_PORT" "3306"))
+    $settings.AppUser = Get-EnvValue "DB_APP_USER" (Get-EnvValue "AETHER_DB_USER" (Get-EnvValue "METEOR_DB_USER" "aetherxiv"))
+    $settings.AppPass = Get-EnvValue "DB_APP_PASS" (Get-EnvValue "AETHER_DB_PASS" (Get-EnvValue "METEOR_DB_PASS" "aether_dev"))
     $settings.AppHosts = (Get-EnvValue "DB_APP_HOSTS" "localhost 127.0.0.1").Split(" ", [System.StringSplitOptions]::RemoveEmptyEntries)
     if ($settings.AppHosts -notcontains $settings.AppHost) {
         $settings.AppHosts += $settings.AppHost

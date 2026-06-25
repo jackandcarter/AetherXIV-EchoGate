@@ -54,8 +54,8 @@ The default local database settings are:
 
 ```text
 database: ffxiv_server
-username: meteor
-password: meteor_dev
+username: aetherxiv
+password: aether_dev
 hosts: localhost, 127.0.0.1
 ```
 
@@ -115,7 +115,7 @@ Expected setup result:
 
 - PHP, PHP `mysqli`, MariaDB/MySQL client, and server executables are found.
 - `.NET Framework 4.7.2` or newer is available.
-- The `meteor` app user can connect to `ffxiv_server`.
+- The `aetherxiv` app user can connect to `ffxiv_server`.
 - Lobby, World, and Map smoke checks complete.
 
 ## Release Package Notes
@@ -162,7 +162,7 @@ Set-ExecutionPolicy -Scope Process Bypass
 The setup script:
 
 - Creates/imports the local MariaDB database.
-- Creates/updates the `meteor` database user.
+- Creates/updates the `aetherxiv` database user.
 - Restores and builds the legacy server solution.
 - Prepares `staticactors.bin` from your local client.
 - Copies config/scripts/runtime data beside server executables.

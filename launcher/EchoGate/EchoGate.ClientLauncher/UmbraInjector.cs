@@ -79,15 +79,24 @@ internal static class UmbraInjector
 
     internal static void SetUmbraEnvironment(UmbraLaunchOptions options)
     {
-        Environment.SetEnvironmentVariable("METEOR_UMBRA_ENABLED", "1");
-        Environment.SetEnvironmentVariable("METEOR_UMBRA_BOOTSTRAP", options.BootstrapPath);
-        Environment.SetEnvironmentVariable("METEOR_UMBRA_FRAMEWORK", options.FrameworkPath);
-        Environment.SetEnvironmentVariable("METEOR_UMBRA_PLUGIN_DIR", options.PluginDirectory);
-        Environment.SetEnvironmentVariable("METEOR_UMBRA_LOG", options.LogPath);
-        Environment.SetEnvironmentVariable("METEOR_UMBRA_SAFE_MODE", options.SafeMode ? "1" : "0");
-        Environment.SetEnvironmentVariable("METEOR_UMBRA_LOAD_DELAY_MS", options.LoadDelayMilliseconds.ToString());
-        Environment.SetEnvironmentVariable("METEOR_UMBRA_REPOSITORY_URLS", string.Join(";", options.RepositoryUrls));
-        Environment.SetEnvironmentVariable("METEOR_UMBRA_REPOSITORIES_JSON", options.RepositoriesJson);
+        Environment.SetEnvironmentVariable("AETHER_UMBRA_ENABLED", "1");
+        Environment.SetEnvironmentVariable("AETHER_UMBRA_BOOTSTRAP", options.BootstrapPath);
+        Environment.SetEnvironmentVariable("AETHER_UMBRA_FRAMEWORK", options.FrameworkPath);
+        Environment.SetEnvironmentVariable("AETHER_UMBRA_PLUGIN_DIR", options.PluginDirectory);
+        Environment.SetEnvironmentVariable("AETHER_UMBRA_CACHE_DIR", UmbraCacheDirectoryFor(options.PluginDirectory));
+        Environment.SetEnvironmentVariable("AETHER_UMBRA_LOG", options.LogPath);
+        Environment.SetEnvironmentVariable("AETHER_UMBRA_SAFE_MODE", options.SafeMode ? "1" : "0");
+        Environment.SetEnvironmentVariable("AETHER_UMBRA_LOAD_DELAY_MS", options.LoadDelayMilliseconds.ToString());
+        Environment.SetEnvironmentVariable("AETHER_UMBRA_REPOSITORY_URLS", string.Join(";", options.RepositoryUrls));
+        Environment.SetEnvironmentVariable("AETHER_UMBRA_REPOSITORIES_JSON", options.RepositoriesJson);
+    }
+
+    private static string UmbraCacheDirectoryFor(string pluginDirectory)
+    {
+        string pluginRoot = string.IsNullOrWhiteSpace(pluginDirectory)
+            ? AppContext.BaseDirectory
+            : Path.GetFullPath(pluginDirectory);
+        return Path.Combine(Path.GetDirectoryName(pluginRoot) ?? pluginRoot, "Cache");
     }
 
     private static bool TryInjectWithNativeX86Injector(

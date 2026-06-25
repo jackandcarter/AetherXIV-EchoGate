@@ -26,8 +26,8 @@ Defaults:
 
 ```text
 database: ffxiv_server
-username: meteor
-password: meteor_dev
+username: aetherxiv
+password: aether_dev
 hosts: localhost, 127.0.0.1
 ```
 

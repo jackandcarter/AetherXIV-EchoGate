@@ -14,6 +14,7 @@
 
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam);
 
+#if !defined(_MSC_VER)
 extern "C" void* memset(void* destination, int value, unsigned int count)
 {
     volatile unsigned char* target = static_cast<volatile unsigned char*>(destination);
@@ -21,6 +22,7 @@ extern "C" void* memset(void* destination, int value, unsigned int count)
         *target++ = static_cast<unsigned char>(value);
     return destination;
 }
+#endif
 
 namespace
 {
@@ -168,9 +170,13 @@ namespace
     bool ImGuiInitialized = false;
     bool DebugLoggingEnabled = true;
     bool DevUiEnabled = true;
+    bool DevBridgeEnabled = false;
+    bool DevBridgeControlKnown = false;
     bool ShowPluginExecutionWarning = true;
     int UmbraThemeIndex = 0;
     DWORD UmbraDockLastInteractionTicks = 0;
+    DWORD DevBridgeLastControlCheckTicks = 0;
+    wchar_t DevBridgeControlPath[BufferChars]{};
     get_async_key_state_fn User32GetAsyncKeyState = nullptr;
     get_cursor_pos_fn User32GetCursorPos = nullptr;
     screen_to_client_fn User32ScreenToClient = nullptr;
@@ -202,6 +208,9 @@ namespace
         const RGNDATA* dirtyRegion,
         DWORD flags);
     bool HookUmbraWindowProc();
+    bool ResolveDevBridgeControlPath(wchar_t* output, DWORD outputChars);
+    void RefreshDevBridgeControlState(bool force);
+    void WriteDevBridgeControlState(bool enabled);
 
     DWORD StringLength(const wchar_t* value)
     {
@@ -420,6 +429,20 @@ namespace
         return true;
     }
 
+    bool GetUmbraEnvironmentValue(const wchar_t* suffix, wchar_t* buffer, DWORD bufferChars)
+    {
+        wchar_t primary[128]{};
+        CopyString(primary, 128, L"AETHER_UMBRA_");
+        AppendString(primary, 128, suffix);
+        if (GetEnvironmentValue(primary, buffer, bufferChars))
+            return true;
+
+        wchar_t legacy[128]{};
+        CopyString(legacy, 128, L"METEOR_UMBRA_");
+        AppendString(legacy, 128, suffix);
+        return GetEnvironmentValue(legacy, buffer, bufferChars);
+    }
+
     bool IsTruthy(const wchar_t* value)
     {
         return lstrcmpW(value, L"1") == 0
@@ -437,7 +460,7 @@ namespace
     {
         wchar_t logPath[BufferChars]{};
         DWORD requestedLogError = 0;
-        if (GetEnvironmentValue(L"METEOR_UMBRA_LOG", logPath, BufferChars))
+        if (GetUmbraEnvironmentValue(L"LOG", logPath, BufferChars))
         {
             HANDLE log = OpenAppendFile(logPath);
             if (log != INVALID_HANDLE_VALUE)
@@ -446,7 +469,7 @@ namespace
         }
 
         wchar_t helperLogPath[BufferChars]{};
-        if (GetEnvironmentValue(L"METEOR_UMBRA_HELPER_LOG", helperLogPath, BufferChars))
+        if (GetUmbraEnvironmentValue(L"HELPER_LOG", helperLogPath, BufferChars))
         {
             HANDLE log = OpenAppendFile(helperLogPath);
             if (log != INVALID_HANDLE_VALUE)
@@ -1524,6 +1547,15 @@ namespace
 
         ImGui::Checkbox("Debug logging", &DebugLoggingEnabled);
         ImGui::Checkbox("Dev UI", &DevUiEnabled);
+        RefreshDevBridgeControlState(false);
+        bool devBridge = DevBridgeEnabled;
+        if (ImGui::Checkbox("Umbra Dev Bridge", &devBridge))
+            WriteDevBridgeControlState(devBridge);
+        ImGui::SameLine();
+        ImGui::TextColored(
+            devBridge ? theme.accent : theme.mutedText,
+            "%s",
+            devBridge ? "localhost read-only bridge requested" : "off");
         ImGui::Separator();
 
         ImGui::TextColored(theme.accent, "Runtime");
@@ -1544,6 +1576,12 @@ namespace
             ImGui::TextUnformatted("Repositories");
             ImGui::SameLine(160.0f);
             ImGui::TextColored(theme.mutedText, "0");
+            ImGui::TextUnformatted("Dev bridge");
+            ImGui::SameLine(160.0f);
+            ImGui::TextColored(
+                DevBridgeEnabled ? theme.accent : theme.mutedText,
+                "%s",
+                DevBridgeEnabled ? "requested" : DevBridgeControlKnown ? "off" : "unknown");
         }
         ImGui::EndChild();
 
@@ -2083,7 +2121,7 @@ namespace
     bool StartDx9HookLayer(HANDLE log)
     {
         wchar_t nativeMarker[32]{};
-        if (GetEnvironmentValue(L"METEOR_UMBRA_NATIVE_MARKER", nativeMarker, 32))
+        if (GetUmbraEnvironmentValue(L"NATIVE_MARKER", nativeMarker, 32))
         {
             NativeMarkerEnabled = IsTruthy(nativeMarker) ? 1 : 0;
         }
@@ -2178,6 +2216,174 @@ namespace
         AppendString(output, outputChars, right);
     }
 
+    bool ContainsAscii(const char* haystack, DWORD haystackLength, const char* needle)
+    {
+        if (haystack == nullptr || needle == nullptr)
+            return false;
+
+        DWORD needleLength = AnsiLength(needle);
+        if (needleLength == 0 || haystackLength < needleLength)
+            return false;
+
+        for (DWORD index = 0; index <= haystackLength - needleLength; index++)
+        {
+            bool matched = true;
+            for (DWORD needleIndex = 0; needleIndex < needleLength; needleIndex++)
+            {
+                if (haystack[index + needleIndex] != needle[needleIndex])
+                {
+                    matched = false;
+                    break;
+                }
+            }
+
+            if (matched)
+                return true;
+        }
+
+        return false;
+    }
+
+    void EnsureDirectoryTree(const wchar_t* directory)
+    {
+        if (directory == nullptr || directory[0] == L'\0')
+            return;
+
+        wchar_t parent[BufferChars]{};
+        ParentDirectory(directory, parent, BufferChars);
+        if (parent[0] != L'\0' && GetFileAttributesW(parent) == INVALID_FILE_ATTRIBUTES)
+            EnsureDirectoryTree(parent);
+
+        CreateDirectoryW(directory, nullptr);
+    }
+
+    bool ResolveDevBridgeControlPath(wchar_t* output, DWORD outputChars)
+    {
+        if (outputChars == 0)
+            return false;
+
+        output[0] = L'\0';
+        if (GetUmbraEnvironmentValue(L"DEV_BRIDGE_CONTROL", output, outputChars))
+            return true;
+
+        wchar_t cacheDirectory[BufferChars]{};
+        if (GetUmbraEnvironmentValue(L"CACHE_DIR", cacheDirectory, BufferChars))
+        {
+            wchar_t bridgeDirectory[BufferChars]{};
+            CombinePath(cacheDirectory, L"DevBridge", bridgeDirectory, BufferChars);
+            CombinePath(bridgeDirectory, L"control.json", output, outputChars);
+            return true;
+        }
+
+        wchar_t pluginDirectory[BufferChars]{};
+        if (GetUmbraEnvironmentValue(L"PLUGIN_DIR", pluginDirectory, BufferChars))
+        {
+            wchar_t umbraDirectory[BufferChars]{};
+            wchar_t cacheFromPlugin[BufferChars]{};
+            wchar_t bridgeDirectory[BufferChars]{};
+            ParentDirectory(pluginDirectory, umbraDirectory, BufferChars);
+            if (umbraDirectory[0] == L'\0')
+                return false;
+
+            CombinePath(umbraDirectory, L"Cache", cacheFromPlugin, BufferChars);
+            CombinePath(cacheFromPlugin, L"DevBridge", bridgeDirectory, BufferChars);
+            CombinePath(bridgeDirectory, L"control.json", output, outputChars);
+            return true;
+        }
+
+        return false;
+    }
+
+    bool ReadDevBridgeControlState(bool* enabled)
+    {
+        if (enabled == nullptr)
+            return false;
+
+        if (DevBridgeControlPath[0] == L'\0' && !ResolveDevBridgeControlPath(DevBridgeControlPath, BufferChars))
+            return false;
+
+        HANDLE file = CreateFileW(
+            DevBridgeControlPath,
+            GENERIC_READ,
+            FILE_SHARE_READ | FILE_SHARE_WRITE,
+            nullptr,
+            OPEN_EXISTING,
+            FILE_ATTRIBUTE_NORMAL,
+            nullptr);
+        if (file == INVALID_HANDLE_VALUE)
+            return false;
+
+        char buffer[2048]{};
+        DWORD read = 0;
+        BOOL ok = ReadFile(file, buffer, sizeof(buffer) - 1, &read, nullptr);
+        CloseHandle(file);
+        if (!ok)
+            return false;
+
+        *enabled = ContainsAscii(buffer, read, "\"enabled\": true")
+            || ContainsAscii(buffer, read, "\"enabled\":true");
+        return true;
+    }
+
+    void RefreshDevBridgeControlState(bool force)
+    {
+        DWORD now = GetTickCount();
+        if (!force && now - DevBridgeLastControlCheckTicks < 1000)
+            return;
+
+        DevBridgeLastControlCheckTicks = now;
+        bool enabled = false;
+        if (ReadDevBridgeControlState(&enabled))
+        {
+            DevBridgeEnabled = enabled;
+            DevBridgeControlKnown = true;
+        }
+    }
+
+    void WriteDevBridgeControlState(bool enabled)
+    {
+        if (DevBridgeControlPath[0] == L'\0' && !ResolveDevBridgeControlPath(DevBridgeControlPath, BufferChars))
+            return;
+
+        wchar_t parent[BufferChars]{};
+        ParentDirectory(DevBridgeControlPath, parent, BufferChars);
+        EnsureDirectoryTree(parent);
+
+        SYSTEMTIME time{};
+        GetSystemTime(&time);
+        wchar_t timeText[64]{};
+        wsprintfW(
+            timeText,
+            L"%04u-%02u-%02uT%02u:%02u:%02uZ",
+            time.wYear,
+            time.wMonth,
+            time.wDay,
+            time.wHour,
+            time.wMinute,
+            time.wSecond);
+
+        HANDLE file = CreateFileW(
+            DevBridgeControlPath,
+            GENERIC_WRITE,
+            FILE_SHARE_READ | FILE_SHARE_WRITE,
+            nullptr,
+            CREATE_ALWAYS,
+            FILE_ATTRIBUTE_NORMAL,
+            nullptr);
+        if (file == INVALID_HANDLE_VALUE)
+            return;
+
+        WriteWide(file, L"{\n  \"enabled\": ");
+        WriteWide(file, enabled ? L"true" : L"false");
+        WriteWide(file, L",\n  \"port\": 8797,\n  \"updated_at\": \"");
+        WriteWide(file, timeText);
+        WriteWide(file, L"\"\n}\n");
+        CloseHandle(file);
+
+        DevBridgeEnabled = enabled;
+        DevBridgeControlKnown = true;
+    }
+
     bool BuildTrustedPlatformAssemblies(const wchar_t* assemblyDirectory, char* output, DWORD outputBytes)
     {
         if (outputBytes == 0)
@@ -2247,7 +2453,7 @@ namespace
     HMODULE LoadHostFxr(HANDLE log, const wchar_t* assemblyPath)
     {
         wchar_t explicitPath[BufferChars]{};
-        if (GetEnvironmentValue(L"METEOR_UMBRA_HOSTFXR", explicitPath, BufferChars))
+        if (GetUmbraEnvironmentValue(L"HOSTFXR", explicitPath, BufferChars))
         {
             HMODULE module = LoadLibraryW(explicitPath);
             if (module != nullptr)
@@ -2424,7 +2630,7 @@ namespace
 
         wchar_t managedOnWine[32]{};
         if (IsWine()
-            && (!GetEnvironmentValue(L"METEOR_UMBRA_ENABLE_MANAGED_ON_WINE", managedOnWine, 32)
+            && (!GetUmbraEnvironmentValue(L"ENABLE_MANAGED_ON_WINE", managedOnWine, 32)
                 || !IsTruthy(managedOnWine)))
         {
             AppendLogLiteral(log, L"umbra_framework_host_skipped=wine_x86_managed_host_disabled");
@@ -2505,7 +2711,7 @@ namespace
     DWORD WINAPI UmbraBootstrapThread(LPVOID)
     {
         wchar_t delayText[32]{};
-        if (GetEnvironmentValue(L"METEOR_UMBRA_LOAD_DELAY_MS", delayText, 32))
+        if (GetUmbraEnvironmentValue(L"LOAD_DELAY_MS", delayText, 32))
             Sleep(ParseUInt(delayText));
 
         HANDLE log = OpenBootstrapLog();
@@ -2517,11 +2723,11 @@ namespace
         wchar_t safeMode[32]{};
         wchar_t repositoryUrls[BufferChars]{};
         wchar_t repositoriesJson[BufferChars]{};
-        GetEnvironmentValue(L"METEOR_UMBRA_FRAMEWORK", frameworkPath, BufferChars);
-        GetEnvironmentValue(L"METEOR_UMBRA_PLUGIN_DIR", pluginDirectory, BufferChars);
-        GetEnvironmentValue(L"METEOR_UMBRA_SAFE_MODE", safeMode, 32);
-        GetEnvironmentValue(L"METEOR_UMBRA_REPOSITORY_URLS", repositoryUrls, BufferChars);
-        GetEnvironmentValue(L"METEOR_UMBRA_REPOSITORIES_JSON", repositoriesJson, BufferChars);
+        GetUmbraEnvironmentValue(L"FRAMEWORK", frameworkPath, BufferChars);
+        GetUmbraEnvironmentValue(L"PLUGIN_DIR", pluginDirectory, BufferChars);
+        GetUmbraEnvironmentValue(L"SAFE_MODE", safeMode, 32);
+        GetUmbraEnvironmentValue(L"REPOSITORY_URLS", repositoryUrls, BufferChars);
+        GetUmbraEnvironmentValue(L"REPOSITORIES_JSON", repositoriesJson, BufferChars);
 
         AppendLogLiteral(log, L"umbra_bootstrap_loaded=true");
         AppendLogLiteral(log, L"umbra_dllmain_process_attach=true");
@@ -2539,7 +2745,7 @@ namespace
         AppendLogLiteral(log, hosted ? L"umbra_framework_hosted=true" : L"umbra_framework_hosted=false");
         wchar_t diagnosticFlag[32]{};
         if (!hosted
-            && GetEnvironmentValue(L"METEOR_UMBRA_ALLOW_OUT_OF_PROCESS_DIAGNOSTIC", diagnosticFlag, 32)
+            && GetUmbraEnvironmentValue(L"ALLOW_OUT_OF_PROCESS_DIAGNOSTIC", diagnosticFlag, 32)
             && IsTruthy(diagnosticFlag))
         {
             AppendLogLiteral(log, L"umbra_out_of_process_diagnostic_requested_but_removed=true");

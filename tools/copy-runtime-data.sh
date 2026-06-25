@@ -4,11 +4,11 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "$ROOT_DIR/tools/load-local-env.sh"
 CONFIGURATION="${CONFIGURATION:-Release}"
-DB_NAME="${DB_NAME:-${METEOR_DB_NAME:-ffxiv_server}}"
-DB_APP_HOST="${DB_APP_HOST:-${METEOR_DB_HOST:-127.0.0.1}}"
-DB_APP_PORT="${DB_APP_PORT:-${METEOR_DB_PORT:-3306}}"
-DB_APP_USER="${DB_APP_USER:-${METEOR_DB_USER:-meteor}}"
-DB_APP_PASS="${DB_APP_PASS:-${METEOR_DB_PASS:-meteor_dev}}"
+DB_NAME="${DB_NAME:-${AETHER_DB_NAME:-${METEOR_DB_NAME:-ffxiv_server}}}"
+DB_APP_HOST="${DB_APP_HOST:-${AETHER_DB_HOST:-${METEOR_DB_HOST:-127.0.0.1}}}"
+DB_APP_PORT="${DB_APP_PORT:-${AETHER_DB_PORT:-${METEOR_DB_PORT:-3306}}}"
+DB_APP_USER="${DB_APP_USER:-${AETHER_DB_USER:-${METEOR_DB_USER:-aetherxiv}}}"
+DB_APP_PASS="${DB_APP_PASS:-${AETHER_DB_PASS:-${METEOR_DB_PASS:-aether_dev}}}"
 
 copy_file() {
   local source="$1"

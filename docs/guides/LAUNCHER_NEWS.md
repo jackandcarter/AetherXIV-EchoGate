@@ -24,9 +24,9 @@ http://127.0.0.1:8080/launcher/admin/news
 ```
 
 Local requests can use the page without a password. For remote access, set
-`METEOR_LAUNCHER_ADMIN_PASSWORD` or configure the launcher admin password in
-`Data/www/launcher/config.local.php`. Without a password, remote admin access is
-disabled.
+`AETHER_LAUNCHER_ADMIN_PASSWORD` or configure the launcher admin password in
+`Data/www/launcher/config.local.php`. Legacy `METEOR_LAUNCHER_ADMIN_PASSWORD`
+also works as a fallback. Without a password, remote admin access is disabled.
 
 Use the form to add a title, summary, optional body, optional banner/link URLs,
 publish time, published state, and sort order. The `Public News JSON` button
@@ -61,7 +61,7 @@ LIMIT 10
 Open MariaDB with the local app account:
 
 ```sh
-mariadb -u meteor -pmeteor_dev ffxiv_server
+mariadb -u aetherxiv -paether_dev ffxiv_server
 ```
 
 Add a normal post:

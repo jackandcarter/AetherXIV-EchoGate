@@ -20,8 +20,8 @@ Environment:
   DB_APP_HOST  default 127.0.0.1
   DB_APP_PORT  default 3306
   DB_NAME      default ffxiv_server
-  DB_APP_USER  default meteor
-  DB_APP_PASS  default meteor_dev
+  DB_APP_USER  default aetherxiv
+  DB_APP_PASS  default aether_dev
 EOF
 }
 
@@ -61,11 +61,11 @@ if [[ -z "$CHARACTER_ID" && -z "$CHARACTER_NAME" ]]; then
   exit 2
 fi
 
-DB_APP_HOST="${DB_APP_HOST:-${DB_HOST:-127.0.0.1}}"
-DB_APP_PORT="${DB_APP_PORT:-${DB_PORT:-3306}}"
-DB_NAME="${DB_NAME:-ffxiv_server}"
-DB_APP_USER="${DB_APP_USER:-meteor}"
-DB_APP_PASS="${DB_APP_PASS:-${METEOR_DB_PASS:-meteor_dev}}"
+DB_APP_HOST="${DB_APP_HOST:-${AETHER_DB_HOST:-${METEOR_DB_HOST:-${DB_HOST:-127.0.0.1}}}}"
+DB_APP_PORT="${DB_APP_PORT:-${AETHER_DB_PORT:-${METEOR_DB_PORT:-${DB_PORT:-3306}}}}"
+DB_NAME="${DB_NAME:-${AETHER_DB_NAME:-${METEOR_DB_NAME:-ffxiv_server}}}"
+DB_APP_USER="${DB_APP_USER:-${AETHER_DB_USER:-${METEOR_DB_USER:-aetherxiv}}}"
+DB_APP_PASS="${DB_APP_PASS:-${AETHER_DB_PASS:-${METEOR_DB_PASS:-aether_dev}}}"
 
 if command -v mariadb >/dev/null 2>&1; then
   MYSQL_BIN="${MYSQL_BIN:-mariadb}"

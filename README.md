@@ -31,7 +31,7 @@ For a quick project overview:
 ## What Works Now
 
 - Local MariaDB setup uses checked-in defaults from `.env.defaults`.
-- `tools/setup-local-db.sh` creates the default database `ffxiv_server` and app user `meteor` with password `meteor_dev`.
+- `tools/setup-local-db.sh` creates the default database `ffxiv_server` and app user `aetherxiv` with password `aether_dev`.
 - `.env.local` is optional and only needed for local overrides or stronger private credentials.
 - The PHP launcher services support status, news, login, account creation, patch manifests, and runtime catalog metadata.
 - Echo Gate can configure a local server profile, validate a local 1.23b client, validate/apply user-provided patch files, prepare `staticactors.bin`, select a runtime, and collect launch logs.
@@ -47,9 +47,15 @@ For local development and self-hosting, the default database values are:
 
 ```text
 database: ffxiv_server
-username: meteor
-password: meteor_dev
+username: aetherxiv
+password: aether_dev
 hosts: localhost, 127.0.0.1
+```
+
+Existing databases can apply non-destructive launcher/Umbra service migrations with:
+
+```sh
+./tools/apply-db-migrations.sh
 ```
 
 The setup script asks for MariaDB admin credentials only when it needs them. On Ubuntu-style socket-auth installs, it can fall back to `sudo` root access.

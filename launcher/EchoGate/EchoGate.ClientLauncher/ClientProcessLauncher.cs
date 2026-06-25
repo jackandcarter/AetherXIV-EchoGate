@@ -49,7 +49,7 @@ internal static class ClientProcessLauncher
         if (options.Umbra.Enabled)
         {
             UmbraInjector.SetUmbraEnvironment(options.Umbra);
-            Environment.SetEnvironmentVariable("METEOR_UMBRA_HELPER_LOG", options.LogPath);
+            Environment.SetEnvironmentVariable("AETHER_UMBRA_HELPER_LOG", options.LogPath);
         }
 
         log?.Invoke("create_process_start=true");

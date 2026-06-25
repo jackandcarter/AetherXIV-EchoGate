@@ -12,7 +12,7 @@ evidence-led.
   client helper.
 - The x86 helper starts `ffxivgame.exe` suspended, applies the existing launch
   patches, and injects `Aether.Umbra.Bootstrap.x86.dll` with `LoadLibraryW`.
-- The bootstrap DLL reads `METEOR_UMBRA_*` environment values inherited by the
+- The bootstrap DLL reads `AETHER_UMBRA_*` environment values inherited by the
   game process, writes the Umbra log, resolves `hostfxr.dll`, and calls the
   managed Umbra entrypoint inside the game process.
 - The managed framework reads the same runtime settings, scans the plugin
@@ -55,6 +55,10 @@ Plugin catalog:
   but it is not the source of truth for the in-game installer.
 - If no supported repository rows exist, `plugin_catalog_urls` is empty and the
   Supported tab has no entries.
+- Fresh databases get these tables from `Data/sql/launcher_services.sql`.
+  Existing VPS/dev databases can apply
+  `Data/sql/migrations/20260625_launcher_umbra_services.sql` with
+  `./tools/apply-db-migrations.sh`.
 - Custom repository URLs are user-provided HTTPS URLs, with localhost HTTP
   allowed for development.
 - Endpoint: `/launcher/umbra/plugin-blocklist`
@@ -93,6 +97,67 @@ Required manifest fields:
 
 `entry` must be a relative assembly path and may not contain `..` path segments.
 
+## System Plugins
+
+Umbra now starts a resident managed runtime after bootstrap and initializes
+first-party system plugins. These are not third-party community assemblies; they
+are bundled with the framework and exist to validate lifecycle, logging, and
+developer tooling before external plugin execution is enabled.
+
+Current system plugins:
+
+- `Umbra Dev Bridge`: owns the localhost-only, read-only client observation
+  bridge.
+- `Umbra Trace Companion`: reserved for the in-game trace UI, including the
+  planned lobby, map, world, and client observation panels.
+
+The native ImGui settings window can request the Dev Bridge on or off by writing
+the shared control file. The managed Dev Bridge plugin remains the only owner
+that starts or stops the HTTP listener, which avoids a race between native UI,
+managed runtime, and future plugin code.
+
+On Wine, managed hosting still respects the existing safety gate. Local Wine
+tests must explicitly enable `AETHER_UMBRA_ENABLE_MANAGED_ON_WINE=1` before the
+managed system plugins can start.
+
+## Umbra Dev Bridge
+
+The Umbra Dev Bridge is separate from the server-side playtest bridge. It is a
+client-side reverse-engineering assistant lane for Codex and local developer
+tools.
+
+Default control file:
+
+```text
+<Umbra cache>/DevBridge/control.json
+```
+
+Primary environment variables:
+
+- `AETHER_UMBRA_DEV_BRIDGE=1`
+- `AETHER_UMBRA_DEV_BRIDGE_PORT=8797`
+- `AETHER_UMBRA_DEV_BRIDGE_DIR=<path>`
+- `AETHER_UMBRA_DEV_BRIDGE_CONTROL=<path>`
+
+The bridge binds only to `127.0.0.1` and exposes read-only verbs:
+
+- `GET /status`
+- `GET /events?limit=100`
+- `GET /logs?limit=120`
+- `POST /capture/start`
+- `POST /capture/pause`
+- `POST /capture/stop`
+- `POST /memory/peek`
+- `POST /scan/pattern`
+
+Safety boundary:
+
+- no memory writes
+- no packet sends
+- no server build/reset controls
+- no backend, launcher, or framework mutation
+- every request is written to Umbra dev logs
+
 ## Evidence-Gated Work
 
 The next mechanics need client/runtime evidence before implementation:
@@ -102,6 +167,8 @@ The next mechanics need client/runtime evidence before implementation:
 - A polished ImGui theme, persistent window positioning, and input capture rules
   for an overlay that will not break existing client controls.
 - Crash containment strategy for plugin load, update, draw, and disposal failures.
+- Managed-to-native draw bridging for third-party plugin UI.
 
-Until those are known, Umbra should stay in catalog, installer, manifest, and
-safe in-game shell mode rather than pretending to run plugins.
+Until those are known, Umbra should stay in catalog, installer, manifest,
+first-party system-plugin, and safe in-game shell mode rather than pretending to
+run community plugins.

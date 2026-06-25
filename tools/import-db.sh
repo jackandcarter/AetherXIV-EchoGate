@@ -15,7 +15,7 @@ fi
 
 DB_HOST="${DB_HOST:-localhost}"
 DB_PORT="${DB_PORT:-3306}"
-DB_NAME="${DB_NAME:-${METEOR_DB_NAME:-ffxiv_server}}"
+DB_NAME="${DB_NAME:-${AETHER_DB_NAME:-${METEOR_DB_NAME:-ffxiv_server}}}"
 DB_USER="${DB_USER:-${DB_ADMIN_USER:-${USER:-root}}}"
 DB_PASS="${DB_PASS:-${DB_ADMIN_PASS:-}}"
 DB_ADMIN_SUDO="${DB_ADMIN_SUDO:-0}"

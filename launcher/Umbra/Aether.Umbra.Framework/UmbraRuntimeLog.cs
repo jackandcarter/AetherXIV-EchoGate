@@ -31,6 +31,11 @@ public sealed class UmbraRuntimeLog
         Write(message);
     }
 
+    public void Error(string message, Exception exception)
+    {
+        Write($"{message} error={exception}");
+    }
+
     private void Write(string message)
     {
         lock (gate)

@@ -9,12 +9,15 @@ using EchoGate.Core;
 using FrameworkPluginCatalogState = Aether.Umbra.Framework.UmbraPluginCatalogState;
 using FrameworkPluginInstaller = Aether.Umbra.Framework.UmbraPluginInstaller;
 using FrameworkRepositorySource = Aether.Umbra.Framework.UmbraRepositorySource;
+using FrameworkRuntimeOptions = Aether.Umbra.Framework.UmbraRuntimeOptions;
 using FrameworkStoreEntry = Aether.Umbra.Framework.UmbraStoreEntry;
 
 namespace EchoGate.Tests;
 
 public sealed class EchoGateCoreTests
 {
+    private static readonly object EnvironmentLock = new();
+
     [Fact]
     public void ServerXmlWriterIncludesLocalPorts()
     {
@@ -453,6 +456,55 @@ public sealed class EchoGateCoreTests
             true);
 
         manifest.Validate();
+    }
+
+    [Fact]
+    public void UmbraRuntimeOptionsUseAetherEnvironmentNamesWithLegacyFallback()
+    {
+        string[] keys =
+        [
+            "AETHER_UMBRA_LOG",
+            "AETHER_UMBRA_PLUGIN_DIR",
+            "AETHER_UMBRA_CACHE_DIR",
+            "AETHER_UMBRA_DEV_BRIDGE",
+            "AETHER_UMBRA_DEV_BRIDGE_PORT",
+            "METEOR_UMBRA_LOG",
+            "METEOR_UMBRA_PLUGIN_DIR",
+            "METEOR_UMBRA_DEV_BRIDGE"
+        ];
+
+        lock (EnvironmentLock)
+        {
+            Dictionary<string, string?> old = CaptureEnvironment(keys);
+            try
+            {
+                foreach (string key in keys)
+                    Environment.SetEnvironmentVariable(key, null);
+
+                string root = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+                Environment.SetEnvironmentVariable("METEOR_UMBRA_LOG", Path.Combine(root, "legacy.log"));
+                Environment.SetEnvironmentVariable("METEOR_UMBRA_PLUGIN_DIR", Path.Combine(root, "LegacyPlugins"));
+                Environment.SetEnvironmentVariable("METEOR_UMBRA_DEV_BRIDGE", "1");
+                Environment.SetEnvironmentVariable("AETHER_UMBRA_LOG", Path.Combine(root, "aether.log"));
+                Environment.SetEnvironmentVariable("AETHER_UMBRA_PLUGIN_DIR", Path.Combine(root, "Plugins"));
+                Environment.SetEnvironmentVariable("AETHER_UMBRA_CACHE_DIR", Path.Combine(root, "Cache"));
+                Environment.SetEnvironmentVariable("AETHER_UMBRA_DEV_BRIDGE", "0");
+                Environment.SetEnvironmentVariable("AETHER_UMBRA_DEV_BRIDGE_PORT", "8799");
+
+                FrameworkRuntimeOptions options = FrameworkRuntimeOptions.FromEnvironment();
+
+                Assert.EndsWith(Path.Combine(root, "aether.log"), options.LogPath);
+                Assert.EndsWith(Path.Combine(root, "Plugins"), options.PluginDirectory);
+                Assert.EndsWith(Path.Combine(root, "Cache"), options.CacheDirectory);
+                Assert.EndsWith(Path.Combine(root, "Cache", "DevBridge"), options.DevBridgeDirectory);
+                Assert.False(options.DevBridgeInitiallyEnabled);
+                Assert.Equal(8799, options.DevBridgePort);
+            }
+            finally
+            {
+                RestoreEnvironment(old);
+            }
+        }
     }
 
     [Fact]
@@ -1720,6 +1772,17 @@ public sealed class EchoGateCoreTests
 
         systemConfig.CopyTo(executable, rawDataOffset + (defaultConfigRva - sectionVirtualAddress));
         return executable;
+    }
+
+    private static Dictionary<string, string?> CaptureEnvironment(IEnumerable<string> keys)
+    {
+        return keys.ToDictionary(key => key, Environment.GetEnvironmentVariable);
+    }
+
+    private static void RestoreEnvironment(IReadOnlyDictionary<string, string?> values)
+    {
+        foreach (KeyValuePair<string, string?> pair in values)
+            Environment.SetEnvironmentVariable(pair.Key, pair.Value);
     }
 
     private sealed class StaticPatchHandler : HttpMessageHandler

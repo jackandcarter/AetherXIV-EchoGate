@@ -17,8 +17,8 @@ Creates or refreshes the local AetherXIV MariaDB database and app account.
 
 Default created resources:
   database:       ffxiv_server
-  app username:   meteor
-  app password:   meteor_dev
+  app username:   aetherxiv
+  app password:   aether_dev
   app hosts:      localhost, 127.0.0.1
 
 Default setup needs no local env file. The script first tries the current OS
@@ -33,8 +33,8 @@ Key values:
   DB_ADMIN_USER    admin account used only for setup/import
   DB_ADMIN_PASS    admin password when needed
   DB_ADMIN_SUDO    set to 1 to run MariaDB admin commands through sudo
-  DB_APP_USER      default meteor
-  DB_APP_PASS      default meteor_dev
+  DB_APP_USER      default aetherxiv
+  DB_APP_PASS      default aether_dev
   DB_APP_HOST      default 127.0.0.1
   DB_APP_HOSTS     default "localhost 127.0.0.1"
 
@@ -95,14 +95,14 @@ fi
 SQL_DIR="${SQL_DIR:-$ROOT_DIR/Data/sql}"
 DB_HOST="${DB_HOST:-localhost}"
 DB_PORT="${DB_PORT:-3306}"
-DB_NAME="${DB_NAME:-${METEOR_DB_NAME:-ffxiv_server}}"
+DB_NAME="${DB_NAME:-${AETHER_DB_NAME:-${METEOR_DB_NAME:-ffxiv_server}}}"
 DB_ADMIN_USER="${DB_ADMIN_USER:-${DB_USER:-${USER:-root}}}"
 DB_ADMIN_PASS="${DB_ADMIN_PASS:-${DB_PASS:-}}"
 DB_ADMIN_SUDO="${DB_ADMIN_SUDO:-0}"
-DB_APP_HOST="${DB_APP_HOST:-${METEOR_DB_HOST:-127.0.0.1}}"
-DB_APP_PORT="${DB_APP_PORT:-${METEOR_DB_PORT:-3306}}"
-DB_APP_USER="${DB_APP_USER:-${METEOR_DB_USER:-meteor}}"
-DB_APP_PASS="${DB_APP_PASS:-${METEOR_DB_PASS:-meteor_dev}}"
+DB_APP_HOST="${DB_APP_HOST:-${AETHER_DB_HOST:-${METEOR_DB_HOST:-127.0.0.1}}}"
+DB_APP_PORT="${DB_APP_PORT:-${AETHER_DB_PORT:-${METEOR_DB_PORT:-3306}}}"
+DB_APP_USER="${DB_APP_USER:-${AETHER_DB_USER:-${METEOR_DB_USER:-aetherxiv}}}"
+DB_APP_PASS="${DB_APP_PASS:-${AETHER_DB_PASS:-${METEOR_DB_PASS:-aether_dev}}}"
 DB_APP_HOSTS="${DB_APP_HOSTS:-localhost 127.0.0.1}"
 
 if [[ " $DB_APP_HOSTS " != *" $DB_APP_HOST "* ]]; then

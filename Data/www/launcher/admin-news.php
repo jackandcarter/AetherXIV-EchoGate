@@ -115,7 +115,7 @@ if(!$isLocal && !$hasPassword)
 {
 	http_response_code(403);
 	launcher_admin_render_header("Launcher News Admin");
-	echo "<h1>Launcher News Admin</h1><div class=\"error\">Remote admin access is disabled. Set a launcher admin password in config.local.php or METEOR_LAUNCHER_ADMIN_PASSWORD.</div>";
+	echo "<h1>Launcher News Admin</h1><div class=\"error\">Remote admin access is disabled. Set a launcher admin password in config.local.php or AETHER_LAUNCHER_ADMIN_PASSWORD.</div>";
 	launcher_admin_render_footer();
 	return;
 }

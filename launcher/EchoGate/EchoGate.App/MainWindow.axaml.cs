@@ -2103,15 +2103,15 @@ public sealed partial class MainWindow : Window
         info.Environment["ECHO_GATE_LAUNCH_LOG"] = plan.LogPath;
         if (plan.Umbra.Enabled)
         {
-            info.Environment["METEOR_UMBRA_ENABLED"] = "1";
-            info.Environment["METEOR_UMBRA_BOOTSTRAP"] = plan.Umbra.BootstrapPath;
-            info.Environment["METEOR_UMBRA_FRAMEWORK"] = plan.Umbra.FrameworkPath;
-            info.Environment["METEOR_UMBRA_PLUGIN_DIR"] = plan.Umbra.PluginDirectory;
-            info.Environment["METEOR_UMBRA_LOG"] = plan.Umbra.LogPath;
-            info.Environment["METEOR_UMBRA_SAFE_MODE"] = plan.Umbra.SafeMode ? "1" : "0";
-            info.Environment["METEOR_UMBRA_LOAD_DELAY_MS"] = plan.Umbra.LoadDelayMilliseconds.ToString();
-            info.Environment["METEOR_UMBRA_REPOSITORY_URLS"] = string.Join(";", plan.Umbra.RepositoryUrls);
-            info.Environment["METEOR_UMBRA_REPOSITORIES_JSON"] = plan.Umbra.RepositoriesJson;
+            info.Environment["AETHER_UMBRA_ENABLED"] = "1";
+            info.Environment["AETHER_UMBRA_BOOTSTRAP"] = plan.Umbra.BootstrapPath;
+            info.Environment["AETHER_UMBRA_FRAMEWORK"] = plan.Umbra.FrameworkPath;
+            info.Environment["AETHER_UMBRA_PLUGIN_DIR"] = plan.Umbra.PluginDirectory;
+            info.Environment["AETHER_UMBRA_LOG"] = plan.Umbra.LogPath;
+            info.Environment["AETHER_UMBRA_SAFE_MODE"] = plan.Umbra.SafeMode ? "1" : "0";
+            info.Environment["AETHER_UMBRA_LOAD_DELAY_MS"] = plan.Umbra.LoadDelayMilliseconds.ToString();
+            info.Environment["AETHER_UMBRA_REPOSITORY_URLS"] = string.Join(";", plan.Umbra.RepositoryUrls);
+            info.Environment["AETHER_UMBRA_REPOSITORIES_JSON"] = plan.Umbra.RepositoriesJson;
         }
 
         return info;

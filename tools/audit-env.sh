@@ -89,13 +89,13 @@ echo "Database"
 if command -v mysql >/dev/null 2>&1; then
   DB_HOST="${DB_HOST:-localhost}"
   DB_PORT="${DB_PORT:-3306}"
-  DB_NAME="${DB_NAME:-ffxiv_server}"
+  DB_NAME="${DB_NAME:-${AETHER_DB_NAME:-${METEOR_DB_NAME:-ffxiv_server}}}"
   DB_USER="${DB_USER:-${USER:-root}}"
   DB_PASS="${DB_PASS:-}"
-  DB_APP_HOST="${DB_APP_HOST:-127.0.0.1}"
-  DB_APP_PORT="${DB_APP_PORT:-3306}"
-  DB_APP_USER="${DB_APP_USER:-meteor}"
-  DB_APP_PASS="${DB_APP_PASS:-${METEOR_DB_PASS:-}}"
+  DB_APP_HOST="${DB_APP_HOST:-${AETHER_DB_HOST:-${METEOR_DB_HOST:-127.0.0.1}}}"
+  DB_APP_PORT="${DB_APP_PORT:-${AETHER_DB_PORT:-${METEOR_DB_PORT:-3306}}}"
+  DB_APP_USER="${DB_APP_USER:-${AETHER_DB_USER:-${METEOR_DB_USER:-aetherxiv}}}"
+  DB_APP_PASS="${DB_APP_PASS:-${AETHER_DB_PASS:-${METEOR_DB_PASS:-}}}"
 
   mysql_args=(-h "$DB_HOST" -u "$DB_USER")
   if [[ "$DB_HOST" != "localhost" ]]; then

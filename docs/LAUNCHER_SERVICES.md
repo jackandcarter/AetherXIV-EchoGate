@@ -22,6 +22,8 @@ GET /launcher/status
 GET /launcher/news
 GET /launcher/patch-manifest
 GET /launcher/runtime-catalog?platform=<rid>
+GET /launcher/umbra/framework-catalog?platform=win-x86
+GET /launcher/umbra/plugin-blocklist
 POST /launcher/login
 POST /launcher/create-account
 ```
@@ -89,6 +91,19 @@ The launcher service tables are included in the normal local database bootstrap:
 ./tools/setup-local-db.sh
 ```
 
+For an existing VPS/dev database, use the non-destructive migration path instead
+of re-importing `Data/sql/launcher_services.sql`:
+
+```sh
+./tools/apply-db-migrations.sh
+```
+
+On Windows, the same migration directory can be applied with:
+
+```powershell
+.\tools\windows\import-db.ps1 -SqlDir Data\sql\migrations
+```
+
 For manual database maintenance, the SQL file is:
 
 ```text
@@ -101,6 +116,10 @@ Tables:
 - `launcher_news`
 - `launcher_patch_files`
 - `launcher_runtime_artifacts`
+- `launcher_umbra_framework_artifacts`
+- `launcher_umbra_plugin_repositories`
+- `launcher_umbra_plugin_releases`
+- `launcher_umbra_plugin_blocks`
 
 The `patch_base_url` config value should point at the remote folder containing the `ffxiv` or `ffxiv_patches` layout. For example:
 

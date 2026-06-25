@@ -7,4 +7,6 @@ public interface IUmbraPluginContext
     string ConfigDirectory { get; }
 
     IUmbraLogger Logger { get; }
+
+    TService? GetService<TService>() where TService : class;
 }

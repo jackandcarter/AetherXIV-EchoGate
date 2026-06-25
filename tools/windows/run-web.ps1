@@ -11,6 +11,11 @@ $php = Get-PhpCommand
 if ($Bind -eq "") { $Bind = Get-EnvValue "WEB_BIND" "127.0.0.1" }
 if ($Port -eq "") { $Port = Get-EnvValue "WEB_PORT" "8080" }
 
+$env:AETHER_DB_HOST = $db.AppHost
+$env:AETHER_DB_PORT = $db.AppPort
+$env:AETHER_DB_NAME = $db.DbName
+$env:AETHER_DB_USER = $db.AppUser
+$env:AETHER_DB_PASS = $db.AppPass
 $env:METEOR_DB_HOST = $db.AppHost
 $env:METEOR_DB_PORT = $db.AppPort
 $env:METEOR_DB_NAME = $db.DbName

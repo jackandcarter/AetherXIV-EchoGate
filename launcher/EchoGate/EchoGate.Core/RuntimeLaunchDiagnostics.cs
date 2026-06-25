@@ -111,13 +111,14 @@ public static class RuntimeLaunchDiagnostics
             "ECHO_GATE_LOBBY_PORT",
             "ECHO_GATE_WORLD_PORT",
             "ECHO_GATE_MAP_PORT",
-            "METEOR_UMBRA_ENABLED",
-            "METEOR_UMBRA_BOOTSTRAP",
-            "METEOR_UMBRA_FRAMEWORK",
-            "METEOR_UMBRA_PLUGIN_DIR",
-            "METEOR_UMBRA_LOG",
-            "METEOR_UMBRA_SAFE_MODE",
-            "METEOR_UMBRA_LOAD_DELAY_MS"
+            "AETHER_UMBRA_ENABLED",
+            "AETHER_UMBRA_BOOTSTRAP",
+            "AETHER_UMBRA_FRAMEWORK",
+            "AETHER_UMBRA_PLUGIN_DIR",
+            "AETHER_UMBRA_CACHE_DIR",
+            "AETHER_UMBRA_LOG",
+            "AETHER_UMBRA_SAFE_MODE",
+            "AETHER_UMBRA_LOAD_DELAY_MS"
         };
 
         foreach (string key in keys)
