@@ -1,44 +1,22 @@
-﻿/*
-===========================================================================
-Copyright (C) 2015-2019 Project Meteor Dev Team
-
-This file is part of Project Meteor Server.
-
-Project Meteor Server is free software: you can redistribute it and/or modify
-it under the terms of the GNU Affero General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-Project Meteor Server is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU Affero General Public License for more details.
-
-You should have received a copy of the GNU Affero General Public License
-along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
-===========================================================================
-*/
-
-
-using MeteorXIV.Core.Map.actors.director;
-using MeteorXIV.Core.Map.Actors;
-using MeteorXIV.Core.Map.dataobjects;
-using MeteorXIV.Core.Map.packets.receive.events;
-using MeteorXIV.Core.Map.packets.send;
-using MeteorXIV.Core.Map.packets.send.events;
+﻿using AetherXIV.Core.Map.actors.director;
+using AetherXIV.Core.Map.Actors;
+using AetherXIV.Core.Map.dataobjects;
+using AetherXIV.Core.Map.packets.receive.events;
+using AetherXIV.Core.Map.packets.send;
+using AetherXIV.Core.Map.packets.send.events;
 using MoonSharp.Interpreter;
 using MoonSharp.Interpreter.Interop;
 using MoonSharp.Interpreter.Loaders;
 using System;
 using System.Collections.Generic;
 using System.IO;
-using MeteorXIV.Core.Common;
-using MeteorXIV.Core.Map.actors.area;
+using AetherXIV.Core.Common;
+using AetherXIV.Core.Map.actors.area;
 using System.Threading;
-using MeteorXIV.Core.Map.actors.chara.ai;
-using MeteorXIV.Core.Map.actors.chara.ai.controllers;
+using AetherXIV.Core.Map.actors.chara.ai;
+using AetherXIV.Core.Map.actors.chara.ai.controllers;
 
-namespace MeteorXIV.Core.Map.lua
+namespace AetherXIV.Core.Map.lua
 {
     class LuaEngine
     {

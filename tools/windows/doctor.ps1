@@ -87,7 +87,7 @@ if (-not $runningOnWindows) {
     Add-Check ".NET Framework" "missing" "4.7.2 or newer is required by the server executables." | Out-Null
 }
 
-if ($BuildTools -or (Test-Path -LiteralPath (Join-Path $root "MeteorXIV.Core.sln"))) {
+if ($BuildTools -or (Test-Path -LiteralPath (Join-Path $root "AetherXIV.Core.sln"))) {
     $msbuild = Find-MsBuildCommand
     if ($null -ne $msbuild) {
         Add-Check "MSBuild" "ok" $msbuild | Out-Null
@@ -130,9 +130,9 @@ if (Test-Path -LiteralPath $localStaticActors) {
 }
 
 $servers = @(
-    @("Lobby executable", "Lobby Server", "MeteorXIV.Core.Lobby.exe"),
-    @("Map executable", "Map Server", "MeteorXIV.Core.Map.exe"),
-    @("World executable", "World Server", "MeteorXIV.Core.World.exe")
+    @("Lobby executable", "Lobby Server", "AetherXIV.Core.Lobby.exe"),
+    @("Map executable", "Map Server", "AetherXIV.Core.Map.exe"),
+    @("World executable", "World Server", "AetherXIV.Core.World.exe")
 )
 
 foreach ($server in $servers) {

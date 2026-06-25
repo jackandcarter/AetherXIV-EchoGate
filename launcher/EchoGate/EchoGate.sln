@@ -11,9 +11,9 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EchoGate.Tests", "EchoGate.
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EchoGate.ClientLauncher", "EchoGate.ClientLauncher\EchoGate.ClientLauncher.csproj", "{EA474826-0882-41DC-9247-9B8C65100ED4}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Meteor.Umbra.PluginApi", "..\Umbra\Meteor.Umbra.PluginApi\Meteor.Umbra.PluginApi.csproj", "{6C033D78-94E8-4A2A-A4A0-A604B449333A}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Aether.Umbra.PluginApi", "..\Umbra\Aether.Umbra.PluginApi\Aether.Umbra.PluginApi.csproj", "{6C033D78-94E8-4A2A-A4A0-A604B449333A}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Meteor.Umbra.Framework", "..\Umbra\Meteor.Umbra.Framework\Meteor.Umbra.Framework.csproj", "{0A335482-F912-44C5-B71A-20B4825479C2}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Aether.Umbra.Framework", "..\Umbra\Aether.Umbra.Framework\Aether.Umbra.Framework.csproj", "{0A335482-F912-44C5-B71A-20B4825479C2}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

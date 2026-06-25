@@ -101,8 +101,8 @@
                Width="42"
                Height="42"
                Stretch="Uniform" />
-        <TextBlock Grid.Column="1" Text="EchoGate Launcher v1.2" FontSize="24" FontWeight="SemiBold" />
-        <TextBlock Grid.Row="1" Grid.Column="1" Text="MeteorXIV Core v1.3" Foreground="{StaticResource MutedTextBrush}" FontSize="13" />
+        <TextBlock Grid.Column="1" Text="EchoGate Launcher v1.3" FontSize="24" FontWeight="SemiBold" />
+        <TextBlock Grid.Row="1" Grid.Column="1" Text="AetherXIV Core v1.3" Foreground="{StaticResource MutedTextBrush}" FontSize="13" />
         <TextBlock x:Name="HeaderServiceStatus"
                    Grid.Column="2"
                    Grid.RowSpan="2"
@@ -114,7 +114,7 @@
 
     <TabControl x:Name="MainTabs" Grid.Row="1" Margin="0">
       <TabItem Header="Home">
-        <Grid ClipToBounds="True" RowDefinitions="*,190,48" ColumnDefinitions="*,400">
+        <Grid ClipToBounds="True" RowDefinitions="*,210,48" ColumnDefinitions="*,400">
           <Grid Background="#05080C">
             <Image Source="avares://EchoGate.App/Image/back.jpg"
                    Stretch="Uniform"
@@ -162,15 +162,25 @@
             </Grid>
           </Border>
 
-          <Border Grid.Row="1" Background="{StaticResource PanelBrush}" Padding="56,22">
-            <Grid ColumnDefinitions="220,*" ColumnSpacing="20">
-              <Image x:Name="NewsBannerImage" Stretch="UniformToFill" />
-              <StackPanel Grid.Column="1" Spacing="6" VerticalAlignment="Center">
-                <TextBlock Text="Latest News" Foreground="{StaticResource MutedTextBrush}" FontSize="12" />
-                <TextBlock x:Name="NewsTitleText" Text="Awaiting launcher news service" FontSize="22" FontWeight="SemiBold" TextWrapping="Wrap" />
-                <TextBlock x:Name="NewsSummaryText" Text="News from Demi Dev Unit will appear here when the launcher service is available." Foreground="{StaticResource MutedTextBrush}" TextWrapping="Wrap" />
-                <TextBlock x:Name="NewsDateText" Text="" Foreground="{StaticResource MutedTextBrush}" FontStyle="Italic" />
-              </StackPanel>
+          <Border Grid.Row="1"
+                  Background="{StaticResource PanelBrush}"
+                  Padding="56,18">
+            <Grid RowDefinitions="Auto,*" RowSpacing="10">
+              <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+                <StackPanel Spacing="2">
+                  <TextBlock Text="Latest News" FontSize="20" FontWeight="SemiBold" />
+                </StackPanel>
+                <Button Grid.Column="1"
+                        Content="Refresh"
+                        Click="RefreshServices_Click"
+                        VerticalAlignment="Center" />
+              </Grid>
+
+              <ScrollViewer Grid.Row="1"
+                            VerticalScrollBarVisibility="Auto"
+                            HorizontalScrollBarVisibility="Disabled">
+                <StackPanel x:Name="NewsItemsPanel" Spacing="12" />
+              </ScrollViewer>
             </Grid>
           </Border>
 

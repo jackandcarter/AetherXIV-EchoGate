@@ -4,11 +4,11 @@ using System.Runtime.InteropServices;
 // General Information about an assembly is controlled through the following 
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
-[assembly: AssemblyTitle("MeteorXIV Core Map Server")]
-[assembly: AssemblyDescription("Map and gameplay service for MeteorXIV Core")]
+[assembly: AssemblyTitle("AetherXIV Core Map Server")]
+[assembly: AssemblyDescription("Map and gameplay service for AetherXIV Core")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("Demi Dev Unit")]
-[assembly: AssemblyProduct("MeteorXIV Core Map Server")]
+[assembly: AssemblyProduct("AetherXIV Core Map Server")]
 [assembly: AssemblyCopyright("Copyright ©  2019")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]

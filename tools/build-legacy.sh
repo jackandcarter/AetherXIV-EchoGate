@@ -14,7 +14,7 @@ if [[ "$RESTORE" == "1" ]]; then
     echo "nuget is required for package restore" >&2
     exit 1
   fi
-  nuget restore "$ROOT_DIR/MeteorXIV.Core.sln"
+  nuget restore "$ROOT_DIR/AetherXIV.Core.sln"
 fi
 
 if [[ -z "$BUILD_TOOL" ]]; then
@@ -29,7 +29,7 @@ if [[ -z "$BUILD_TOOL" ]]; then
 fi
 
 build_args=(
-  "$ROOT_DIR/MeteorXIV.Core.sln"
+  "$ROOT_DIR/AetherXIV.Core.sln"
   /p:Configuration="$CONFIGURATION"
   /verbosity:"$BUILD_VERBOSITY"
 )
@@ -40,5 +40,5 @@ if [[ "$SHOW_LEGACY_WARNINGS" != "1" ]]; then
   build_args+=("/p:NoWarn=$LEGACY_NOWARN")
 fi
 
-echo "Building MeteorXIV.Core.sln with $BUILD_TOOL ($CONFIGURATION)"
+echo "Building AetherXIV.Core.sln with $BUILD_TOOL ($CONFIGURATION)"
 "$BUILD_TOOL" "${build_args[@]}"

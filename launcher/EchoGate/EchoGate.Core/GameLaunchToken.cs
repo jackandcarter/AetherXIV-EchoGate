@@ -1,5 +1,5 @@
 using System.Text;
-using MeteorXIV.Core.Common;
+using AetherXIV.Core.Common;
 
 namespace EchoGate.Core;
 
@@ -33,7 +33,7 @@ public static class GameLaunchTokenGenerator
 
         uint tickCount = tickProvider();
 
-        // Keep the legacy Project Meteor 1.23b command shape.
+        // Keep the legacy 1.23b launcher command shape.
         // Only change the session payload: raw 56-char session, no "sessionId=" prefix.
         string commandLine =
             $" T ={tickCount} /LANG =en-us /REGION =2 /SERVER_UTC =1356916742 /SESSION_ID ={sessionId}";

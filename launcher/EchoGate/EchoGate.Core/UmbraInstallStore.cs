@@ -73,19 +73,17 @@ public static class UmbraInstallStore
     public static UmbraFrameworkInstall? FindBundled(string? baseDirectory = null)
     {
         string root = Path.Combine(baseDirectory ?? AppContext.BaseDirectory, "Umbra", "Framework");
-        string bootstrapPath = Path.Combine(root, "Meteor.Umbra.Bootstrap.x86.dll");
-        string frameworkPath = Path.Combine(root, "Managed", OperatingSystem.IsWindows()
-            ? "Meteor.Umbra.Framework.exe"
-            : "Meteor.Umbra.Framework.dll");
+        string bootstrapPath = Path.Combine(root, "Aether.Umbra.Bootstrap.x86.dll");
+        string frameworkPath = Path.Combine(root, "Managed", "Aether.Umbra.Framework.dll");
 
         if (!File.Exists(frameworkPath))
-            frameworkPath = Path.Combine(root, "Managed", "Meteor.Umbra.Framework.dll");
+            frameworkPath = Path.Combine(root, "Managed", "Aether.Umbra.Framework.exe");
 
         if (!File.Exists(bootstrapPath) || !File.Exists(frameworkPath))
             return null;
 
         return new UmbraFrameworkInstall(
-            "Meteor Umbra",
+            "Aether Umbra",
             ReadBundledVersion(root),
             "1.0",
             "win-x86",

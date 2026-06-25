@@ -1,6 +1,6 @@
 # Umbra Framework Development Notes
 
-Umbra is the Meteor client plugin framework for EchoGate-launched FFXIV 1.x clients.
+Umbra is the AetherXIV client plugin framework for EchoGate-launched FFXIV 1.x clients.
 This document records the current implementation boundary so development stays
 evidence-led.
 
@@ -9,13 +9,21 @@ evidence-led.
 - EchoGate resolves Umbra settings during launch and passes them to the x86
   client helper.
 - The x86 helper starts `ffxivgame.exe` suspended, applies the existing launch
-  patches, and injects `Meteor.Umbra.Bootstrap.x86.dll` with `LoadLibraryW`.
+  patches, and injects `Aether.Umbra.Bootstrap.x86.dll` with `LoadLibraryW`.
 - The bootstrap DLL reads `METEOR_UMBRA_*` environment values inherited by the
-  game process, writes the Umbra log, and starts the managed framework with
-  `--bootstrap`.
+  game process, writes the Umbra log, resolves `hostfxr.dll`, and calls the
+  managed Umbra entrypoint inside the game process.
 - The managed framework reads the same runtime settings, scans the plugin
   directory for `umbra-plugin.json` or `plugin.json`, validates manifests, and
   records discovered plugins.
+- The managed framework fetches supported and custom repository JSON catalogs,
+  caches last-successful repository responses, parses Umbra and common
+  Dalamud-style store fields, and separates Installed, Supported, Available,
+  and Updates state.
+- Plugin downloads are verified by size and SHA256 before extraction. Archive
+  paths that are absolute or contain `..` are rejected. Installed plugins are
+  written with a validated `umbra-plugin.json`, but third-party assemblies are
+  not executed in this stage.
 
 This proves the launcher-to-helper-to-game-to-bootstrap-to-framework path without
 claiming that in-game rendering or plugin execution exists yet.
@@ -35,17 +43,24 @@ Framework catalog:
 
 Plugin catalog:
 
-- Endpoint: `/launcher/umbra/plugin-catalog`
-- Backing tables: `launcher_umbra_plugin_repositories` and
-  `launcher_umbra_plugin_releases`
-- Purpose: lists optional plugin releases available to users.
-- Payload includes plugin id, name, version, API version, author, description,
-  download URL, size, SHA256, minimum framework version, and active flag.
+- Supported repository URLs come from active supported rows in
+  `launcher_umbra_plugin_repositories`.
+- `launcher_umbra_plugin_releases` remains available as an optional future cache,
+  but it is not the source of truth for the in-game installer.
+- If no supported repository rows exist, `plugin_catalog_urls` is empty and the
+  Supported tab has no entries.
+- Custom repository URLs are user-provided HTTPS URLs, with localhost HTTP
+  allowed for development.
+- Endpoint: `/launcher/umbra/plugin-blocklist`
+- Backing table: `launcher_umbra_plugin_blocks`
+- Purpose: disables known-broken plugin ids/versions before plugin execution is
+  ever enabled.
 
 The launcher service config exposes:
 
 - `client_plugin_framework_catalog_url`
 - `plugin_catalog_urls`
+- `plugin_blocklist_url`
 
 Framework bundles and plugin archives should never be trusted by URL alone.
 Every downloadable artifact must be checked against the size and SHA256 recorded
@@ -77,10 +92,10 @@ Required manifest fields:
 The next mechanics need client/runtime evidence before implementation:
 
 - Direct3D 9 device discovery and reset/present hook points for the 1.23b client.
-- Whether Umbra should host managed plugins in-process, use a native shim with
-  out-of-process managed coordination, or move to NativeAOT/plugin ABI boundaries.
+- A real ImGui renderer and corner-icon shell once the D3D9 present/reset hooks
+  are proven under Wine and native Windows.
 - Input capture rules for an overlay that will not break existing client controls.
 - Crash containment strategy for plugin load, update, draw, and disposal failures.
 
-Until those are known, Umbra's managed framework should stay in manifest and
-diagnostic mode rather than pretending to render or run plugins in-process.
+Until those are known, Umbra's managed framework should stay in catalog,
+installer, and manifest mode rather than pretending to render UI or run plugins.

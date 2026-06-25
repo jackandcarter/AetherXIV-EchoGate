@@ -11,7 +11,7 @@ usage() {
   cat <<'EOF'
 Usage: tools/lua-audit.sh [--strict] [--max-results N]
 
-Audits Lua scripts for known MeteorXIV Core reverse-engineering hazards.
+Audits Lua scripts for known AetherXIV Core reverse-engineering hazards.
 The audit is informational by default. Use --strict to exit non-zero when
 findings are present.
 EOF

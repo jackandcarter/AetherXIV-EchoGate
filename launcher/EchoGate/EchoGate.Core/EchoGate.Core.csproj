@@ -10,7 +10,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Include="..\..\..\Common Class Lib\Blowfish.cs" Link="MeteorXIVCoreCommon\Blowfish.cs" />
+    <Compile Include="..\..\..\Common Class Lib\Blowfish.cs" Link="AetherXIVCoreCommon\Blowfish.cs" />
   </ItemGroup>
 
 </Project>

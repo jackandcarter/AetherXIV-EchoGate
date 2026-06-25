@@ -4,11 +4,11 @@ using System.Runtime.InteropServices;
 // General Information about an assembly is controlled through the following 
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
-[assembly: AssemblyTitle("MeteorXIV Core World Server")]
-[assembly: AssemblyDescription("World session routing service for MeteorXIV Core")]
+[assembly: AssemblyTitle("AetherXIV Core World Server")]
+[assembly: AssemblyDescription("World session routing service for AetherXIV Core")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("Demi Dev Unit")]
-[assembly: AssemblyProduct("MeteorXIV Core World Server")]
+[assembly: AssemblyProduct("AetherXIV Core World Server")]
 [assembly: AssemblyCopyright("Copyright ©  2019")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]

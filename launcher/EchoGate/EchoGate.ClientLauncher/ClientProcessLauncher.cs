@@ -46,6 +46,12 @@ internal static class ClientProcessLauncher
 
         string commandLine = BuildGameCommandLine(options, token, log);
         log?.Invoke($"game_command_line_length={commandLine.Length}");
+        if (options.Umbra.Enabled)
+        {
+            UmbraInjector.SetUmbraEnvironment(options.Umbra);
+            Environment.SetEnvironmentVariable("METEOR_UMBRA_HELPER_LOG", options.LogPath);
+        }
+
         log?.Invoke("create_process_start=true");
         Stopwatch launchStopwatch = Stopwatch.StartNew();
         bool success = NativeMethods.CreateProcess(
@@ -78,7 +84,11 @@ internal static class ClientProcessLauncher
             if (options.Umbra.Enabled)
             {
                 log?.Invoke("umbra_injection_start=true");
-                bool umbraInjected = UmbraInjector.TryInject(processInfo.hProcess, options, log);
+                bool umbraInjected = UmbraInjector.TryInject(
+                    processInfo.hProcess,
+                    processInfo.dwProcessId,
+                    options,
+                    log);
                 log?.Invoke($"umbra_injected={umbraInjected}");
             }
 

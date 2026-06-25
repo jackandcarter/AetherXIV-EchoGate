@@ -1,34 +1,13 @@
-﻿/*
-===========================================================================
-Copyright (C) 2015-2019 Project Meteor Dev Team
-
-This file is part of Project Meteor Server.
-
-Project Meteor Server is free software: you can redistribute it and/or modify
-it under the terms of the GNU Affero General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-Project Meteor Server is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU Affero General Public License for more details.
-
-You should have received a copy of the GNU Affero General Public License
-along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
-===========================================================================
-*/
-
-using System;
+﻿using System;
 using System.Collections.Generic;
-using MeteorXIV.Core.Map.Actors;
-using MeteorXIV.Core.Map.utils;
-using MeteorXIV.Core.Common;
-using MeteorXIV.Core.Map.actors.area;
+using AetherXIV.Core.Map.Actors;
+using AetherXIV.Core.Map.utils;
+using AetherXIV.Core.Common;
+using AetherXIV.Core.Map.actors.area;
 
 // port of https://github.com/DarkstarProject/darkstar/blob/master/src/map/ai/helpers/pathfind.h
 
-namespace MeteorXIV.Core.Map.actors.chara.ai
+namespace AetherXIV.Core.Map.actors.chara.ai
 {
     // todo: check for obstacles, los, etc
     public enum PathFindFlags

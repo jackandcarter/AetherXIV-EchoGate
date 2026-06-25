@@ -40,7 +40,7 @@ For backend publishing examples, see [Launcher News Guide](guides/LAUNCHER_NEWS.
 
 `/launcher/login` accepts JSON or form POST data with `username` and `password`. It verifies the account against the existing `users` table, refreshes or creates a row in `sessions`, and returns a 56-character `session_id`.
 
-`/launcher/create-account` accepts JSON or form POST data with `username`, `password`, `confirm_password`, and `email`. It creates a compatible Meteor account using the existing SHA-224 plus salt scheme, creates a session, and returns the same response shape as `/launcher/login`.
+`/launcher/create-account` accepts JSON or form POST data with `username`, `password`, `confirm_password`, and `email`. It creates a compatible legacy account using the existing SHA-224 plus salt scheme, creates a session, and returns the same response shape as `/launcher/login`.
 
 Auth response:
 

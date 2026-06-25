@@ -9,7 +9,7 @@ $db = Get-DbSettings
 $serverIp = Get-EnvValue "SERVER_IP" "127.0.0.1"
 $mapPort = Get-EnvValue "MAP_PORT" "1989"
 $dir = Resolve-ServerDirectory -RootDir $root -ServerName "Map Server" -Configuration $Configuration
-$exe = Join-Path $dir "MeteorXIV.Core.Map.exe"
+$exe = Join-Path $dir "AetherXIV.Core.Map.exe"
 if (-not (Test-Path -LiteralPath $exe)) { throw "Map server executable not found: $exe" }
 $previousReadyFile = $env:METEOR_READY_FILE
 if ($ReadyFile -ne "") { $env:METEOR_READY_FILE = $ReadyFile }

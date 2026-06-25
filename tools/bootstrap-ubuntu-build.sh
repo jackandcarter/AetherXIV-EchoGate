@@ -26,12 +26,12 @@ usage() {
 Usage: ./tools/bootstrap-ubuntu-build.sh [options]
 
 Checks an Ubuntu/Debian-style machine, installs missing build dependencies,
-then builds the Meteor servers and Echo Gate Linux launcher.
+then builds the AetherXIV servers and Echo Gate Linux launcher.
 
 Options:
   --yes                 Install packages without prompting.
   --no-install          Check only; do not install missing packages.
-  --legacy-only         Build only the legacy Meteor server solution.
+  --legacy-only         Build only the legacy AetherXIV server solution.
   --launcher-only       Build only Echo Gate.
   --no-publish          Run Echo Gate tests but do not publish the launcher.
   --rid RID             Launcher runtime id to publish. Default: linux-x64.
@@ -648,7 +648,7 @@ validate_build_dependencies() {
 }
 
 build_legacy() {
-  log "Building Meteor legacy servers..."
+  log "Building AetherXIV legacy servers..."
   CONFIGURATION="$CONFIGURATION" "$ROOT_DIR/tools/build-legacy.sh"
   log "Copying server runtime data..."
   CONFIGURATION="$CONFIGURATION" "$ROOT_DIR/tools/copy-runtime-data.sh"

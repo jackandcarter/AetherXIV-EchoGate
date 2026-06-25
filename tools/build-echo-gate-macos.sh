@@ -5,11 +5,13 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CONFIGURATION="${CONFIGURATION:-Release}"
 RUNTIME_IDENTIFIER="${RUNTIME_IDENTIFIER:-osx-arm64}"
 APP_NAME="${APP_NAME:-EchoGate}"
-BUNDLE_IDENTIFIER="${BUNDLE_IDENTIFIER:-org.meteor.echogate}"
+BUNDLE_IDENTIFIER="${BUNDLE_IDENTIFIER:-org.aetherxiv.echogate}"
 VERSION="${VERSION:-0.1.0}"
+INCLUDE_UMBRA_DEV_FRAMEWORK="${INCLUDE_UMBRA_DEV_FRAMEWORK:-1}"
 
 PROJECT_PATH="$ROOT_DIR/launcher/EchoGate/EchoGate.App/EchoGate.App.csproj"
 HELPER_PROJECT_PATH="$ROOT_DIR/launcher/EchoGate/EchoGate.ClientLauncher/EchoGate.ClientLauncher.csproj"
+NATIVE_INJECTOR_SOURCE="$ROOT_DIR/launcher/EchoGate/EchoGate.NativeInjector/umbra_native_injector.cpp"
 BUILD_ROOT="$ROOT_DIR/build/echo-gate/macos-$RUNTIME_IDENTIFIER"
 PUBLISH_DIR="$BUILD_ROOT/publish"
 APP_BUNDLE="$BUILD_ROOT/$APP_NAME.app"
@@ -45,9 +47,40 @@ for helper_rid in win-x64 win-x86; do
     /p:UseAppHost=true
 done
 
+if [[ "$INCLUDE_UMBRA_DEV_FRAMEWORK" == "1" ]]; then
+  if ! command -v i686-w64-mingw32-g++ >/dev/null 2>&1; then
+    echo "SMOKE_FAIL echo-gate macos: i686-w64-mingw32-g++ is required for Umbra native injection" >&2
+    exit 41
+  fi
+
+  native_injector_output="$BUILD_ROOT/native/Umbra.NativeInjector.x86.exe"
+  mkdir -p "$(dirname "$native_injector_output")"
+  echo "Building Umbra native x86 injector..."
+  i686-w64-mingw32-g++ \
+    -std=c++20 \
+    -O2 \
+    -municode \
+    -static \
+    "$NATIVE_INJECTOR_SOURCE" \
+    -o "$native_injector_output"
+
+  cp "$native_injector_output" "$PUBLISH_DIR/Helpers/win-x64/Umbra.NativeInjector.x86.exe"
+  cp "$native_injector_output" "$PUBLISH_DIR/Helpers/win-x86/Umbra.NativeInjector.x86.exe"
+fi
+
+if [[ "$INCLUDE_UMBRA_DEV_FRAMEWORK" == "1" ]]; then
+  echo "Building bundled Umbra development framework..."
+  COPY_TO_APP_BUNDLE=0 "$ROOT_DIR/tools/build-umbra-framework.sh"
+fi
+
 rm -rf "$APP_BUNDLE"
 mkdir -p "$MACOS_DIR" "$RESOURCES_DIR"
 cp -R "$PUBLISH_DIR"/. "$MACOS_DIR"/
+
+if [[ "$INCLUDE_UMBRA_DEV_FRAMEWORK" == "1" ]]; then
+  mkdir -p "$MACOS_DIR/Umbra"
+  cp -R "$ROOT_DIR/build/umbra/framework/win-x86/Framework" "$MACOS_DIR/Umbra/Framework"
+fi
 
 if [[ -f "$ICON_SOURCE" ]] && command -v iconutil >/dev/null 2>&1 && command -v sips >/dev/null 2>&1; then
   ICONSET_DIR="$BUILD_ROOT/EchoGate.iconset"

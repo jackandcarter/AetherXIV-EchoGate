@@ -175,5 +175,7 @@ public sealed record LaunchPlan(
         parts.Add(options.LoadDelayMilliseconds.ToString());
         parts.Add("--umbra-repository-urls");
         parts.Add(CommandLineArguments.Quote(string.Join(";", options.RepositoryUrls)));
+        parts.Add("--umbra-repositories-json");
+        parts.Add(CommandLineArguments.Quote(options.RepositoriesJson));
     }
 }

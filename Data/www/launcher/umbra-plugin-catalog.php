@@ -12,7 +12,7 @@ try
 	if($tableCheck === false || $tableCheck->num_rows === 0)
 	{
 		launcher_json(array(
-			"repository_name" => "Meteor Umbra Plugins",
+			"repository_name" => "Aether Umbra Plugins",
 			"plugins" => array()
 		));
 		return;
@@ -24,7 +24,7 @@ try
 	if($repositoryStatement === false)
 	{
 		launcher_json(array(
-			"repository_name" => "Meteor Umbra Plugins",
+			"repository_name" => "Aether Umbra Plugins",
 			"plugins" => array()
 		));
 		return;
@@ -37,7 +37,7 @@ try
 	if($repository === null)
 	{
 		launcher_json(array(
-			"repository_name" => "Meteor Umbra Plugins",
+			"repository_name" => "Aether Umbra Plugins",
 			"plugins" => array()
 		));
 		return;
@@ -89,7 +89,7 @@ try
 catch(Exception $e)
 {
 	launcher_json(array(
-		"repository_name" => "Meteor Umbra Plugins",
+		"repository_name" => "Aether Umbra Plugins",
 		"plugins" => array()
 	));
 }

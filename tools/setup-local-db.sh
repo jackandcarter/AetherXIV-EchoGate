@@ -13,7 +13,7 @@ usage() {
   cat <<'EOF'
 Usage: tools/setup-local-db.sh [--drop] [--no-import] [--no-user] [--admin-sudo] [--no-prompt]
 
-Creates or refreshes the local Meteor MariaDB database and app account.
+Creates or refreshes the local AetherXIV MariaDB database and app account.
 
 Default created resources:
   database:       ffxiv_server
@@ -178,7 +178,7 @@ prompt_admin_credentials() {
 
 build_admin_cmd
 
-echo "Meteor local database setup"
+echo "AetherXIV local database setup"
 echo "Database to create: $DB_NAME"
 echo "App account:        $DB_APP_USER / $DB_APP_PASS"
 echo "App hosts:          $DB_APP_HOSTS"

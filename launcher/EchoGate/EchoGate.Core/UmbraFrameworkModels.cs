@@ -39,7 +39,12 @@ public sealed record UmbraFrameworkArtifact(
     [property: JsonPropertyName("is_active")] bool IsActive,
     [property: JsonPropertyName("sort_order")] int SortOrder)
 {
-    public string StableId => RuntimeInstallStore.SanitizePathSegment($"{PlatformRid}-{Name}-{Version}");
+    public string StableId => RuntimeInstallStore.SanitizePathSegment(
+        $"{PlatformRid}-{Name}-{Version}-{ShortArchiveHash}");
+
+    private string ShortArchiveHash => string.IsNullOrWhiteSpace(Sha256)
+        ? "nohash"
+        : Sha256.Trim()[..Math.Min(12, Sha256.Trim().Length)];
 
     public bool SupportsGameHash(string sha256)
     {

@@ -14,7 +14,7 @@ $db = Get-DbSettings
 if ($AdminUser -ne "") { $db.AdminUser = $AdminUser }
 if ($AdminPassword -ne "") { $db.AdminPass = $AdminPassword }
 
-Write-Host "Meteor local database setup"
+Write-Host "AetherXIV local database setup"
 Write-Host "Database:    $($db.DbName)"
 Write-Host "App account: $($db.AppUser) / $($db.AppPass)"
 Write-Host "App hosts:   $($db.AppHosts -join ', ')"

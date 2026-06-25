@@ -1,34 +1,13 @@
-﻿/*
-===========================================================================
-Copyright (C) 2015-2019 Project Meteor Dev Team
-
-This file is part of Project Meteor Server.
-
-Project Meteor Server is free software: you can redistribute it and/or modify
-it under the terms of the GNU Affero General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-Project Meteor Server is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU Affero General Public License for more details.
-
-You should have received a copy of the GNU Affero General Public License
-along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
-===========================================================================
-*/
-
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Threading;
-using MeteorXIV.Core.Common;
+using AetherXIV.Core.Common;
 using MySql.Data.MySqlClient;
 using NLog;
 
-namespace MeteorXIV.Core.Map
+namespace AetherXIV.Core.Map
 {
     class Program
     {
@@ -58,7 +37,7 @@ namespace MeteorXIV.Core.Map
             DevDiagnostics.Configure("Map", args);
 
             Log.Info("==================================");
-            Log.Info("MeteorXIV Core v1.3: Map Server");
+            Log.Info("AetherXIV Core v1.3: Map Server");
             Log.Info("Version: 1.3");
             Log.Info("==================================");
 
@@ -87,8 +66,8 @@ namespace MeteorXIV.Core.Map
                 return ExitOrPrompt(smoke, SmokeFail("Map", "unhandled", e.Message, EXIT_UNHANDLED));
             }
 
-            if (!File.Exists(MeteorXIV.Core.Map.Server.STATIC_ACTORS_PATH))
-                return ExitOrPrompt(smoke, SmokeFail("Map", "runtime prerequisite", MeteorXIV.Core.Map.Server.STATIC_ACTORS_PATH + " is missing", EXIT_RUNTIME));
+            if (!File.Exists(AetherXIV.Core.Map.Server.STATIC_ACTORS_PATH))
+                return ExitOrPrompt(smoke, SmokeFail("Map", "runtime prerequisite", AetherXIV.Core.Map.Server.STATIC_ACTORS_PATH + " is missing", EXIT_RUNTIME));
 
             try
             {

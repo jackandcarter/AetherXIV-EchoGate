@@ -59,7 +59,7 @@ fi
 if [[ -d "$ROOT_DIR/packages" ]]; then
   status "packages" "present"
 else
-  status "packages" "missing: run nuget restore MeteorXIV.Core.sln"
+  status "packages" "missing: run nuget restore AetherXIV.Core.sln"
 fi
 echo
 

@@ -1,49 +1,28 @@
-﻿/*
-===========================================================================
-Copyright (C) 2015-2019 Project Meteor Dev Team
-
-This file is part of Project Meteor Server.
-
-Project Meteor Server is free software: you can redistribute it and/or modify
-it under the terms of the GNU Affero General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-Project Meteor Server is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU Affero General Public License for more details.
-
-You should have received a copy of the GNU Affero General Public License
-along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
-===========================================================================
-*/
-
-using MeteorXIV.Core.Common;
+using AetherXIV.Core.Common;
 
 using System;
-using MeteorXIV.Core.Map.dataobjects;
-using MeteorXIV.Core.Map.packets.receive;
-using MeteorXIV.Core.Map.packets.send;
-using MeteorXIV.Core.Map.packets.send.login;
-using MeteorXIV.Core.Map.packets.send.actor;
-using MeteorXIV.Core.Map.packets.send.supportdesk;
-using MeteorXIV.Core.Map.packets.receive.social;
-using MeteorXIV.Core.Map.packets.send.social;
-using MeteorXIV.Core.Map.packets.receive.supportdesk;
-using MeteorXIV.Core.Map.packets.receive.recruitment;
-using MeteorXIV.Core.Map.packets.send.recruitment;
-using MeteorXIV.Core.Map.packets.receive.events;
-using MeteorXIV.Core.Map.packets.send.events;
-using MeteorXIV.Core.Map.lua;
-using MeteorXIV.Core.Map.Actors;
-using MeteorXIV.Core.Map.actors.chara;
-using MeteorXIV.Core.Map.actors.chara.ai.state;
-using MeteorXIV.Core.Map.packets.WorldPackets.Send;
-using MeteorXIV.Core.Map.packets.WorldPackets.Receive;
-using MeteorXIV.Core.Map.actors.director;
+using AetherXIV.Core.Map.dataobjects;
+using AetherXIV.Core.Map.packets.receive;
+using AetherXIV.Core.Map.packets.send;
+using AetherXIV.Core.Map.packets.send.login;
+using AetherXIV.Core.Map.packets.send.actor;
+using AetherXIV.Core.Map.packets.send.supportdesk;
+using AetherXIV.Core.Map.packets.receive.social;
+using AetherXIV.Core.Map.packets.send.social;
+using AetherXIV.Core.Map.packets.receive.supportdesk;
+using AetherXIV.Core.Map.packets.receive.recruitment;
+using AetherXIV.Core.Map.packets.send.recruitment;
+using AetherXIV.Core.Map.packets.receive.events;
+using AetherXIV.Core.Map.packets.send.events;
+using AetherXIV.Core.Map.lua;
+using AetherXIV.Core.Map.Actors;
+using AetherXIV.Core.Map.actors.chara;
+using AetherXIV.Core.Map.actors.chara.ai.state;
+using AetherXIV.Core.Map.packets.WorldPackets.Send;
+using AetherXIV.Core.Map.packets.WorldPackets.Receive;
+using AetherXIV.Core.Map.actors.director;
 
-namespace MeteorXIV.Core.Map
+namespace AetherXIV.Core.Map
 {
     class PacketProcessor
     {

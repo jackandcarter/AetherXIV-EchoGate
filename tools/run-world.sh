@@ -12,4 +12,4 @@ DB_APP_USER="${DB_APP_USER:-meteor}"
 DB_APP_PASS="${DB_APP_PASS:-${METEOR_DB_PASS:-meteor_dev}}"
 
 cd "$ROOT_DIR/World Server/bin/$CONFIGURATION"
-exec mono "MeteorXIV.Core.World.exe" --ip "$SERVER_IP" --port "$WORLD_PORT" --host "$DB_APP_HOST" --db "$DB_NAME" --user "$DB_APP_USER" --p "$DB_APP_PASS" "$@"
+exec mono "AetherXIV.Core.World.exe" --ip "$SERVER_IP" --port "$WORLD_PORT" --host "$DB_APP_HOST" --db "$DB_NAME" --user "$DB_APP_USER" --p "$DB_APP_PASS" "$@"

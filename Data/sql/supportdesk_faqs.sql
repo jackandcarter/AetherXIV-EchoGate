@@ -22,4 +22,4 @@ CREATE TABLE `supportdesk_faqs` (
 -- ----------------------------
 -- Records 
 -- ----------------------------
-INSERT INTO `supportdesk_faqs` VALUES ('0', '1', 'Welcome to FFXIV Classic', 'Welcome to MeteorXIV Core for FFXIV 1.x.\r\n\r\nThis server is under active restoration, and testers may encounter incomplete content or protocol issues while playing.\r\n\r\nUse launcher news and project documentation for current development notes.');
+INSERT INTO `supportdesk_faqs` VALUES ('0', '1', 'Welcome to FFXIV Classic', 'Welcome to AetherXIV Core for FFXIV 1.x.\r\n\r\nThis server is under active restoration, and testers may encounter incomplete content or protocol issues while playing.\r\n\r\nUse launcher news and project documentation for current development notes.');

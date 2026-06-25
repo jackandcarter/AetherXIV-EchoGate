@@ -55,6 +55,7 @@ internal static class Program
                 File.AppendAllText(options.LogPath, $"umbra_safe_mode={options.Umbra.SafeMode}{Environment.NewLine}");
                 File.AppendAllText(options.LogPath, $"umbra_load_delay_ms={options.Umbra.LoadDelayMilliseconds}{Environment.NewLine}");
                 File.AppendAllText(options.LogPath, $"umbra_repository_count={options.Umbra.RepositoryUrls.Count}{Environment.NewLine}");
+                File.AppendAllText(options.LogPath, $"umbra_repository_source_count={options.Umbra.RepositorySources.Count}{Environment.NewLine}");
             }
             AppendFileProbe(options.LogPath, options.GamePath);
             AppendInstallProbe(options.LogPath, options.WorkingDirectory);
@@ -274,6 +275,12 @@ internal sealed record LaunchOptions(
         if (!ParseBoolean(values, "umbra-enabled"))
             return UmbraLaunchOptions.Disabled;
 
+        IReadOnlyList<string> repositoryUrls = UmbraRepositoryOptions.ParseRepositoryList(
+            values.TryGetValue("umbra-repository-urls", out string? urls) ? urls : "");
+        IReadOnlyList<UmbraRepositorySource> repositorySources = values.TryGetValue("umbra-repositories-json", out string? repositoriesJson)
+            ? UmbraRepositorySource.FromJson(repositoriesJson)
+            : UmbraRepositorySource.FromUrls(repositoryUrls, UmbraRepositorySource.Custom);
+
         return new UmbraLaunchOptions(
             true,
             ParseBoolean(values, "umbra-safe-mode"),
@@ -282,7 +289,10 @@ internal sealed record LaunchOptions(
             Required(values, "umbra-framework"),
             Required(values, "umbra-plugin-dir"),
             Required(values, "umbra-log"),
-            UmbraRepositoryOptions.ParseRepositoryList(values.TryGetValue("umbra-repository-urls", out string? urls) ? urls : ""))
+            repositoryUrls)
+            {
+                RepositorySources = repositorySources
+            }
             .Normalize();
     }
 

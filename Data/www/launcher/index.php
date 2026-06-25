@@ -32,6 +32,9 @@ switch($route)
 	case "plugin-catalog":
 		require(__DIR__ . "/umbra-plugin-catalog.php");
 		break;
+	case "plugin-blocklist":
+		require(__DIR__ . "/umbra-plugin-blocklist.php");
+		break;
 	case "login":
 		require(__DIR__ . "/login.php");
 		break;

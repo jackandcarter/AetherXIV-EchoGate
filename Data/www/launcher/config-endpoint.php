@@ -6,16 +6,18 @@ try
 {
 	$db = launcher_database();
 	$config = launcher_config_map($db);
+	$pluginCatalogUrls = launcher_umbra_supported_repository_urls($db);
 	launcher_json(array(
 		"service_version" => intval($config["service_version"] ?? "1"),
 		"launcher_version" => $config["launcher_version"] ?? "1.3",
-		"server_name" => $config["server_name"] ?? "MeteorXIV Core v1.3",
+		"server_name" => $config["server_name"] ?? "AetherXIV Core v1.3",
 		"server_status_url" => "status",
 		"news_url" => "news",
 		"patch_manifest_url" => "patch-manifest",
 		"runtime_catalog_url" => "runtime-catalog",
 		"client_plugin_framework_catalog_url" => $config["client_plugin_framework_catalog_url"] ?? "umbra/framework-catalog",
-		"plugin_catalog_urls" => launcher_config_list($config["plugin_catalog_urls"] ?? ""),
+		"plugin_catalog_urls" => $pluginCatalogUrls,
+		"plugin_blocklist_url" => $config["plugin_blocklist_url"] ?? "umbra/plugin-blocklist",
 		"login_url" => $config["login_url"] ?? "login",
 		"account_create_url" => $config["account_create_url"] ?? "create-account",
 		"client_login_url" => $config["client_login_url"] ?? "../login/index.php",

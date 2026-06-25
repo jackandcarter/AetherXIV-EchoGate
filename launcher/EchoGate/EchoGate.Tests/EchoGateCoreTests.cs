@@ -6,6 +6,10 @@ using System.Text;
 using System.Text.Json;
 using System.Net;
 using EchoGate.Core;
+using FrameworkPluginCatalogState = Aether.Umbra.Framework.UmbraPluginCatalogState;
+using FrameworkPluginInstaller = Aether.Umbra.Framework.UmbraPluginInstaller;
+using FrameworkRepositorySource = Aether.Umbra.Framework.UmbraRepositorySource;
+using FrameworkStoreEntry = Aether.Umbra.Framework.UmbraStoreEntry;
 
 namespace EchoGate.Tests;
 
@@ -210,11 +214,19 @@ public sealed class EchoGateCoreTests
             true,
             false,
             500,
-            Path.Combine(root, "Umbra", "Framework", "Meteor.Umbra.Bootstrap.x86.dll"),
-            Path.Combine(root, "Umbra", "Framework", "Managed", "Meteor.Umbra.Framework.dll"),
+            Path.Combine(root, "Umbra", "Framework", "Aether.Umbra.Bootstrap.x86.dll"),
+            Path.Combine(root, "Umbra", "Framework", "Managed", "Aether.Umbra.Framework.dll"),
             Path.Combine(root, "Umbra", "Plugins"),
             Path.Combine(root, "Umbra", "Logs", "umbra.log"),
-            new[] { UmbraRepositoryOptions.OfficialRepositoryUrl });
+            new[] { "https://launcher.dev.demidevunit.com/umbra/plugins.json" })
+            {
+                RepositorySources = new[]
+                {
+                    new UmbraRepositorySource(
+                        "https://launcher.dev.demidevunit.com/umbra/plugins.json",
+                        UmbraRepositorySource.Supported)
+                }
+            };
 
         LaunchPlan plan = LaunchPlan.CreateWithHelper(
             client,
@@ -230,9 +242,11 @@ public sealed class EchoGateCoreTests
         Assert.Contains("--umbra-enabled true", plan.Arguments);
         Assert.Contains("--umbra-bootstrap", plan.Arguments);
         Assert.Contains("Z:", plan.Arguments);
-        Assert.Contains("Meteor.Umbra.Bootstrap.x86.dll", plan.Arguments);
+        Assert.Contains("Aether.Umbra.Bootstrap.x86.dll", plan.Arguments);
         Assert.Contains("--umbra-load-delay-ms 500", plan.Arguments);
         Assert.Contains("--umbra-repository-urls", plan.Arguments);
+        Assert.Contains("--umbra-repositories-json", plan.Arguments);
+        Assert.Contains("source", plan.Arguments);
     }
 
     [Fact]
@@ -268,6 +282,147 @@ public sealed class EchoGateCoreTests
         Assert.Equal(3, urls.Count);
         Assert.Throws<ArgumentException>(() =>
             UmbraRepositoryOptions.NormalizeCustomRepositoryUrls(new[] { "http://example.com/umbra/index.json" }));
+    }
+
+    [Fact]
+    public void UmbraRepositoryOptionsLabelsSupportedAndCustomSources()
+    {
+        UmbraSettings settings = new()
+        {
+            UseOfficialRepository = true,
+            CustomRepositoryUrls = new[] { "https://example.com/custom.json" }
+        };
+
+        IReadOnlyList<UmbraRepositorySource> sources = UmbraRepositoryOptions.BuildEffectiveRepositorySources(
+            settings,
+            new[] { "https://launcher.example.com/supported.json" });
+
+        Assert.Equal(2, sources.Count);
+        Assert.Contains(sources, source =>
+            source.Url == "https://launcher.example.com/supported.json"
+            && source.Source == UmbraRepositorySource.Supported);
+        Assert.Contains(sources, source =>
+            source.Url == "https://example.com/custom.json"
+            && source.Source == UmbraRepositorySource.Custom);
+    }
+
+    [Fact]
+    public void UmbraStoreEntryParsesDalamudStyleAliases()
+    {
+        string json = """
+            [
+              {
+                "InternalName": "ExamplePlugin",
+                "Name": "Example Plugin",
+                "AssemblyVersion": "1.2.3",
+                "DalamudApiLevel": 10,
+                "DownloadLinkInstall": "https://example.com/plugin.zip",
+                "SizeBytes": 1234,
+                "Sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "MinimumFrameworkVersion": "0.1.0",
+                "IconUrl": "https://example.com/icon.png",
+                "ImageUrls": ["https://example.com/one.png"]
+              }
+            ]
+            """;
+
+        IReadOnlyList<FrameworkStoreEntry> entries = FrameworkStoreEntry.ParseRepository(
+            json,
+            new FrameworkRepositorySource("https://example.com/repo.json", FrameworkRepositorySource.Supported));
+
+        FrameworkStoreEntry entry = Assert.Single(entries);
+        Assert.Equal("ExamplePlugin", entry.Id);
+        Assert.Equal("1.2.3", entry.Version);
+        Assert.Equal("10", entry.ApiVersion);
+        Assert.True(entry.IsInstallable);
+        Assert.Equal(FrameworkRepositorySource.Supported, entry.Source);
+        Assert.Equal("https://example.com/icon.png", entry.IconUrl);
+        Assert.Single(entry.ImageUrls);
+    }
+
+    [Fact]
+    public void UmbraStoreEntryRejectsInstallWhenIntegrityMetadataIsMissing()
+    {
+        string json = """
+            [
+              {
+                "id": "dev.nohash",
+                "name": "No Hash",
+                "version": "1.0.0",
+                "api_version": "1.0",
+                "download_url": "https://example.com/plugin.zip",
+                "minimum_framework_version": "0.1.0"
+              }
+            ]
+            """;
+
+        FrameworkStoreEntry entry = Assert.Single(FrameworkStoreEntry.ParseRepository(
+            json,
+            new FrameworkRepositorySource("https://example.com/repo.json", FrameworkRepositorySource.Custom)));
+
+        Assert.False(entry.IsInstallable);
+        Assert.Throws<InvalidDataException>(() => entry.ValidateInstallable());
+    }
+
+    [Fact]
+    public void UmbraPluginInstallerValidatesArchiveAndWritesManifest()
+    {
+        byte[] archive = CreateRuntimeArchive(("ExamplePlugin.dll", Encoding.UTF8.GetBytes("placeholder")));
+        string archivePath = Path.Combine(CreateTempDirectory(), "plugin.zip");
+        File.WriteAllBytes(archivePath, archive);
+        string pluginDirectory = CreateTempDirectory();
+        FrameworkStoreEntry entry = CreateStoreEntry(archive, "dev.example");
+
+        Aether.Umbra.Framework.UmbraPluginInstallResult result =
+            FrameworkPluginInstaller.InstallVerifiedArchive(entry, archivePath, pluginDirectory);
+
+        Assert.Equal("dev.example", result.PluginId);
+        Assert.True(File.Exists(result.ManifestPath));
+        Assert.True(File.Exists(Path.Combine(result.InstallDirectory, "ExamplePlugin.dll")));
+    }
+
+    [Fact]
+    public void UmbraPluginInstallerRejectsEscapingArchivePaths()
+    {
+        byte[] archive = CreateRuntimeArchive(("../escape.txt", Encoding.UTF8.GetBytes("bad")));
+        string archivePath = Path.Combine(CreateTempDirectory(), "plugin.zip");
+        File.WriteAllBytes(archivePath, archive);
+        FrameworkStoreEntry entry = CreateStoreEntry(archive, "dev.escape");
+
+        Assert.Throws<InvalidDataException>(() =>
+            FrameworkPluginInstaller.InstallVerifiedArchive(entry, archivePath, CreateTempDirectory()));
+    }
+
+    [Fact]
+    public void UmbraPluginCatalogStateSeparatesInstalledSupportedAvailableAndUpdates()
+    {
+        Aether.Umbra.Framework.UmbraPluginManifest installed = new(
+            "dev.example",
+            "Example",
+            "1.0.0",
+            "1.0",
+            "Example.dll",
+            "0.1.0",
+            true);
+        FrameworkStoreEntry supported = CreateStoreEntry(Array.Empty<byte>(), "dev.example") with
+        {
+            Version = "1.1.0",
+            Source = FrameworkRepositorySource.Supported
+        };
+        FrameworkStoreEntry custom = CreateStoreEntry(Array.Empty<byte>(), "dev.custom") with
+        {
+            Source = FrameworkRepositorySource.Custom
+        };
+
+        FrameworkPluginCatalogState state = FrameworkPluginCatalogState.Build(
+            new[] { installed },
+            new[] { custom, supported });
+
+        Assert.Single(state.Installed);
+        Assert.Single(state.Supported);
+        Assert.Single(state.Available);
+        Assert.Single(state.Updates);
+        Assert.Equal("dev.example", state.Updates[0].Id);
     }
 
     [Fact]
@@ -1083,8 +1238,8 @@ public sealed class EchoGateCoreTests
     public async Task UmbraFrameworkDownloadInstallsVerifiedArchive()
     {
         byte[] archive = CreateRuntimeArchive(
-            ("Meteor.Umbra.Bootstrap.x86.dll", Encoding.ASCII.GetBytes("bootstrap")),
-            ("Managed/Meteor.Umbra.Framework.dll", Encoding.ASCII.GetBytes("framework")));
+            ("Aether.Umbra.Bootstrap.x86.dll", Encoding.ASCII.GetBytes("bootstrap")),
+            ("Managed/Aether.Umbra.Framework.dll", Encoding.ASCII.GetBytes("framework")));
         UmbraFrameworkArtifact artifact = CreateUmbraArtifact(archive);
         string root = CreateTempDirectory();
 
@@ -1491,7 +1646,7 @@ public sealed class EchoGateCoreTests
     private static UmbraFrameworkArtifact CreateUmbraArtifact(byte[] archive)
     {
         return new UmbraFrameworkArtifact(
-            "Meteor Umbra",
+            "Aether Umbra",
             "0.1.0",
             "1.0",
             "win-x86",
@@ -1499,12 +1654,38 @@ public sealed class EchoGateCoreTests
             "zip",
             archive.Length,
             Convert.ToHexString(SHA256.HashData(archive)),
-            "Meteor.Umbra.Bootstrap.x86.dll",
-            "Managed/Meteor.Umbra.Framework.dll",
+            "Aether.Umbra.Bootstrap.x86.dll",
+            "Managed/Aether.Umbra.Framework.dll",
             new[] { UmbraCompatibility.Known123bGameSha256 },
             true,
             true,
             10);
+    }
+
+    private static FrameworkStoreEntry CreateStoreEntry(byte[] archive, string id)
+    {
+        return new FrameworkStoreEntry(
+            id,
+            id,
+            "1.0.0",
+            "1.0",
+            "https://example.com/plugin.zip",
+            archive.Length,
+            Convert.ToHexString(SHA256.HashData(archive)).ToLowerInvariant(),
+            "0.1.0",
+            "https://example.com/repo.json",
+            FrameworkRepositorySource.Custom,
+            "Tester",
+            "Test plugin",
+            "",
+            null,
+            null,
+            Array.Empty<string>(),
+            null,
+            null,
+            false,
+            false,
+            "ExamplePlugin.dll");
     }
 
     private static byte[] CreateMinimalConfigExecutable(byte[] systemConfig)

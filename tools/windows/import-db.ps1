@@ -20,7 +20,7 @@ if (-not (Test-Path -LiteralPath $SqlDir)) { throw "SQL directory not found: $Sq
 
 $dbNameSql = Escape-SqlIdentifier $db.DbName
 $quotedDbName = ([char]96) + $dbNameSql + ([char]96)
-Write-Host "Importing Meteor database '$($db.DbName)' from $SqlDir"
+Write-Host "Importing AetherXIV database '$($db.DbName)' from $SqlDir"
 if ($Drop) {
     Invoke-MySql -MySql $mysql -HostName $db.DbHost -Port $db.DbPort -User $db.AdminUser -Password $db.AdminPass -Sql "DROP DATABASE IF EXISTS $quotedDbName;"
 }

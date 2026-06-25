@@ -2,7 +2,7 @@ using System.Diagnostics;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Layout;
-using Avalonia.Media.Imaging;
+using Avalonia.Media;
 using Avalonia.Platform.Storage;
 using EchoGate.Core;
 
@@ -1039,10 +1039,12 @@ public sealed partial class MainWindow : Window
             SetLaunchInProgress("Launching game...", "Launching game...");
             ClientLaunchHelperMode helperMode = ReadLaunchHelperMode();
             UmbraLaunchOptions umbraLaunchOptions = await ResolveUmbraLaunchOptionsForLaunchAsync(clientInstall);
-            if (umbraLaunchOptions.Enabled && helperMode != ClientLaunchHelperMode.Automatic && helperMode != ClientLaunchHelperMode.X86)
+            if (umbraLaunchOptions.Enabled
+                && platform.RequiresCompatibilityRuntime
+                && helperMode == ClientLaunchHelperMode.X86)
             {
-                AppendLog("Umbra requires the 32-bit launch helper; using x86 helper for this launch.");
-                helperMode = ClientLaunchHelperMode.X86;
+                AppendLog("Umbra on Wine uses the 64-bit helper plus native x86 injector; avoiding the 32-bit managed helper for this launch.");
+                helperMode = ClientLaunchHelperMode.X64;
             }
 
             if (platform.RequiresCompatibilityRuntime)
@@ -1191,6 +1193,10 @@ public sealed partial class MainWindow : Window
         AppendLog($"Umbra enabled for launch: {install.Name} {install.Version}");
         AppendLog($"Umbra log: {logPath}");
 
+        IReadOnlyList<UmbraRepositorySource> repositorySources = UmbraRepositoryOptions.BuildEffectiveRepositorySources(
+            settings,
+            launcherConfig?.PluginCatalogUrls ?? Array.Empty<string>());
+
         return new UmbraLaunchOptions(
             true,
             settings.SafeMode,
@@ -1199,7 +1205,10 @@ public sealed partial class MainWindow : Window
             install.FrameworkPath,
             settings.PluginDirectory,
             logPath,
-            UmbraRepositoryOptions.BuildEffectiveRepositoryUrls(settings));
+            repositorySources.Select(source => source.Url).ToArray())
+            {
+                RepositorySources = repositorySources
+            };
     }
 
     private async Task<UmbraFrameworkInstall?> EnsureUmbraFrameworkForLaunchAsync(string gameSha256)
@@ -1721,45 +1730,124 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    private async Task ApplyNewsFeedAsync(
+    private Task ApplyNewsFeedAsync(
         LauncherNewsFeed? feed,
         CancellationToken cancellationToken = default)
     {
-        LauncherNewsItem? first = feed?.Items.OrderByDescending(item => item.PublishedAt).FirstOrDefault();
-        if (first is null)
+        _ = cancellationToken;
+        NewsItemsPanel.Children.Clear();
+
+        IReadOnlyList<LauncherNewsItem> items = feed?.Items?
+            .OrderByDescending(item => item.PublishedAt)
+            .ToArray()
+            ?? Array.Empty<LauncherNewsItem>();
+
+        if (items.Count == 0)
         {
-            NewsTitleText.Text = "Awaiting launcher news service";
-            NewsSummaryText.Text = "News from Demi Dev Unit will appear here when the launcher service is available.";
-            NewsDateText.Text = "";
-            ClearNewsBanner();
-            return;
+            NewsItemsPanel.Children.Add(CreateNewsPlaceholder());
+            return Task.CompletedTask;
         }
 
-        NewsTitleText.Text = first.Title;
-        NewsSummaryText.Text = first.Summary;
-        NewsDateText.Text = first.PublishedAt.ToLocalTime().ToString("MMM d, yyyy");
-        if (string.IsNullOrWhiteSpace(first.BannerUrl)
-            || !Uri.TryCreate(first.BannerUrl, UriKind.Absolute, out Uri? bannerUri))
-        {
-            ClearNewsBanner();
-            return;
-        }
+        foreach (LauncherNewsItem item in items)
+            NewsItemsPanel.Children.Add(CreateNewsItemView(item));
 
-        try
-        {
-            await using Stream stream = await httpClient.GetStreamAsync(bannerUri, cancellationToken);
-            NewsBannerImage.Source = new Bitmap(stream);
-        }
-        catch (Exception ex)
-        {
-            AppendLog($"News banner unavailable: {ex.Message}");
-            ClearNewsBanner();
-        }
+        return Task.CompletedTask;
     }
 
-    private void ClearNewsBanner()
+    private static Control CreateNewsPlaceholder()
     {
-        NewsBannerImage.Source = null;
+        return new Border
+        {
+            Background = new SolidColorBrush(Color.Parse("#D020262E")),
+            BorderBrush = new SolidColorBrush(Color.Parse("#3B4652")),
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(5),
+            Padding = new Thickness(14),
+            Child = new StackPanel
+            {
+                Spacing = 5,
+                Children =
+                {
+                    new TextBlock
+                    {
+                        Text = "Awaiting launcher news service",
+                        FontSize = 17,
+                        FontWeight = FontWeight.SemiBold,
+                        TextWrapping = TextWrapping.Wrap
+                    },
+                    new TextBlock
+                    {
+                        Text = "News from Demi Dev Unit will appear here when the launcher service is available.",
+                        Foreground = new SolidColorBrush(Color.Parse("#AEB7C2")),
+                        TextWrapping = TextWrapping.Wrap
+                    }
+                }
+            }
+        };
+    }
+
+    private static Control CreateNewsItemView(LauncherNewsItem item)
+    {
+        StackPanel content = new()
+        {
+            Spacing = 5
+        };
+
+        Grid header = new()
+        {
+            ColumnDefinitions = new ColumnDefinitions("*,Auto"),
+            ColumnSpacing = 14
+        };
+
+        header.Children.Add(new TextBlock
+        {
+            Text = item.Title,
+            FontSize = 16,
+            FontWeight = FontWeight.SemiBold,
+            TextWrapping = TextWrapping.Wrap
+        });
+
+        TextBlock date = new()
+        {
+            Text = item.PublishedAt.ToLocalTime().ToString("MMM d, yyyy"),
+            Foreground = new SolidColorBrush(Color.Parse("#AEB7C2")),
+            FontStyle = FontStyle.Italic,
+            VerticalAlignment = VerticalAlignment.Top
+        };
+        Grid.SetColumn(date, 1);
+        header.Children.Add(date);
+        content.Children.Add(header);
+
+        if (!string.IsNullOrWhiteSpace(item.Summary))
+        {
+            content.Children.Add(new TextBlock
+            {
+                Text = item.Summary,
+                Foreground = new SolidColorBrush(Color.Parse("#D6DCE3")),
+                TextWrapping = TextWrapping.Wrap
+            });
+        }
+
+        if (!string.IsNullOrWhiteSpace(item.Body))
+        {
+            content.Children.Add(new TextBlock
+            {
+                Text = item.Body,
+                Foreground = new SolidColorBrush(Color.Parse("#AEB7C2")),
+                TextWrapping = TextWrapping.Wrap,
+                LineHeight = 18
+            });
+        }
+
+        return new Border
+        {
+            Background = new SolidColorBrush(Color.Parse("#D020262E")),
+            BorderBrush = new SolidColorBrush(Color.Parse("#3B4652")),
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(5),
+            Padding = new Thickness(14),
+            Child = content
+        };
     }
 
     private async Task<LauncherPatchManifest> ResolvePatchManifestAsync(CancellationToken cancellationToken)
@@ -2023,6 +2111,7 @@ public sealed partial class MainWindow : Window
             info.Environment["METEOR_UMBRA_SAFE_MODE"] = plan.Umbra.SafeMode ? "1" : "0";
             info.Environment["METEOR_UMBRA_LOAD_DELAY_MS"] = plan.Umbra.LoadDelayMilliseconds.ToString();
             info.Environment["METEOR_UMBRA_REPOSITORY_URLS"] = string.Join(";", plan.Umbra.RepositoryUrls);
+            info.Environment["METEOR_UMBRA_REPOSITORIES_JSON"] = plan.Umbra.RepositoriesJson;
         }
 
         return info;

@@ -34,7 +34,7 @@ if (Test-DotNetFramework472) {
     Report ".NET Framework" "missing: install 4.7.2 or newer"
 }
 
-if ($BuildTools -or (Test-Path -LiteralPath (Join-Path $root "MeteorXIV.Core.sln"))) {
+if ($BuildTools -or (Test-Path -LiteralPath (Join-Path $root "AetherXIV.Core.sln"))) {
     $msbuild = Find-MsBuildCommand
     if ($null -ne $msbuild) { Report "msbuild" "ok: $msbuild" } else { Report "msbuild" "missing" }
     try { $dotnet = Find-RequiredCommand -Names @("dotnet.exe", "dotnet") -FriendlyName ".NET SDK"; Report "dotnet" "ok: $dotnet" } catch { Report "dotnet" "missing" }
@@ -59,9 +59,9 @@ if (Test-Path -LiteralPath $staticActors) {
 }
 
 $servers = @(
-    @("Lobby", "Lobby Server", "MeteorXIV.Core.Lobby.exe", "54994"),
-    @("World", "World Server", "MeteorXIV.Core.World.exe", "54992"),
-    @("Map", "Map Server", "MeteorXIV.Core.Map.exe", "1989")
+    @("Lobby", "Lobby Server", "AetherXIV.Core.Lobby.exe", "54994"),
+    @("World", "World Server", "AetherXIV.Core.World.exe", "54992"),
+    @("Map", "Map Server", "AetherXIV.Core.Map.exe", "1989")
 )
 
 foreach ($server in $servers) {

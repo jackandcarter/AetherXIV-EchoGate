@@ -1,4 +1,4 @@
-# MeteorXIV Developer Reference
+# AetherXIV Developer Reference
 
 This directory is the readable front door for new reverse-engineering and server-development work. It collects the practical things a developer usually asks first: what commands exist, what enemy and spawn data we know about, where zone data lives, how client UI hooks are shaped, and what remains before the stat and battle systems can be called faithful to the 1.23b client.
 

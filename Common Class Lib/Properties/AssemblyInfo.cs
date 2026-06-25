@@ -4,11 +4,11 @@ using System.Runtime.InteropServices;
 // General Information about an assembly is controlled through the following 
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
-[assembly: AssemblyTitle("MeteorXIV Core Common")]
-[assembly: AssemblyDescription("Shared library for MeteorXIV Core")]
+[assembly: AssemblyTitle("AetherXIV Core Common")]
+[assembly: AssemblyDescription("Shared library for AetherXIV Core")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("Demi Dev Unit")]
-[assembly: AssemblyProduct("MeteorXIV Core Common")]
+[assembly: AssemblyProduct("AetherXIV Core Common")]
 [assembly: AssemblyCopyright("Copyright ©  2016")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]

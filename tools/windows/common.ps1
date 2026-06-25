@@ -623,11 +623,11 @@ function Resolve-ServerDirectory {
     $sourceBuild = Join-Path $RootDir "$ServerName\bin\$Configuration"
     $releaseLayout = Join-Path $RootDir $ServerName
 
-    if (Test-Path -LiteralPath (Join-Path $sourceBuild "MeteorXIV.Core.$(($ServerName -split ' ')[0]).exe")) {
+    if (Test-Path -LiteralPath (Join-Path $sourceBuild "AetherXIV.Core.$(($ServerName -split ' ')[0]).exe")) {
         return $sourceBuild
     }
 
-    if (Test-Path -LiteralPath (Join-Path $releaseLayout "MeteorXIV.Core.$(($ServerName -split ' ')[0]).exe")) {
+    if (Test-Path -LiteralPath (Join-Path $releaseLayout "AetherXIV.Core.$(($ServerName -split ' ')[0]).exe")) {
         return $releaseLayout
     }
 

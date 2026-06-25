@@ -6,7 +6,7 @@ Echo Gate shows launcher news on the Home tab. The launcher reads news from the 
 http://127.0.0.1:8080/launcher/news
 ```
 
-The backend source is the `launcher_news` table in the local Meteor database.
+The backend source is the `launcher_news` table in the local AetherXIV database.
 
 ![Echo Gate home tab](../../Home.png)
 

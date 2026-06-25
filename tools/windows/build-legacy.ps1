@@ -6,7 +6,7 @@ param(
 
 . "$PSScriptRoot\common.ps1"
 $root = Get-MeteorRoot
-$solution = Join-Path $root "MeteorXIV.Core.sln"
+$solution = Join-Path $root "AetherXIV.Core.sln"
 if (-not (Test-Path -LiteralPath $solution)) { throw "Solution file not found: $solution" }
 
 if (-not $NoRestore) {
@@ -27,6 +27,6 @@ if (-not $ShowLegacyWarnings) {
     $args += "/p:NoWarn=$nowarn"
 }
 
-Write-Host "Building MeteorXIV.Core.sln ($Configuration)"
+Write-Host "Building AetherXIV.Core.sln ($Configuration)"
 & $msbuild @args
 if ($LASTEXITCODE -ne 0) { throw "MSBuild failed with exit code $LASTEXITCODE." }

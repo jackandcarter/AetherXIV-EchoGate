@@ -1,6 +1,6 @@
 # Echo Gate Features
 
-Echo Gate is the cross-platform launcher for MeteorXIV Core. It is designed to keep the player-facing setup in one app while still letting self-hosters point at their own local or remote server.
+Echo Gate is the cross-platform launcher for AetherXIV Core. It is designed to keep the player-facing setup in one app while still letting self-hosters point at their own local or remote server.
 
 ![Echo Gate home tab](../Home.png)
 

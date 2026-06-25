@@ -59,15 +59,15 @@ while IFS= read -r php_file; do
   echo "ok: $php_file"
 done < <(find "$ROOT_DIR/Data/www" -name '*.php' -print | sort)
 
-run_server_smoke "Lobby" "Lobby Server" "MeteorXIV.Core.Lobby.exe" "$LOBBY_PORT"
-run_server_smoke "World" "World Server" "MeteorXIV.Core.World.exe" "$WORLD_PORT"
+run_server_smoke "Lobby" "Lobby Server" "AetherXIV.Core.Lobby.exe" "$LOBBY_PORT"
+run_server_smoke "World" "World Server" "AetherXIV.Core.World.exe" "$WORLD_PORT"
 
 if [[ -f "$ROOT_DIR/Data/staticactors.bin" ]]; then
-  run_server_smoke "Map" "Map Server" "MeteorXIV.Core.Map.exe" "$MAP_PORT"
+  run_server_smoke "Map" "Map Server" "AetherXIV.Core.Map.exe" "$MAP_PORT"
 elif [[ "$ALLOW_MISSING_STATICACTORS" -eq 1 ]]; then
   echo
   echo "SMOKE_SKIP Map runtime prerequisite: Data/staticactors.bin is missing"
 else
   echo
-  run_server_smoke "Map" "Map Server" "MeteorXIV.Core.Map.exe" "$MAP_PORT"
+  run_server_smoke "Map" "Map Server" "AetherXIV.Core.Map.exe" "$MAP_PORT"
 fi

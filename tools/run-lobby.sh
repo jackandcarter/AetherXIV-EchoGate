@@ -12,4 +12,4 @@ DB_APP_USER="${DB_APP_USER:-meteor}"
 DB_APP_PASS="${DB_APP_PASS:-${METEOR_DB_PASS:-meteor_dev}}"
 
 cd "$ROOT_DIR/Lobby Server/bin/$CONFIGURATION"
-exec mono "MeteorXIV.Core.Lobby.exe" --ip "$SERVER_IP" --port "$LOBBY_PORT" --host "$DB_APP_HOST" --db "$DB_NAME" --user "$DB_APP_USER" --p "$DB_APP_PASS" "$@"
+exec mono "AetherXIV.Core.Lobby.exe" --ip "$SERVER_IP" --port "$LOBBY_PORT" --host "$DB_APP_HOST" --db "$DB_NAME" --user "$DB_APP_USER" --p "$DB_APP_PASS" "$@"

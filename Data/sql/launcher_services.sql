@@ -12,7 +12,7 @@ CREATE TABLE `launcher_config` (
 INSERT INTO `launcher_config` (`config_key`, `config_value`) VALUES
   ('service_version', '1'),
   ('launcher_version', '1.3'),
-  ('server_name', 'MeteorXIV Core v1.3'),
+  ('server_name', 'AetherXIV Core v1.3'),
   ('server_state', 'offline'),
   ('server_message', 'Launcher service is installed. Game services are not reporting status yet.'),
   ('patch_base_url', ''),
@@ -21,7 +21,8 @@ INSERT INTO `launcher_config` (`config_key`, `config_value`) VALUES
   ('client_login_url', '../login/index.php'),
   ('runtime_catalog_url', 'runtime-catalog'),
   ('client_plugin_framework_catalog_url', 'umbra/framework-catalog'),
-  ('plugin_catalog_urls', 'umbra/plugin-catalog'),
+  ('plugin_catalog_urls', ''),
+  ('plugin_blocklist_url', 'umbra/plugin-blocklist'),
   ('target_boot_version', '2010.09.18.0000'),
   ('target_game_version', '2012.09.19.0001');
 
@@ -41,7 +42,7 @@ CREATE TABLE `launcher_news` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 INSERT INTO `launcher_news` (`title`, `summary`, `body`, `published_at`, `sort_order`) VALUES
-  ('Echo Gate service installed', 'Launcher news is now served from the Meteor database.', 'Use launcher_news rows to publish updates for testers.', UTC_TIMESTAMP(), 0);
+  ('Echo Gate service installed', 'Launcher news is now served from the AetherXIV database.', 'Use launcher_news rows to publish updates for testers.', UTC_TIMESTAMP(), 0);
 
 DROP TABLE IF EXISTS `launcher_patch_files`;
 CREATE TABLE `launcher_patch_files` (
@@ -146,8 +147,8 @@ CREATE TABLE `launcher_umbra_framework_artifacts` (
   `archive_format` varchar(16) NOT NULL DEFAULT 'zip',
   `size_bytes` bigint(20) NOT NULL,
   `sha256` char(64) NOT NULL,
-  `bootstrap_relative_path` varchar(255) NOT NULL DEFAULT 'Meteor.Umbra.Bootstrap.x86.dll',
-  `framework_relative_path` varchar(255) NOT NULL DEFAULT 'Managed/Meteor.Umbra.Framework.exe',
+  `bootstrap_relative_path` varchar(255) NOT NULL DEFAULT 'Aether.Umbra.Bootstrap.x86.dll',
+  `framework_relative_path` varchar(255) NOT NULL DEFAULT 'Managed/Aether.Umbra.Framework.dll',
   `supported_game_sha256` text NULL,
   `is_default` tinyint(1) NOT NULL DEFAULT 0,
   `is_active` tinyint(1) NOT NULL DEFAULT 1,
@@ -164,17 +165,19 @@ CREATE TABLE `launcher_umbra_plugin_repositories` (
   `repository_key` varchar(64) NOT NULL,
   `name` varchar(120) NOT NULL,
   `description` varchar(500) NULL,
+  `repository_url` varchar(500) NOT NULL,
+  `repository_kind` varchar(32) NOT NULL DEFAULT 'supported',
+  `is_supported` tinyint(1) NOT NULL DEFAULT 1,
   `is_active` tinyint(1) NOT NULL DEFAULT 1,
   `sort_order` int(11) NOT NULL DEFAULT 0,
+  `last_error` varchar(1000) NULL,
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_launcher_umbra_plugin_repositories_key` (`repository_key`),
-  KEY `idx_launcher_umbra_plugin_repositories_active` (`is_active`, `sort_order`)
+  UNIQUE KEY `uq_launcher_umbra_plugin_repositories_url` (`repository_url`),
+  KEY `idx_launcher_umbra_plugin_repositories_active` (`is_supported`, `is_active`, `sort_order`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-
-INSERT INTO `launcher_umbra_plugin_repositories` (`repository_key`, `name`, `description`, `sort_order`) VALUES
-  ('official', 'Meteor Umbra Plugins', 'Official Meteor Umbra plugin catalog.', 0);
 
 DROP TABLE IF EXISTS `launcher_umbra_plugin_releases`;
 CREATE TABLE `launcher_umbra_plugin_releases` (
@@ -200,4 +203,18 @@ CREATE TABLE `launcher_umbra_plugin_releases` (
   CONSTRAINT `fk_launcher_umbra_plugin_releases_repository`
     FOREIGN KEY (`repository_id`) REFERENCES `launcher_umbra_plugin_repositories` (`id`)
     ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+DROP TABLE IF EXISTS `launcher_umbra_plugin_blocks`;
+CREATE TABLE `launcher_umbra_plugin_blocks` (
+  `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
+  `plugin_key` varchar(120) NOT NULL,
+  `repository_url` varchar(500) NULL,
+  `version` varchar(64) NULL,
+  `reason` varchar(1000) NOT NULL DEFAULT '',
+  `is_active` tinyint(1) NOT NULL DEFAULT 1,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_launcher_umbra_plugin_blocks_active` (`is_active`, `plugin_key`, `version`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;

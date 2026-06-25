@@ -1,6 +1,6 @@
 # Release Builds
 
-MeteorXIV has two practical build paths:
+AetherXIV has two practical build paths:
 
 - GitHub build artifacts: useful when someone wants GitHub to build downloadable files in the browser.
 - Local platform builds: useful when someone wants to verify the full setup on the same machine that will run the launcher, servers, database, Wine prefix, and local client files.
@@ -35,8 +35,8 @@ EchoGate-osx-x64-v1.2.zip
 EchoGate-win-x86-v1.2.zip
 EchoGate-win-x64-v1.2.zip
 EchoGate-win-arm64-v1.2.zip
-MeteorXIV-Server-Core-v1.2.tar.gz
-MeteorXIV-Server-Core-v1.2.zip
+AetherXIV-Server-Core-v1.2.tar.gz
+AetherXIV-Server-Core-v1.2.zip
 ```
 
 The recommended release tag is:

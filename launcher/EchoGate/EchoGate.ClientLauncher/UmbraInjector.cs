@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Text;
 using EchoGate.Core;
 
@@ -8,7 +9,11 @@ internal static class UmbraInjector
 {
     private const uint InjectionTimeoutMilliseconds = 10000;
 
-    public static bool TryInject(IntPtr processHandle, LaunchOptions options, Action<string>? log)
+    public static bool TryInject(
+        IntPtr processHandle,
+        uint processId,
+        LaunchOptions options,
+        Action<string>? log)
     {
         if (!options.Umbra.Enabled)
             return false;
@@ -50,7 +55,17 @@ internal static class UmbraInjector
 
         try
         {
-            InjectLoadLibrary(processHandle, options.Umbra.BootstrapPath, log);
+            if (IntPtr.Size == 8)
+            {
+                bool injected = TryInjectWithNativeX86Injector(processId, options.Umbra.BootstrapPath, options.LogPath, log);
+                if (!injected)
+                    return false;
+            }
+            else
+            {
+                InjectLoadLibrary(processHandle, options.Umbra.BootstrapPath, log);
+            }
+
             log?.Invoke("umbra_injection_complete=true");
             return true;
         }
@@ -62,7 +77,7 @@ internal static class UmbraInjector
         }
     }
 
-    private static void SetUmbraEnvironment(UmbraLaunchOptions options)
+    internal static void SetUmbraEnvironment(UmbraLaunchOptions options)
     {
         Environment.SetEnvironmentVariable("METEOR_UMBRA_ENABLED", "1");
         Environment.SetEnvironmentVariable("METEOR_UMBRA_BOOTSTRAP", options.BootstrapPath);
@@ -72,6 +87,74 @@ internal static class UmbraInjector
         Environment.SetEnvironmentVariable("METEOR_UMBRA_SAFE_MODE", options.SafeMode ? "1" : "0");
         Environment.SetEnvironmentVariable("METEOR_UMBRA_LOAD_DELAY_MS", options.LoadDelayMilliseconds.ToString());
         Environment.SetEnvironmentVariable("METEOR_UMBRA_REPOSITORY_URLS", string.Join(";", options.RepositoryUrls));
+        Environment.SetEnvironmentVariable("METEOR_UMBRA_REPOSITORIES_JSON", options.RepositoriesJson);
+    }
+
+    private static bool TryInjectWithNativeX86Injector(
+        uint processId,
+        string bootstrapPath,
+        string helperLogPath,
+        Action<string>? log)
+    {
+        string? injectorPath = FindNativeX86Injector();
+        if (injectorPath is null)
+        {
+            log?.Invoke("umbra_injection_skipped=native_x86_injector_missing");
+            return false;
+        }
+
+        log?.Invoke("umbra_injection_mode=native_x86_injector");
+        log?.Invoke($"umbra_native_injector={injectorPath}");
+
+        ProcessStartInfo startInfo = new()
+        {
+            FileName = injectorPath,
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
+        startInfo.ArgumentList.Add("--pid");
+        startInfo.ArgumentList.Add(processId.ToString());
+        startInfo.ArgumentList.Add("--dll");
+        startInfo.ArgumentList.Add(Path.GetFullPath(bootstrapPath));
+        startInfo.ArgumentList.Add("--log");
+        startInfo.ArgumentList.Add(Path.GetFullPath(helperLogPath));
+
+        using Process? process = Process.Start(startInfo);
+        if (process is null)
+        {
+            log?.Invoke("umbra_injection_failed=native_x86_injector_not_started");
+            return false;
+        }
+
+        if (!process.WaitForExit((int)InjectionTimeoutMilliseconds + 5000))
+        {
+            log?.Invoke("umbra_injection_failed=native_x86_injector_timeout");
+            try
+            {
+                process.Kill(entireProcessTree: true);
+            }
+            catch (Exception ex)
+            {
+                log?.Invoke($"umbra_native_injector_kill_failed={ex.Message}");
+            }
+
+            return false;
+        }
+
+        log?.Invoke($"umbra_native_injector_exit_code={process.ExitCode}");
+        return process.ExitCode == 0;
+    }
+
+    private static string? FindNativeX86Injector()
+    {
+        string baseDirectory = AppContext.BaseDirectory;
+        string[] candidates =
+        [
+            Path.Combine(baseDirectory, "Umbra.NativeInjector.x86.exe"),
+            Path.GetFullPath(Path.Combine(baseDirectory, "..", "win-x86", "Umbra.NativeInjector.x86.exe"))
+        ];
+
+        return candidates.FirstOrDefault(File.Exists);
     }
 
     private static void InjectLoadLibrary(IntPtr processHandle, string dllPath, Action<string>? log)

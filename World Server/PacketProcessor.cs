@@ -1,37 +1,16 @@
-﻿/*
-===========================================================================
-Copyright (C) 2015-2019 Project Meteor Dev Team
+﻿using System.Collections.Generic;
 
-This file is part of Project Meteor Server.
+using AetherXIV.Core.Common;
+using AetherXIV.Core.World.DataObjects;
+using AetherXIV.Core.World.DataObjects.Group;
+using AetherXIV.Core.World.Packets.Receive;
+using AetherXIV.Core.World.Packets.Receive.Subpackets;
+using AetherXIV.Core.World.Packets.Send;
+using AetherXIV.Core.World.Packets.Send.Login;
+using AetherXIV.Core.World.Packets.Send.Subpackets;
+using AetherXIV.Core.World.Packets.WorldPackets.Receive;
 
-Project Meteor Server is free software: you can redistribute it and/or modify
-it under the terms of the GNU Affero General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-Project Meteor Server is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU Affero General Public License for more details.
-
-You should have received a copy of the GNU Affero General Public License
-along with Project Meteor Server. If not, see <https:www.gnu.org/licenses/>.
-===========================================================================
-*/
-
-using System.Collections.Generic;
-
-using MeteorXIV.Core.Common;
-using MeteorXIV.Core.World.DataObjects;
-using MeteorXIV.Core.World.DataObjects.Group;
-using MeteorXIV.Core.World.Packets.Receive;
-using MeteorXIV.Core.World.Packets.Receive.Subpackets;
-using MeteorXIV.Core.World.Packets.Send;
-using MeteorXIV.Core.World.Packets.Send.Login;
-using MeteorXIV.Core.World.Packets.Send.Subpackets;
-using MeteorXIV.Core.World.Packets.WorldPackets.Receive;
-
-namespace MeteorXIV.Core.World
+namespace AetherXIV.Core.World
 {
     class PacketProcessor
     {

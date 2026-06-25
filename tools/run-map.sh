@@ -16,4 +16,4 @@ if [[ "${REFRESH_RUNTIME_DATA:-1}" != "0" ]]; then
 fi
 
 cd "$ROOT_DIR/Map Server/bin/$CONFIGURATION"
-exec mono "MeteorXIV.Core.Map.exe" --ip "$SERVER_IP" --port "$MAP_PORT" --host "$DB_APP_HOST" --db "$DB_NAME" --user "$DB_APP_USER" --p "$DB_APP_PASS" "$@"
+exec mono "AetherXIV.Core.Map.exe" --ip "$SERVER_IP" --port "$MAP_PORT" --host "$DB_APP_HOST" --db "$DB_NAME" --user "$DB_APP_USER" --p "$DB_APP_PASS" "$@"

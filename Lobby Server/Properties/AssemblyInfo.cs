@@ -4,11 +4,11 @@ using System.Runtime.InteropServices;
 // General Information about an assembly is controlled through the following 
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
-[assembly: AssemblyTitle("MeteorXIV Core Lobby Server")]
-[assembly: AssemblyDescription("Lobby and character selection service for MeteorXIV Core")]
+[assembly: AssemblyTitle("AetherXIV Core Lobby Server")]
+[assembly: AssemblyDescription("Lobby and character selection service for AetherXIV Core")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("Demi Dev Unit")]
-[assembly: AssemblyProduct("MeteorXIV Core Lobby Server")]
+[assembly: AssemblyProduct("AetherXIV Core Lobby Server")]
 [assembly: AssemblyCopyright("Copyright ©  2019")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]

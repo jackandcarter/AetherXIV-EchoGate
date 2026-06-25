@@ -830,7 +830,7 @@ def doctor_payload():
     def add(name, ok, detail=""):
         checks.append({"name": name, "ok": bool(ok), "detail": detail})
 
-    add("repo root", (ROOT_DIR / "MeteorXIV.Core.sln").exists(), str(ROOT_DIR))
+    add("repo root", (ROOT_DIR / "AetherXIV.Core.sln").exists(), str(ROOT_DIR))
     add("trace directory", trace_dir.exists(), str(trace_dir))
     for tool in ("python3", "mono", "php"):
         add(f"tool:{tool}", shutil.which(tool) is not None, shutil.which(tool) or "missing")
@@ -1234,7 +1234,7 @@ def bridge_run(args):
 
 
 class BridgeHandler(http.server.BaseHTTPRequestHandler):
-    server_version = "MeteorPlaytestBridge/1"
+    server_version = "AetherPlaytestBridge/1"
 
     def log_message(self, fmt, *args):
         return
@@ -1446,7 +1446,7 @@ def add_common_start_args(parser):
 
 
 def build_parser():
-    parser = argparse.ArgumentParser(description="Local MeteorXIV playtest bridge.")
+    parser = argparse.ArgumentParser(description="Local AetherXIV playtest bridge.")
     sub = parser.add_subparsers(dest="command", required=True)
 
     run_p = sub.add_parser("run", help="Start services, then show a live trace view.")

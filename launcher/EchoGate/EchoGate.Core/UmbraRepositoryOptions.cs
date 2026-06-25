@@ -2,18 +2,33 @@ namespace EchoGate.Core;
 
 public static class UmbraRepositoryOptions
 {
-    public const string OfficialRepositoryUrl = "https://launcher.dev.demidevunit.com/launcher/umbra/plugin-catalog";
-
-    public static IReadOnlyList<string> BuildEffectiveRepositoryUrls(UmbraSettings settings)
+    public static IReadOnlyList<UmbraRepositorySource> BuildEffectiveRepositorySources(
+        UmbraSettings settings,
+        IEnumerable<string>? supportedRepositoryUrls)
     {
         ArgumentNullException.ThrowIfNull(settings);
 
-        List<string> urls = new();
+        List<UmbraRepositorySource> sources = new();
         if (settings.UseOfficialRepository)
-            urls.Add(OfficialRepositoryUrl);
+        {
+            sources.AddRange(UmbraRepositorySource.FromUrls(
+                supportedRepositoryUrls,
+                UmbraRepositorySource.Supported));
+        }
 
-        urls.AddRange(NormalizeCustomRepositoryUrls(settings.CustomRepositoryUrls));
-        return urls.Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+        sources.AddRange(UmbraRepositorySource.FromUrls(
+            settings.CustomRepositoryUrls,
+            UmbraRepositorySource.Custom));
+        return UmbraRepositorySource.Normalize(sources);
+    }
+
+    public static IReadOnlyList<string> BuildEffectiveRepositoryUrls(
+        UmbraSettings settings,
+        IEnumerable<string>? supportedRepositoryUrls = null)
+    {
+        return BuildEffectiveRepositorySources(settings, supportedRepositoryUrls)
+            .Select(source => source.Url)
+            .ToArray();
     }
 
     public static IReadOnlyList<string> NormalizeCustomRepositoryUrls(IEnumerable<string>? urls)
