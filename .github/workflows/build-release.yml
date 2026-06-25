@@ -66,15 +66,18 @@ jobs:
           $frameworkProject = "launcher/Umbra/Aether.Umbra.Framework/Aether.Umbra.Framework.csproj"
           $bootstrapProject = "launcher/Umbra/Aether.Umbra.Bootstrap/Aether.Umbra.Bootstrap.vcxproj"
           $nativeInjectorProject = "launcher/EchoGate/EchoGate.NativeInjector/EchoGate.NativeInjector.vcxproj"
-          $bundleRoot = "build/umbra-framework/Umbra/Framework"
-          $managedOutput = "$bundleRoot/Managed"
-          $nativeInjectorOutput = "build/umbra-native-injector"
+          $workspaceRoot = (Get-Location).Path
+          $bundleRoot = Join-Path $workspaceRoot "build/umbra-framework/Umbra/Framework"
+          $managedOutput = Join-Path $bundleRoot "Managed"
+          $nativeInjectorOutput = Join-Path $workspaceRoot "build/umbra-native-injector"
           New-Item -ItemType Directory -Force -Path $managedOutput | Out-Null
           New-Item -ItemType Directory -Force -Path $nativeInjectorOutput | Out-Null
 
           dotnet publish $frameworkProject --configuration $env:CONFIGURATION --runtime win-x86 --self-contained true --output $managedOutput /p:PublishSingleFile=false /p:UseAppHost=true
           msbuild $bootstrapProject /p:Configuration=Release /p:Platform=Win32 /p:OutDir="$bundleRoot\\" /p:TargetName=Aether.Umbra.Bootstrap.x86
           msbuild $nativeInjectorProject /p:Configuration=Release /p:Platform=Win32 /p:OutDir="$nativeInjectorOutput\\" /p:TargetName=Umbra.NativeInjector.x86
+          if (!(Test-Path (Join-Path $bundleRoot "Aether.Umbra.Bootstrap.x86.dll"))) { throw "Umbra bootstrap DLL was not produced in $bundleRoot" }
+          if (!(Test-Path (Join-Path $nativeInjectorOutput "Umbra.NativeInjector.x86.exe"))) { throw "Umbra native injector was not produced in $nativeInjectorOutput" }
 
           Copy-Item "launcher/Umbra/assets/umbra-icon.svg" "$bundleRoot/umbra-icon.svg" -Force
           Set-Content -Path "$bundleRoot/version.txt" -Value $version
