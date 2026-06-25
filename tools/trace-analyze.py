@@ -7,7 +7,10 @@ import sys
 from collections import Counter, defaultdict
 
 
-DEFAULT_TRACE_DIR = os.environ.get("METEOR_DEV_DIAGNOSTICS_DIR", "/tmp/meteorxiv-traces")
+DEFAULT_TRACE_DIR = os.environ.get(
+    "AETHER_DEV_DIAGNOSTICS_DIR",
+    os.environ.get("METEOR_DEV_DIAGNOSTICS_DIR", "/tmp/meteorxiv-traces"),
+)
 
 
 def iter_paths(inputs):
@@ -283,7 +286,7 @@ def print_blockers(events, max_items):
 
 def main():
     parser = argparse.ArgumentParser(description="Summarize AetherXIV Core dev diagnostic JSONL traces.")
-    parser.add_argument("paths", nargs="*", help="Trace JSONL files, directories, or globs. Defaults to METEOR_DEV_DIAGNOSTICS_DIR or /tmp/meteorxiv-traces.")
+    parser.add_argument("paths", nargs="*", help="Trace JSONL files, directories, or globs. Defaults to AETHER_DEV_DIAGNOSTICS_DIR, METEOR_DEV_DIAGNOSTICS_DIR, or /tmp/meteorxiv-traces.")
     parser.add_argument("--category", action="append", help="Only include one category. May be repeated.")
     parser.add_argument("--player", help="Only include events mentioning this player or actor name.")
     parser.add_argument("--timeline", action="store_true", help="Print a compact timeline after the summary.")

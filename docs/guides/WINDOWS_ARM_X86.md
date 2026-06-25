@@ -17,11 +17,11 @@ Use this path if you just want to run a local playtest server and launcher. The 
 1. Download the GitHub Release assets:
 
 ```text
-AetherXIV-Server-Core-v1.2.zip
-EchoGate-win-x86-v1.2.zip
+AetherXIV-Server-Core-v1.3.zip
+EchoGate-win-x86-v1.3.zip
 ```
 
-2. Extract `AetherXIV-Server-Core-v1.2.zip` somewhere writable, such as:
+2. Extract `AetherXIV-Server-Core-v1.3.zip` somewhere writable, such as:
 
 ```text
 C:\AetherXIV\server-core
@@ -90,7 +90,7 @@ map server: 1989
 world server: 54992
 ```
 
-6. Extract `EchoGate-win-x86-v1.2.zip`, then run:
+6. Extract `EchoGate-win-x86-v1.3.zip`, then run:
 
 ```text
 publish\EchoGate.App.exe

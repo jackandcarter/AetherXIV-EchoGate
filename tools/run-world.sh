@@ -11,5 +11,6 @@ DB_APP_HOST="${DB_APP_HOST:-${AETHER_DB_HOST:-${METEOR_DB_HOST:-127.0.0.1}}}"
 DB_APP_USER="${DB_APP_USER:-${AETHER_DB_USER:-${METEOR_DB_USER:-aetherxiv}}}"
 DB_APP_PASS="${DB_APP_PASS:-${AETHER_DB_PASS:-${METEOR_DB_PASS:-aether_dev}}}"
 
-cd "$ROOT_DIR/World Server/bin/$CONFIGURATION"
-exec mono "AetherXIV.Core.World.exe" --ip "$SERVER_IP" --port "$WORLD_PORT" --host "$DB_APP_HOST" --db "$DB_NAME" --user "$DB_APP_USER" --p "$DB_APP_PASS" "$@"
+SERVER_EXE="$(resolve_server_executable "World Server" "$CONFIGURATION")"
+cd "$(dirname "$SERVER_EXE")"
+exec mono "$(basename "$SERVER_EXE")" --ip "$SERVER_IP" --port "$WORLD_PORT" --host "$DB_APP_HOST" --db "$DB_NAME" --user "$DB_APP_USER" --p "$DB_APP_PASS" "$@"

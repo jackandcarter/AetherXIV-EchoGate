@@ -59,19 +59,21 @@ if (Test-Path -LiteralPath $staticActors) {
 }
 
 $servers = @(
-    @("Lobby", "Lobby Server", "AetherXIV.Core.Lobby.exe", "54994"),
-    @("World", "World Server", "AetherXIV.Core.World.exe", "54992"),
-    @("Map", "Map Server", "AetherXIV.Core.Map.exe", "1989")
+    @("Lobby", "Lobby Server", "54994"),
+    @("World", "World Server", "54992"),
+    @("Map", "Map Server", "1989")
 )
 
 foreach ($server in $servers) {
     $name = $server[0]
-    $dir = Resolve-ServerDirectory -RootDir $root -ServerName $server[1] -Configuration $Configuration
-    $exe = Join-Path $dir $server[2]
-    if (-not (Test-Path -LiteralPath $exe)) {
-        Report "$name executable" "missing: $exe"
+    try {
+        $resolved = Resolve-ServerExecutable -RootDir $root -ServerName $server[1] -Configuration $Configuration
+    } catch {
+        Report "$name executable" "missing: $($_.Exception.Message)"
         continue
     }
+    $dir = $resolved.Directory
+    $exe = $resolved.Path
     Report "$name executable" "ok"
 
     if ($name -eq "Map" -and -not (Test-Path -LiteralPath $staticActors) -and $AllowMissingStaticActors) {
@@ -81,7 +83,7 @@ foreach ($server in $servers) {
 
     Push-Location $dir
     try {
-        & $exe --ip 127.0.0.1 --port $server[3] --host $db.AppHost --db $db.DbName --user $db.AppUser --p $db.AppPass --smoke
+        & $exe --ip 127.0.0.1 --port $server[2] --host $db.AppHost --db $db.DbName --user $db.AppUser --p $db.AppPass --smoke
         if ($LASTEXITCODE -ne 0) { throw "$name smoke exited with $LASTEXITCODE" }
     } catch {
         Report "$name smoke" "failed: $($_.Exception.Message)"

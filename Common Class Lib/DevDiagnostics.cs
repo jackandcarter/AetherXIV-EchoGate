@@ -20,12 +20,17 @@ namespace AetherXIV.Core.Common
         public static void Configure(string server, string[] args)
         {
             serverName = String.IsNullOrEmpty(server) ? "Unknown" : server;
-            Enabled = HasFlag(args, "dev-diagnostics") || IsEnabledEnvironmentValue(Environment.GetEnvironmentVariable("METEOR_DEV_DIAGNOSTICS"));
+            Enabled =
+                HasFlag(args, "dev-diagnostics") ||
+                IsEnabledEnvironmentValue(Environment.GetEnvironmentVariable("AETHER_DEV_DIAGNOSTICS")) ||
+                IsEnabledEnvironmentValue(Environment.GetEnvironmentVariable("METEOR_DEV_DIAGNOSTICS"));
 
             if (!Enabled)
                 return;
 
-            string outputDir = Environment.GetEnvironmentVariable("METEOR_DEV_DIAGNOSTICS_DIR");
+            string outputDir = Environment.GetEnvironmentVariable("AETHER_DEV_DIAGNOSTICS_DIR");
+            if (String.IsNullOrEmpty(outputDir))
+                outputDir = Environment.GetEnvironmentVariable("METEOR_DEV_DIAGNOSTICS_DIR");
             if (String.IsNullOrEmpty(outputDir))
                 outputDir = Path.Combine(".", "dev-diagnostics");
 

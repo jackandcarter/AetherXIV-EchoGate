@@ -55,13 +55,17 @@ hydrate_db_config() {
 
 echo "Using configuration: $CONFIGURATION"
 
-copy_file "$ROOT_DIR/Data/lobby_config.ini" "$ROOT_DIR/Lobby Server/bin/$CONFIGURATION"
-copy_file "$ROOT_DIR/Data/world_config.ini" "$ROOT_DIR/World Server/bin/$CONFIGURATION"
-copy_file "$ROOT_DIR/Data/map_config.ini" "$ROOT_DIR/Map Server/bin/$CONFIGURATION"
-hydrate_db_config "$ROOT_DIR/Lobby Server/bin/$CONFIGURATION/lobby_config.ini"
-hydrate_db_config "$ROOT_DIR/World Server/bin/$CONFIGURATION/world_config.ini"
-hydrate_db_config "$ROOT_DIR/Map Server/bin/$CONFIGURATION/map_config.ini"
-copy_dir "$ROOT_DIR/Data/scripts" "$ROOT_DIR/Map Server/bin/$CONFIGURATION"
+LOBBY_DIR="$(resolve_server_directory "Lobby Server" "$CONFIGURATION")"
+WORLD_DIR="$(resolve_server_directory "World Server" "$CONFIGURATION")"
+MAP_DIR="$(resolve_server_directory "Map Server" "$CONFIGURATION")"
+
+copy_file "$ROOT_DIR/Data/lobby_config.ini" "$LOBBY_DIR"
+copy_file "$ROOT_DIR/Data/world_config.ini" "$WORLD_DIR"
+copy_file "$ROOT_DIR/Data/map_config.ini" "$MAP_DIR"
+hydrate_db_config "$LOBBY_DIR/lobby_config.ini"
+hydrate_db_config "$WORLD_DIR/world_config.ini"
+hydrate_db_config "$MAP_DIR/map_config.ini"
+copy_dir "$ROOT_DIR/Data/scripts" "$MAP_DIR"
 
 if [[ ! -f "$ROOT_DIR/Data/staticactors.bin" && "${AUTO_PREPARE_STATICACTORS:-1}" != "0" ]]; then
   prepare_args=()
@@ -77,7 +81,7 @@ if [[ ! -f "$ROOT_DIR/Data/staticactors.bin" && "${AUTO_PREPARE_STATICACTORS:-1}
 fi
 
 if [[ -f "$ROOT_DIR/Data/staticactors.bin" ]]; then
-  copy_file "$ROOT_DIR/Data/staticactors.bin" "$ROOT_DIR/Map Server/bin/$CONFIGURATION"
+  copy_file "$ROOT_DIR/Data/staticactors.bin" "$MAP_DIR"
 else
   echo "warning: Data/staticactors.bin is missing; Map Server will not be runtime-ready."
   echo "hint: run CLIENT_DIR=\"/path/to/FINAL FANTASY XIV\" ./tools/prepare-client-data.sh"

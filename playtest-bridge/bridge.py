@@ -21,7 +21,10 @@ STATE_DIR = BRIDGE_DIR / ".state"
 STATE_PATH = STATE_DIR / "state.json"
 SESSIONS_DIR = STATE_DIR / "sessions"
 RECIPES_DIR = BRIDGE_DIR / "recipes"
-DEFAULT_TRACE_DIR = Path(os.environ.get("METEOR_DEV_DIAGNOSTICS_DIR", "/tmp/meteorxiv-traces"))
+DEFAULT_TRACE_DIR = Path(os.environ.get(
+    "AETHER_DEV_DIAGNOSTICS_DIR",
+    os.environ.get("METEOR_DEV_DIAGNOSTICS_DIR", "/tmp/meteorxiv-traces"),
+))
 DEFAULT_SERVICES = ("web", "lobby", "map", "world")
 DEFAULT_PORTS = {
     "web": ("127.0.0.1", 8080),
@@ -260,6 +263,8 @@ def clear_trace_dir(trace_dir):
 
 def make_env(args, trace_dir):
     env = os.environ.copy()
+    env["AETHER_DEV_DIAGNOSTICS"] = "1"
+    env["AETHER_DEV_DIAGNOSTICS_DIR"] = str(trace_dir)
     env["METEOR_DEV_DIAGNOSTICS"] = "1"
     env["METEOR_DEV_DIAGNOSTICS_DIR"] = str(trace_dir)
     env["CONFIGURATION"] = getattr(args, "configuration", None) or env.get("CONFIGURATION", "Release")

@@ -22,6 +22,9 @@ on:
         required: true
         default: true
   push:
+    branches:
+      - "v1.3---Umbra"
+      - "1.3-umbra"
     tags:
       - "release-*"
       - "v*"
@@ -411,6 +414,16 @@ jobs:
             Write-Host "ok: $($file.FullName)"
           }
 
+      - name: Check Windows scripts for stale Meteor executable names
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $matches = Select-String -Path tools/windows/*.ps1 -Pattern 'MeteorXIV\.Core\.(Lobby|Map|World)\.exe' -AllMatches
+          if ($matches) {
+            $matches | ForEach-Object { Write-Error "$($_.Path):$($_.LineNumber): $($_.Line.Trim())" }
+            throw "Windows launch scripts must reference AetherXIV server executables."
+          }
+
       - name: Run prerequisite check in dry mode
         shell: pwsh
         run: |
@@ -447,6 +460,19 @@ jobs:
           cp -R "Lobby Server/bin/Release" "$package_root/Lobby Server"
           cp -R "Map Server/bin/Release" "$package_root/Map Server"
           cp -R "World Server/bin/Release" "$package_root/World Server"
+
+          for service in Lobby Map World; do
+            exe="$package_root/$service Server/AetherXIV.Core.$service.exe"
+            if [[ ! -f "$exe" ]]; then
+              echo "Missing packaged server executable: $exe" >&2
+              exit 1
+            fi
+          done
+          if find "$package_root" -name 'MeteorXIV.Core.*.exe' -print -quit | grep -q .; then
+            echo "Server core package contains stale MeteorXIV executables." >&2
+            find "$package_root" -name 'MeteorXIV.Core.*.exe' -print >&2
+            exit 1
+          fi
 
           mkdir -p "$package_root/Data"
           cp -R Data/sql "$package_root/Data/sql"
@@ -508,7 +534,7 @@ jobs:
       - echo-gate-windows
       - windows-tools
       - server-core
-    if: ${{ always() && !cancelled() && !contains(needs.*.result, 'failure') && (github.event_name == 'push' || inputs.publish_release) }}
+    if: ${{ always() && !cancelled() && !contains(needs.*.result, 'failure') && ((github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')) || inputs.publish_release) }}
     steps:
       - name: Check out repository
         uses: actions/checkout@v4

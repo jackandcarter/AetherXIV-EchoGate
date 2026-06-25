@@ -620,14 +620,15 @@ function Resolve-ServerDirectory {
         [string]$Configuration = "Release"
     )
 
+    $exeName = Get-ServerExecutableName -ServerName $ServerName
     $sourceBuild = Join-Path $RootDir "$ServerName\bin\$Configuration"
     $releaseLayout = Join-Path $RootDir $ServerName
 
-    if (Test-Path -LiteralPath (Join-Path $sourceBuild "AetherXIV.Core.$(($ServerName -split ' ')[0]).exe")) {
+    if (Test-Path -LiteralPath (Join-Path $sourceBuild $exeName)) {
         return $sourceBuild
     }
 
-    if (Test-Path -LiteralPath (Join-Path $releaseLayout "AetherXIV.Core.$(($ServerName -split ' ')[0]).exe")) {
+    if (Test-Path -LiteralPath (Join-Path $releaseLayout $exeName)) {
         return $releaseLayout
     }
 
@@ -636,6 +637,45 @@ function Resolve-ServerDirectory {
     }
 
     return $releaseLayout
+}
+
+function Get-ServerExecutableName {
+    param([Parameter(Mandatory = $true)][string]$ServerName)
+
+    return "AetherXIV.Core.$(($ServerName -split ' ')[0]).exe"
+}
+
+function Resolve-ServerExecutable {
+    param(
+        [Parameter(Mandatory = $true)][string]$RootDir,
+        [Parameter(Mandatory = $true)][string]$ServerName,
+        [string]$Configuration = "Release"
+    )
+
+    $dir = Resolve-ServerDirectory -RootDir $RootDir -ServerName $ServerName -Configuration $Configuration
+    $exeName = Get-ServerExecutableName -ServerName $ServerName
+    $exe = Join-Path $dir $exeName
+    if (Test-Path -LiteralPath $exe) {
+        return [pscustomobject]@{
+            Directory = $dir
+            Path = $exe
+            Name = $exeName
+        }
+    }
+
+    $legacyName = "MeteorXIV.Core.$(($ServerName -split ' ')[0]).exe"
+    $sourceBuild = Join-Path $RootDir "$ServerName\bin\$Configuration"
+    $releaseLayout = Join-Path $RootDir $ServerName
+    $legacyMatches = @(@(
+        (Join-Path $sourceBuild $legacyName),
+        (Join-Path $releaseLayout $legacyName)
+    ) | Where-Object { Test-Path -LiteralPath $_ })
+
+    if ($legacyMatches.Count -gt 0) {
+        throw "$ServerName still has a legacy MeteorXIV executable at $($legacyMatches[0]), but the AetherXIV launch scripts require $exeName. Rebuild the server core or re-download a current AetherXIV Server Core release package."
+    }
+
+    throw "$ServerName executable not found: $exe. Build the legacy servers with .\tools\windows\build-legacy.ps1 -Configuration $Configuration, or run .\tools\windows\setup.ps1 -Mode Build."
 }
 
 function Set-IniValue {

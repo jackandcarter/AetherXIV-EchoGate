@@ -113,11 +113,20 @@ function New-ReadyFile {
     return $file
 }
 
+function Test-ServerExecutables {
+    foreach ($serverName in @("Lobby Server", "Map Server", "World Server")) {
+        $resolved = Resolve-ServerExecutable -RootDir $root -ServerName $serverName -Configuration $Configuration
+        Write-Host "$serverName executable: $($resolved.Path)"
+    }
+}
+
 if ($PrepareRuntimeData) {
     $copyArgs = @("-Configuration", $Configuration)
     if ($ClientDir -ne "") { $copyArgs += @("-ClientDir", $ClientDir) }
     & "$PSScriptRoot\copy-runtime-data.ps1" @copyArgs
 }
+
+Test-ServerExecutables
 
 $webHost = Resolve-WaitHost -BindValue (Get-EnvValue "WEB_BIND" "127.0.0.1")
 $webPort = [int](Get-EnvValue "WEB_PORT" "8080")

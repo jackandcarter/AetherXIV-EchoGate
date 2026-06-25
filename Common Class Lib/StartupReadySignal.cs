@@ -5,11 +5,15 @@ namespace AetherXIV.Core.Common
 {
     public static class StartupReadySignal
     {
-        private const string ReadyFileEnvironmentVariable = "METEOR_READY_FILE";
+        private const string ReadyFileEnvironmentVariable = "AETHER_READY_FILE";
+        private const string LegacyReadyFileEnvironmentVariable = "METEOR_READY_FILE";
 
         public static void TryWrite(string serviceName, string endpoint)
         {
             string readyFile = Environment.GetEnvironmentVariable(ReadyFileEnvironmentVariable);
+            if (String.IsNullOrWhiteSpace(readyFile))
+                readyFile = Environment.GetEnvironmentVariable(LegacyReadyFileEnvironmentVariable);
+
             if (String.IsNullOrWhiteSpace(readyFile))
                 return;
 

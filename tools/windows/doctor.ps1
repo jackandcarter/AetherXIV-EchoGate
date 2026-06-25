@@ -130,18 +130,17 @@ if (Test-Path -LiteralPath $localStaticActors) {
 }
 
 $servers = @(
-    @("Lobby executable", "Lobby Server", "AetherXIV.Core.Lobby.exe"),
-    @("Map executable", "Map Server", "AetherXIV.Core.Map.exe"),
-    @("World executable", "World Server", "AetherXIV.Core.World.exe")
+    @("Lobby executable", "Lobby Server"),
+    @("Map executable", "Map Server"),
+    @("World executable", "World Server")
 )
 
 foreach ($server in $servers) {
-    $dir = Resolve-ServerDirectory -RootDir $root -ServerName $server[1] -Configuration $Configuration
-    $exe = Join-Path $dir $server[2]
-    if (Test-Path -LiteralPath $exe) {
-        Add-Check $server[0] "ok" $exe | Out-Null
-    } else {
-        Add-Check $server[0] "missing" $exe | Out-Null
+    try {
+        $resolved = Resolve-ServerExecutable -RootDir $root -ServerName $server[1] -Configuration $Configuration
+        Add-Check $server[0] "ok" $resolved.Path | Out-Null
+    } catch {
+        Add-Check $server[0] "missing" $_.Exception.Message | Out-Null
     }
 }
 

@@ -30,14 +30,15 @@ DB_APP_PASS="${DB_APP_PASS:-${AETHER_DB_PASS:-${METEOR_DB_PASS:-aether_dev}}}"
 run_server_smoke() {
   local server_name="$1"
   local server_dir="$2"
-  local exe_name="$3"
-  local port="$4"
+  local port="$3"
+  local server_exe
+  server_exe="$(resolve_server_executable "$server_dir" "$CONFIGURATION")"
 
   echo
   echo "Smoke: $server_name"
   (
-    cd "$ROOT_DIR/$server_dir/bin/$CONFIGURATION"
-    mono "$exe_name" --ip "$SERVER_IP" --port "$port" --host "$DB_APP_HOST" --db "$DB_NAME" --user "$DB_APP_USER" --p "$DB_APP_PASS" --smoke
+    cd "$(dirname "$server_exe")"
+    mono "$(basename "$server_exe")" --ip "$SERVER_IP" --port "$port" --host "$DB_APP_HOST" --db "$DB_NAME" --user "$DB_APP_USER" --p "$DB_APP_PASS" --smoke
   )
 }
 
@@ -59,15 +60,15 @@ while IFS= read -r php_file; do
   echo "ok: $php_file"
 done < <(find "$ROOT_DIR/Data/www" -name '*.php' -print | sort)
 
-run_server_smoke "Lobby" "Lobby Server" "AetherXIV.Core.Lobby.exe" "$LOBBY_PORT"
-run_server_smoke "World" "World Server" "AetherXIV.Core.World.exe" "$WORLD_PORT"
+run_server_smoke "Lobby" "Lobby Server" "$LOBBY_PORT"
+run_server_smoke "World" "World Server" "$WORLD_PORT"
 
 if [[ -f "$ROOT_DIR/Data/staticactors.bin" ]]; then
-  run_server_smoke "Map" "Map Server" "AetherXIV.Core.Map.exe" "$MAP_PORT"
+  run_server_smoke "Map" "Map Server" "$MAP_PORT"
 elif [[ "$ALLOW_MISSING_STATICACTORS" -eq 1 ]]; then
   echo
   echo "SMOKE_SKIP Map runtime prerequisite: Data/staticactors.bin is missing"
 else
   echo
-  run_server_smoke "Map" "Map Server" "AetherXIV.Core.Map.exe" "$MAP_PORT"
+  run_server_smoke "Map" "Map Server" "$MAP_PORT"
 fi
