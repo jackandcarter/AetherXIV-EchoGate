@@ -53,6 +53,7 @@ jobs:
         shell: pwsh
         env:
           RELEASE_LABEL: ${{ github.event_name == 'push' && github.ref_name || inputs.version_label }}
+          RELEASE_TAG: ${{ github.event_name == 'push' && github.ref_name || inputs.release_tag }}
         run: |
           $ErrorActionPreference = "Stop"
           $label = $env:RELEASE_LABEL
@@ -80,13 +81,86 @@ jobs:
             api_version = "1.0"
             platform_rid = "win-x86"
             bootstrap_relative_path = "Aether.Umbra.Bootstrap.x86.dll"
-            framework_relative_path = "Managed/Aether.Umbra.Framework.exe"
+            framework_relative_path = "Managed/Aether.Umbra.Framework.dll"
             supported_game_sha256 = @("9341f2b4567440b310a4d494f5cc5599ca334ba51c8042247317ff466492f2e9")
           }
           $manifest | ConvertTo-Json -Depth 8 | Set-Content -Path "$bundleRoot/umbra-framework.json"
 
           New-Item -ItemType Directory -Force -Path artifacts | Out-Null
-          Compress-Archive -Path "build/umbra-framework/Umbra" -DestinationPath "artifacts/AetherXIV-Umbra-Framework-$label.zip" -Force
+          $archiveName = "AetherXIV-Umbra-Framework-$label.zip"
+          $archivePath = "artifacts/$archiveName"
+          Compress-Archive -Path "build/umbra-framework/Umbra" -DestinationPath $archivePath -Force
+
+          $sizeBytes = (Get-Item $archivePath).Length
+          $sha256 = (Get-FileHash $archivePath -Algorithm SHA256).Hash.ToLowerInvariant()
+          $releaseTag = $env:RELEASE_TAG
+          if ([string]::IsNullOrWhiteSpace($releaseTag)) { $releaseTag = "release-$label" }
+          $archiveUrl = "https://github.com/$env:GITHUB_REPOSITORY/releases/download/$releaseTag/$archiveName"
+          $supportedGameSha256 = "9341f2b4567440b310a4d494f5cc5599ca334ba51c8042247317ff466492f2e9"
+
+          $catalog = [ordered]@{
+            platform = "win-x86"
+            artifacts = @(
+              [ordered]@{
+                name = "Aether Umbra"
+                version = $version
+                api_version = "1.0"
+                platform_rid = "win-x86"
+                archive_url = $archiveUrl
+                archive_format = "zip"
+                size_bytes = $sizeBytes
+                sha256 = $sha256
+                bootstrap_relative_path = "Aether.Umbra.Bootstrap.x86.dll"
+                framework_relative_path = "Managed/Aether.Umbra.Framework.dll"
+                supported_game_sha256 = @($supportedGameSha256)
+                is_default = $true
+                is_active = $true
+                sort_order = 0
+              }
+            )
+          }
+          $catalog | ConvertTo-Json -Depth 8 | Set-Content -Path "artifacts/AetherXIV-Umbra-Framework-$label.catalog.json"
+
+          $sql = @"
+          CREATE TABLE IF NOT EXISTS launcher_umbra_framework_artifacts (
+            id int(11) unsigned NOT NULL AUTO_INCREMENT,
+            name varchar(120) NOT NULL,
+            version varchar(64) NOT NULL,
+            api_version varchar(32) NOT NULL DEFAULT '1.0',
+            platform_rid varchar(32) NOT NULL DEFAULT 'win-x86',
+            archive_url varchar(500) NOT NULL,
+            archive_format varchar(16) NOT NULL DEFAULT 'zip',
+            size_bytes bigint(20) NOT NULL,
+            sha256 char(64) NOT NULL,
+            bootstrap_relative_path varchar(255) NOT NULL DEFAULT 'Aether.Umbra.Bootstrap.x86.dll',
+            framework_relative_path varchar(255) NOT NULL DEFAULT 'Managed/Aether.Umbra.Framework.dll',
+            supported_game_sha256 text NULL,
+            is_default tinyint(1) NOT NULL DEFAULT 0,
+            is_active tinyint(1) NOT NULL DEFAULT 1,
+            sort_order int(11) NOT NULL DEFAULT 0,
+            created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            KEY idx_launcher_umbra_framework_platform (platform_rid, is_active, is_default, sort_order)
+          ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+          DELETE FROM launcher_umbra_framework_artifacts
+          WHERE name = 'Aether Umbra'
+            AND version = '$version'
+            AND platform_rid = 'win-x86';
+
+          INSERT INTO launcher_umbra_framework_artifacts
+            (name, version, api_version, platform_rid, archive_url, archive_format,
+             size_bytes, sha256, bootstrap_relative_path, framework_relative_path,
+             supported_game_sha256, is_default, is_active, sort_order)
+          VALUES
+            ('Aether Umbra', '$version', '1.0', 'win-x86',
+             '$archiveUrl', 'zip',
+             $sizeBytes, '$sha256', 'Aether.Umbra.Bootstrap.x86.dll',
+             'Managed/Aether.Umbra.Framework.dll',
+             '$supportedGameSha256', 1, 1, 0);
+          "@
+          $sql | Set-Content -Path "artifacts/AetherXIV-Umbra-Framework-$label.sql"
 
       - name: Upload internal Umbra bundle
         uses: actions/upload-artifact@v4
