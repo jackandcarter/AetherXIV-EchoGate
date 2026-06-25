@@ -10,6 +10,28 @@ The backend source is the `launcher_news` table in the local AetherXIV database.
 
 ![Echo Gate home tab](../../Home.png)
 
+The local launcher news admin page can create, edit, publish, hide, and delete
+news rows served by that endpoint.
+
+![Launcher news admin page](../../News%20Server.png)
+
+## Admin Page
+
+Open the admin page from the same launcher service host:
+
+```text
+http://127.0.0.1:8080/launcher/admin/news
+```
+
+Local requests can use the page without a password. For remote access, set
+`METEOR_LAUNCHER_ADMIN_PASSWORD` or configure the launcher admin password in
+`Data/www/launcher/config.local.php`. Without a password, remote admin access is
+disabled.
+
+Use the form to add a title, summary, optional body, optional banner/link URLs,
+publish time, published state, and sort order. The `Public News JSON` button
+opens the exact `/launcher/news` payload Echo Gate reads.
+
 ## Table Fields
 
 `Data/sql/launcher_services.sql` creates this table during database setup:

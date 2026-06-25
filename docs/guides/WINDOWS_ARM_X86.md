@@ -103,14 +103,20 @@ Configure Echo Gate:
 - Runtime tab: no Wine is needed on Windows.
 - Home tab: create an account, log in, and launch.
 
+![Echo Gate server tab](../../Server.png)
+
+![Echo Gate client tab](../../Client.png)
+
+If you are testing Umbra on Windows, enable it from the Umbra tab before launching.
+
+![Echo Gate Umbra tab](../../Umbra.png)
+
 Expected setup result:
 
 - PHP, PHP `mysqli`, MariaDB/MySQL client, and server executables are found.
 - `.NET Framework 4.7.2` or newer is available.
 - The `meteor` app user can connect to `ffxiv_server`.
 - Lobby, World, and Map smoke checks complete.
-
-![Echo Gate server tab](../../server.png)
 
 ## Release Package Notes
 

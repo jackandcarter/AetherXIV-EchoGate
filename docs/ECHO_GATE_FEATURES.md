@@ -16,7 +16,7 @@ News posts are served from the `launcher_news` database table through `/launcher
 
 ## Server Profile
 
-![Echo Gate server tab](../server.png)
+![Echo Gate server tab](../Server.png)
 
 - Stores the launcher service URL.
 - Stores the patch base URL when a self-hosted patch manifest is available.
@@ -27,6 +27,8 @@ News posts are served from the `launcher_news` database table through `/launcher
 
 ## Client And Patch Handling
 
+![Echo Gate client tab](../Client.png)
+
 - Validates a local FFXIV 1.23b client folder.
 - Checks `boot.ver` and `game.ver`.
 - Validates user-provided patch files by path, size, and checksum metadata.
@@ -35,6 +37,15 @@ News posts are served from the `launcher_news` database table through `/launcher
 - Searches expected 1.x client script locations and saved Echo Gate client paths before asking for manual input.
 
 Client installers, client files, patch files, and patch torrents are intentionally not bundled with this repository.
+
+## Umbra Framework
+
+![Echo Gate Umbra tab](../Umbra.png)
+
+- Enables or disables Umbra injection for the next client launch.
+- Installs or updates the approved Umbra framework bundle from the launcher service catalog.
+- Passes framework, repository, blocklist, and diagnostic settings into the client helper.
+- Keeps third-party plugin execution disabled until the in-game framework is explicitly promoted beyond the current shell stage.
 
 ## Runtime Handling
 
