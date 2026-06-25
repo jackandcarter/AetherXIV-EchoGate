@@ -109,8 +109,6 @@ Configure Echo Gate:
 - Runtime tab: no Wine is needed on Windows.
 - Home tab: create an account, log in, and launch.
 
-![Echo Gate client tab](../../Client.png)
-
 Expected setup result:
 
 - PHP, PHP `mysqli`, MariaDB/MySQL client, and server executables are found.
@@ -118,7 +116,7 @@ Expected setup result:
 - The `meteor` app user can connect to `ffxiv_server`.
 - Lobby, World, and Map smoke checks complete.
 
-![Echo Gate server tab](../../Server.png)
+![Echo Gate server tab](../../server.png)
 
 ## Release Package Notes
 

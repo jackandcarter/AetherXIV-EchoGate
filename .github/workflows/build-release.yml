@@ -198,7 +198,7 @@ jobs:
           .\tools\windows\install-prereqs.ps1 -Mode Build
 
   server-core:
-    name: AetherXIV Server Core
+    name: MeteorXIV Server Core
     runs-on: ubuntu-latest
     if: ${{ github.event_name == 'push' || inputs.include_server_core }}
     steps:
@@ -254,7 +254,7 @@ jobs:
           cp -R docs "$package_root/docs"
 
           cat > "$package_root/README_RELEASE.txt" <<'EOF'
-          AetherXIV Server Core release package
+          MeteorXIV Server Core release package
 
           This package contains the built Lobby, Map, and World server outputs plus the SQL, PHP launcher services, configs, scripts, setup helpers, and documentation needed for self-hosting.
 
@@ -268,13 +268,13 @@ jobs:
           find "$package_root/Data/www" -name '*.local.php' -delete
 
           mkdir -p artifacts
-          tar -czf "artifacts/AetherXIV-Server-Core-${label}.tar.gz" -C dist server-core
-          (cd dist && zip -qr "../artifacts/AetherXIV-Server-Core-${label}.zip" server-core)
+          tar -czf "artifacts/MeteorXIV-Server-Core-${label}.tar.gz" -C dist server-core
+          (cd dist && zip -qr "../artifacts/MeteorXIV-Server-Core-${label}.zip" server-core)
 
       - name: Upload server artifact
         uses: actions/upload-artifact@v4
         with:
-          name: release-AetherXIV-Server-Core
+          name: release-MeteorXIV-Server-Core
           path: artifacts/*
           if-no-files-found: error
 
@@ -318,7 +318,7 @@ jobs:
             notes_file="docs/RELEASES.md"
           fi
 
-          title="AetherXIV Core + Echo Gate ${release_label}"
+          title="MeteorXIV Core + Echo Gate ${release_label}"
           mapfile -t assets < <(find release-assets -type f | sort)
           if [[ "${#assets[@]}" -eq 0 ]]; then
             echo "No release assets were downloaded." >&2

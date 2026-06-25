@@ -67,7 +67,7 @@ world server: 54992
 map server: 1989
 ```
 
-![Echo Gate server settings](Server.png)
+![Echo Gate server settings](server.png)
 
 ## Solution Layout
 
