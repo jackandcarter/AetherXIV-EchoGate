@@ -28,24 +28,25 @@ When the workflow is run from a release tag, or when `publish_release` is enable
 Expected release assets:
 
 ```text
-EchoGate-linux-x64-v1.2.tar.gz
-EchoGate-linux-arm64-v1.2.tar.gz
-EchoGate-osx-arm64-v1.2.zip
-EchoGate-osx-x64-v1.2.zip
-EchoGate-win-x86-v1.2.zip
-EchoGate-win-x64-v1.2.zip
-EchoGate-win-arm64-v1.2.zip
-AetherXIV-Server-Core-v1.2.tar.gz
-AetherXIV-Server-Core-v1.2.zip
+EchoGate-linux-x64-v1.3.tar.gz
+EchoGate-linux-arm64-v1.3.tar.gz
+EchoGate-osx-arm64-v1.3.zip
+EchoGate-osx-x64-v1.3.zip
+EchoGate-win-x86-v1.3.zip
+EchoGate-win-x64-v1.3.zip
+EchoGate-win-arm64-v1.3.zip
+AetherXIV-Server-Core-v1.3.tar.gz
+AetherXIV-Server-Core-v1.3.zip
+AetherXIV-Umbra-Framework-v1.3.zip
 ```
 
 The recommended release tag is:
 
 ```text
-release-v1.2
+release-v1.3
 ```
 
-That avoids ambiguity with branch names while still naming the release `v1.2`.
+That avoids ambiguity with branch names while still naming the release `v1.3`.
 
 ## Local Platform Builds
 

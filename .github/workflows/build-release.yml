@@ -6,7 +6,7 @@ on:
       version_label:
         description: Version label used in artifact filenames.
         required: true
-        default: v1.2
+        default: v1.3
       publish_release:
         description: Create or update a GitHub Release after building.
         type: boolean
@@ -15,7 +15,7 @@ on:
       release_tag:
         description: Release tag to create or update when publish_release is enabled.
         required: true
-        default: release-v1.2
+        default: release-v1.3
       include_server_core:
         description: Build the server core package.
         type: boolean
@@ -406,7 +406,7 @@ jobs:
           set -euo pipefail
           release_tag="$REF_NAME"
           if [[ "$EVENT_NAME" != "push" ]]; then
-            release_tag="${INPUT_RELEASE_TAG:-release-v1.2}"
+            release_tag="${INPUT_RELEASE_TAG:-release-v1.3}"
           fi
 
           release_label="${release_tag#release-}"
