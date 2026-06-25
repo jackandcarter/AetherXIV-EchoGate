@@ -16,7 +16,7 @@ News posts are served from the `launcher_news` database table through `/launcher
 
 ## Server Profile
 
-![Echo Gate server tab](../server.png)
+![Echo Gate server tab](../Server.png)
 
 - Stores the launcher service URL.
 - Stores the patch base URL when a self-hosted patch manifest is available.
@@ -26,6 +26,8 @@ News posts are served from the `launcher_news` database table through `/launcher
 - Refreshes service metadata without requiring users to edit INI files by hand.
 
 ## Client And Patch Handling
+
+![Echo Gate client tab](../Client.png)
 
 - Validates a local FFXIV 1.23b client folder.
 - Checks `boot.ver` and `game.ver`.

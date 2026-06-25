@@ -94,7 +94,7 @@ GitHub release builds are ad-hoc signed but not Apple-notarized. If macOS Gateke
 
 Server tab:
 
-![Echo Gate server tab](../../server.png)
+![Echo Gate server tab](../../Server.png)
 
 - Launcher service: `http://127.0.0.1:8080/launcher`
 - Server host: `127.0.0.1`
@@ -102,6 +102,8 @@ Server tab:
 - World port: `54992`
 
 Client tab:
+
+![Echo Gate client tab](../../Client.png)
 
 - Select your local FFXIV 1.23b client folder.
 - Validate the client.
