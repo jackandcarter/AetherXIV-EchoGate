@@ -8,7 +8,7 @@ Windows helper scripts live in:
 tools/windows/
 ```
 
-Run the commands below from PowerShell in either a full source checkout or the extracted `MeteorXIV-Server-Core` release package.
+Run the commands below from PowerShell in either a full source checkout or the extracted `AetherXIV-Server-Core` release package.
 
 ## Quick Path For Windows x86
 
@@ -17,20 +17,20 @@ Use this path if you just want to run a local playtest server and launcher. The 
 1. Download the GitHub Release assets:
 
 ```text
-MeteorXIV-Server-Core-v1.2.zip
+AetherXIV-Server-Core-v1.2.zip
 EchoGate-win-x86-v1.2.zip
 ```
 
-2. Extract `MeteorXIV-Server-Core-v1.2.zip` somewhere writable, such as:
+2. Extract `AetherXIV-Server-Core-v1.2.zip` somewhere writable, such as:
 
 ```text
-C:\MeteorXIV\server-core
+C:\AetherXIV\server-core
 ```
 
 3. Open PowerShell in that folder.
 
 ```powershell
-cd C:\MeteorXIV\server-core
+cd C:\AetherXIV\server-core
 Set-ExecutionPolicy -Scope Process Bypass
 ```
 

@@ -22,7 +22,7 @@ Use concise entries and link to issues, pull requests, packet captures, or test 
 - Added Echo Gate launcher-service account login/create endpoints, username-only remember-me profile support, legacy-compatible `Servers.xml` writing, and helper-based 1.23b client launch patching.
 - Added 32-bit client-helper runtime probing so macOS/Linux launch is blocked until the selected Wine runtime can execute FFXIV 1.x-compatible PE32 helpers.
 - Documented launcher services, runtime archive hosting, managed app-data paths, and macOS/Linux setup/build validation.
-- Renamed the legacy server codebase to MeteorXIV Core, removed client acquisition from launcher service contracts, tightened local-secret handling, and added focused world/map zone-handoff diagnostics.
+- Renamed the legacy server codebase to AetherXIV Core, removed client acquisition from launcher service contracts, tightened local-secret handling, and added focused world/map zone-handoff diagnostics.
 - Added dev-only traces for event condition packets, client target/lock requests, unresolved event starts, and provisional map `0x00CE` tutorial/state messages.
 - Added dev-only traces for quest flags, quest saves, quest phases, quest data, and actor quest-graphic updates.
 - Fixed Ul'dah opening tutorial quest-marker progression so Ascilia, Fretful Farmhand, Gil-digging Mistress, and the exit trigger advance in sequence from persisted quest flags.

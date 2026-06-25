@@ -1,6 +1,6 @@
 # Echo Gate
 
-This folder contains Echo Gate, the cross-platform launcher/client runner for MeteorXIV Core.
+This folder contains Echo Gate, the cross-platform launcher/client runner for AetherXIV Core.
 
 Current launcher features:
 
