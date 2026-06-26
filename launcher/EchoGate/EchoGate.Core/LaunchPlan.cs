@@ -177,5 +177,7 @@ public sealed record LaunchPlan(
         parts.Add(CommandLineArguments.Quote(string.Join(";", options.RepositoryUrls)));
         parts.Add("--umbra-repositories-json");
         parts.Add(CommandLineArguments.Quote(options.RepositoriesJson));
+        parts.Add("--umbra-enable-managed-on-wine");
+        parts.Add(options.EnableManagedOnWine ? "true" : "false");
     }
 }

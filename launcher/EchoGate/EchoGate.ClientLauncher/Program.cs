@@ -56,6 +56,7 @@ internal static class Program
                 File.AppendAllText(options.LogPath, $"umbra_load_delay_ms={options.Umbra.LoadDelayMilliseconds}{Environment.NewLine}");
                 File.AppendAllText(options.LogPath, $"umbra_repository_count={options.Umbra.RepositoryUrls.Count}{Environment.NewLine}");
                 File.AppendAllText(options.LogPath, $"umbra_repository_source_count={options.Umbra.RepositorySources.Count}{Environment.NewLine}");
+                File.AppendAllText(options.LogPath, $"umbra_enable_managed_on_wine={options.Umbra.EnableManagedOnWine}{Environment.NewLine}");
             }
             AppendFileProbe(options.LogPath, options.GamePath);
             AppendInstallProbe(options.LogPath, options.WorkingDirectory);
@@ -289,7 +290,8 @@ internal sealed record LaunchOptions(
             Required(values, "umbra-framework"),
             Required(values, "umbra-plugin-dir"),
             Required(values, "umbra-log"),
-            repositoryUrls)
+            repositoryUrls,
+            EnableManagedOnWine: ParseBoolean(values, "umbra-enable-managed-on-wine"))
             {
                 RepositorySources = repositorySources
             }

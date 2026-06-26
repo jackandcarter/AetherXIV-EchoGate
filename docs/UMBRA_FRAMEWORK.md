@@ -116,9 +116,11 @@ the shared control file. The managed Dev Bridge plugin remains the only owner
 that starts or stops the HTTP listener, which avoids a race between native UI,
 managed runtime, and future plugin code.
 
-On Wine, managed hosting still respects the existing safety gate. Local Wine
-tests must explicitly enable `AETHER_UMBRA_ENABLE_MANAGED_ON_WINE=1` before the
-managed system plugins can start.
+On Wine, managed hosting still respects the existing safety gate. EchoGate's
+macOS and Linux launcher builds enable `AETHER_UMBRA_ENABLE_MANAGED_ON_WINE=1`
+automatically for Umbra launches; Windows native builds leave it off. Manual
+bootstrap tests outside EchoGate still need to set that value explicitly before
+the managed system plugins can start.
 
 ## Umbra Dev Bridge
 

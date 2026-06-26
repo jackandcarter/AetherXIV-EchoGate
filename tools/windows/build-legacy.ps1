@@ -10,7 +10,11 @@ $solution = Join-Path $root "AetherXIV.Core.sln"
 if (-not (Test-Path -LiteralPath $solution)) { throw "Solution file not found: $solution" }
 
 if (-not $NoRestore) {
-    $nuget = Find-RequiredCommand -Names @("nuget.exe", "nuget") -FriendlyName "NuGet"
+    $nuget = Find-NuGetCommand
+    if ($null -eq $nuget) {
+        Write-Host "NuGet was not found. Installing managed NuGet under Echo Gate app data."
+        $nuget = Install-ManagedNuGet
+    }
     Write-Host "Restoring NuGet packages"
     & $nuget restore $solution
     if ($LASTEXITCODE -ne 0) { throw "NuGet restore failed with exit code $LASTEXITCODE." }

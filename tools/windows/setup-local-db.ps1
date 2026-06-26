@@ -14,29 +14,88 @@ $db = Get-DbSettings
 if ($AdminUser -ne "") { $db.AdminUser = $AdminUser }
 if ($AdminPassword -ne "") { $db.AdminPass = $AdminPassword }
 
+function Read-MariaDbAdminPassword {
+    param([string]$User)
+
+    $secure = Read-Host "MariaDB admin password for '$User' (leave blank if none)" -AsSecureString
+    $bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure)
+    try {
+        return [Runtime.InteropServices.Marshal]::PtrToStringBSTR($bstr)
+    } finally {
+        [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr)
+    }
+}
+
+function Set-MariaDbAdminPassword {
+    param([string]$Password)
+
+    $db.AdminPass = $Password
+    if ($Password -ne "") {
+        $env:DB_ADMIN_PASS = $Password
+    } else {
+        [Environment]::SetEnvironmentVariable("DB_ADMIN_PASS", $null, "Process")
+    }
+}
+
+function Read-MariaDbAdminRetry {
+    $retry = Read-Host "Try another MariaDB admin login? [Y/n]"
+    return ($retry -notmatch "^(n|no|q|quit)$")
+}
+
+function Read-MariaDbAdminUser {
+    param([string]$CurrentUser)
+
+    $newUser = Read-Host "MariaDB admin user [$CurrentUser]"
+    if ([string]::IsNullOrWhiteSpace($newUser)) {
+        return $CurrentUser
+    }
+
+    return $newUser.Trim()
+}
+
 Write-Host "AetherXIV local database setup"
 Write-Host "Database:    $($db.DbName)"
 Write-Host "App account: $($db.AppUser) / $($db.AppPass)"
 Write-Host "App hosts:   $($db.AppHosts -join ', ')"
 Write-Host
 
-$mysql = Get-MySqlCommand
+try {
+    $mysql = Get-MySqlCommand
+} catch {
+    Write-Warning $_.Exception.Message
+    $diagnostic = Join-Path $PSScriptRoot "diagnose-mariadb.ps1"
+    if (Test-Path -LiteralPath $diagnostic -PathType Leaf) {
+        Write-Host
+        Write-Host "Running MariaDB detector..."
+        & $diagnostic
+    }
+    throw
+}
 $env:MYSQL_BIN = $mysql
 Write-Host "DB client:   $mysql"
+Write-Host "             If MariaDB is installed but setup cannot find it, set MYSQL_BIN to this client path."
 Write-Host
 
-if ($db.AdminPass -eq "") {
-    $secure = Read-Host "MariaDB admin password for '$($db.AdminUser)' (leave blank if none)" -AsSecureString
-    $bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure)
+$adminPasswordKnown = ($db.AdminPass -ne "")
+while ($true) {
+    if (-not $adminPasswordKnown) {
+        Set-MariaDbAdminPassword -Password (Read-MariaDbAdminPassword -User $db.AdminUser)
+        $adminPasswordKnown = $true
+    }
+
     try {
-        $plain = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($bstr)
-        if ($plain -ne "") {
-            $db.AdminPass = $plain
-            $AdminPassword = $plain
-            $env:DB_ADMIN_PASS = $plain
+        Invoke-MySql -MySql $mysql -HostName $db.DbHost -Port $db.DbPort -User $db.AdminUser -Password $db.AdminPass -Sql "SELECT 1;" *> $null
+        break
+    } catch {
+        Write-Warning "MariaDB admin login failed for '$($db.AdminUser)' on $($db.DbHost):$($db.DbPort). $($_.Exception.Message)"
+        Write-Host "MariaDB's Windows installer normally asks for a root password. Silent installs can set one through the MSI PASSWORD property."
+        Write-Host "If this machine had an older MariaDB data directory, the old root password may still be in effect."
+        if (-not (Read-MariaDbAdminRetry)) {
+            throw "MariaDB admin login failed. Rerun setup-local-db.ps1 with the correct -AdminUser/-AdminPassword, reset the local MariaDB root password, or reinstall MariaDB with a known root password."
         }
-    } finally {
-        [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr)
+
+        $db.AdminUser = Read-MariaDbAdminUser -CurrentUser $db.AdminUser
+        Set-MariaDbAdminPassword -Password (Read-MariaDbAdminPassword -User $db.AdminUser)
     }
 }
 

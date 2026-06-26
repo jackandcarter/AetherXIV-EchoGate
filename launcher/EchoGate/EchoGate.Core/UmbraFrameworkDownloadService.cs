@@ -26,6 +26,8 @@ public static class UmbraFrameworkDownloadService
 
         if (!string.Equals(artifact.ArchiveFormat, "zip", StringComparison.OrdinalIgnoreCase))
             throw new NotSupportedException($"Umbra framework archive format is not supported: {artifact.ArchiveFormat}");
+        if (!artifact.UsesAetherEntrypoints)
+            throw new NotSupportedException("Legacy Umbra framework entrypoints are not supported by this launcher build.");
 
         string frameworkRoot = Path.GetFullPath(frameworksRoot ?? UmbraInstallStore.FrameworksRoot);
         string downloadRoot = Path.GetFullPath(cacheRoot ?? UmbraInstallStore.FrameworkCacheRoot);

@@ -221,7 +221,8 @@ public sealed class EchoGateCoreTests
             Path.Combine(root, "Umbra", "Framework", "Managed", "Aether.Umbra.Framework.dll"),
             Path.Combine(root, "Umbra", "Plugins"),
             Path.Combine(root, "Umbra", "Logs", "umbra.log"),
-            new[] { "https://launcher.dev.demidevunit.com/umbra/plugins.json" })
+            new[] { "https://launcher.dev.demidevunit.com/umbra/plugins.json" },
+            EnableManagedOnWine: true)
             {
                 RepositorySources = new[]
                 {
@@ -249,6 +250,7 @@ public sealed class EchoGateCoreTests
         Assert.Contains("--umbra-load-delay-ms 500", plan.Arguments);
         Assert.Contains("--umbra-repository-urls", plan.Arguments);
         Assert.Contains("--umbra-repositories-json", plan.Arguments);
+        Assert.Contains("--umbra-enable-managed-on-wine true", plan.Arguments);
         Assert.Contains("source", plan.Arguments);
     }
 
@@ -1304,7 +1306,48 @@ public sealed class EchoGateCoreTests
         Assert.True(File.Exists(result.Install.BootstrapPath));
         Assert.True(File.Exists(result.Install.FrameworkPath));
         Assert.True(File.Exists(UmbraInstallStore.ManifestPathFor(result.Install.InstallPath)));
+        Assert.True(result.Install.UsesAetherEntrypoints);
         Assert.True(result.Install.SupportsGameHash(UmbraCompatibility.Known123bGameSha256));
+    }
+
+    [Fact]
+    public void UmbraFrameworkCatalogIgnoresLegacyMeteorArtifacts()
+    {
+        byte[] archive = CreateRuntimeArchive(
+            ("Meteor.Umbra.Bootstrap.x86.dll", Encoding.ASCII.GetBytes("bootstrap")),
+            ("Managed/Meteor.Umbra.Framework.dll", Encoding.ASCII.GetBytes("framework")));
+        UmbraFrameworkArtifact legacy = CreateUmbraArtifact(archive) with
+        {
+            Name = "Meteor Umbra",
+            BootstrapRelativePath = "Meteor.Umbra.Bootstrap.x86.dll",
+            FrameworkRelativePath = "Managed/Meteor.Umbra.Framework.dll"
+        };
+        UmbraFrameworkCatalog catalog = new("win-x86", new[] { legacy });
+
+        Assert.False(legacy.UsesAetherEntrypoints);
+        Assert.Null(catalog.SelectDefault(UmbraCompatibility.Known123bGameSha256));
+    }
+
+    [Fact]
+    public async Task UmbraFrameworkDownloadRejectsLegacyMeteorEntrypoints()
+    {
+        byte[] archive = CreateRuntimeArchive(
+            ("Meteor.Umbra.Bootstrap.x86.dll", Encoding.ASCII.GetBytes("bootstrap")),
+            ("Managed/Meteor.Umbra.Framework.dll", Encoding.ASCII.GetBytes("framework")));
+        UmbraFrameworkArtifact legacy = CreateUmbraArtifact(archive) with
+        {
+            Name = "Meteor Umbra",
+            BootstrapRelativePath = "Meteor.Umbra.Bootstrap.x86.dll",
+            FrameworkRelativePath = "Managed/Meteor.Umbra.Framework.dll"
+        };
+        string root = CreateTempDirectory();
+
+        await Assert.ThrowsAsync<NotSupportedException>(() =>
+            UmbraFrameworkDownloadService.DownloadAndInstallAsync(
+                legacy,
+                new HttpClient(new StaticPatchHandler(archive)),
+                frameworksRoot: Path.Combine(root, "frameworks"),
+                cacheRoot: Path.Combine(root, "cache")));
     }
 
     [Fact]

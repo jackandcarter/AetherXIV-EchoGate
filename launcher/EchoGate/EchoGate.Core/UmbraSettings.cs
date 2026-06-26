@@ -43,7 +43,8 @@ public sealed record UmbraLaunchOptions(
     string FrameworkPath,
     string PluginDirectory,
     string LogPath,
-    IReadOnlyList<string> RepositoryUrls)
+    IReadOnlyList<string> RepositoryUrls,
+    bool EnableManagedOnWine = false)
 {
     public static UmbraLaunchOptions Disabled => new(
         false,

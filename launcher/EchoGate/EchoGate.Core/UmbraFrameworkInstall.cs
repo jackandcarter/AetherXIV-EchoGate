@@ -11,6 +11,11 @@ public sealed record UmbraFrameworkInstall(
     IReadOnlyList<string> SupportedGameSha256,
     DateTimeOffset InstalledAt)
 {
+    public bool UsesAetherEntrypoints =>
+        string.Equals(Path.GetFileName(BootstrapPath), "Aether.Umbra.Bootstrap.x86.dll", StringComparison.OrdinalIgnoreCase)
+        && (string.Equals(Path.GetFileName(FrameworkPath), "Aether.Umbra.Framework.dll", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(Path.GetFileName(FrameworkPath), "Aether.Umbra.Framework.exe", StringComparison.OrdinalIgnoreCase));
+
     public bool SupportsGameHash(string sha256)
     {
         return SupportedGameSha256.Count == 0

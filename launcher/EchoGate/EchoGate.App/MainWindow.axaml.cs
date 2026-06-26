@@ -1205,7 +1205,8 @@ public sealed partial class MainWindow : Window
             install.FrameworkPath,
             settings.PluginDirectory,
             logPath,
-            repositorySources.Select(source => source.Url).ToArray())
+            repositorySources.Select(source => source.Url).ToArray(),
+            EnableManagedOnWine: platform.RequiresCompatibilityRuntime)
             {
                 RepositorySources = repositorySources
             };
@@ -2112,6 +2113,7 @@ public sealed partial class MainWindow : Window
             info.Environment["AETHER_UMBRA_LOAD_DELAY_MS"] = plan.Umbra.LoadDelayMilliseconds.ToString();
             info.Environment["AETHER_UMBRA_REPOSITORY_URLS"] = string.Join(";", plan.Umbra.RepositoryUrls);
             info.Environment["AETHER_UMBRA_REPOSITORIES_JSON"] = plan.Umbra.RepositoriesJson;
+            info.Environment["AETHER_UMBRA_ENABLE_MANAGED_ON_WINE"] = plan.Umbra.EnableManagedOnWine ? "1" : "0";
         }
 
         return info;

@@ -132,6 +132,7 @@ public static class UmbraInstallStore
     private static bool IsUsable(UmbraFrameworkInstall? install)
     {
         return install is not null
+            && install.UsesAetherEntrypoints
             && File.Exists(install.BootstrapPath)
             && File.Exists(install.FrameworkPath);
     }

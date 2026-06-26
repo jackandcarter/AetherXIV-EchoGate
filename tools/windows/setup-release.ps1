@@ -5,7 +5,8 @@ param(
     [switch]$SkipDatabase,
     [switch]$SkipRuntimeData,
     [switch]$SkipSmoke,
-    [switch]$AllowMissingStaticActors
+    [switch]$AllowMissingStaticActors,
+    [switch]$RefreshManagedTools
 )
 
 . "$PSScriptRoot\common.ps1"
@@ -18,6 +19,7 @@ if ($SkipDatabase) { $setupArgs += "-SkipDatabase" }
 if ($SkipRuntimeData) { $setupArgs += "-SkipRuntimeData" }
 if ($SkipSmoke) { $setupArgs += "-SkipSmoke" }
 if ($AllowMissingStaticActors) { $setupArgs += "-AllowMissingStaticActors" }
+if ($RefreshManagedTools) { $setupArgs += "-RefreshManagedTools" }
 
 Write-Host "setup-release.ps1 is a compatibility wrapper. New users should run tools\windows\setup.ps1."
 & "$PSScriptRoot\setup.ps1" @setupArgs

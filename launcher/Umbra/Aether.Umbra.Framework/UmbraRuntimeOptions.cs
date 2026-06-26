@@ -14,9 +14,11 @@ public sealed record UmbraRuntimeOptions(
 {
     public const int DefaultDevBridgePort = 8797;
 
-    public static UmbraRuntimeOptions FromEnvironment()
+    public static UmbraRuntimeOptions FromEnvironment(string? explicitLogPath = null)
     {
-        string logPath = GetUmbraEnvironment("LOG");
+        string logPath = string.IsNullOrWhiteSpace(explicitLogPath)
+            ? GetUmbraEnvironment("LOG")
+            : explicitLogPath;
         if (string.IsNullOrWhiteSpace(logPath))
             logPath = Path.Combine(AppContext.BaseDirectory, "umbra-framework.log");
 

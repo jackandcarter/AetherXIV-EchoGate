@@ -8,6 +8,12 @@ $script:MeteorManagedPhp = [pscustomobject]@{
     Sha256 = "2ff43fea9a243085493b48c7c47152c0678cff0b05c61a3b4f4b43ba22de212c"
 }
 
+$script:AetherManagedNuGet = [pscustomobject]@{
+    DirectoryName = "NuGet"
+    FileName = "nuget.exe"
+    Url = "https://dist.nuget.org/win-x86-commandline/latest/nuget.exe"
+}
+
 function Get-MeteorRoot {
     $scriptDir = Split-Path -Parent $PSScriptRoot
     return (Resolve-Path (Join-Path $scriptDir "..")).Path
@@ -155,29 +161,280 @@ function Find-OptionalCommand {
     return $null
 }
 
+function Resolve-CommandOrExistingFile {
+    param([string]$Candidate)
+
+    if ([string]::IsNullOrWhiteSpace($Candidate)) {
+        return $null
+    }
+
+    $command = Get-Command $Candidate -ErrorAction SilentlyContinue
+    if ($null -ne $command) {
+        return $command.Source
+    }
+
+    if (Test-Path -LiteralPath $Candidate -PathType Leaf) {
+        return (Resolve-Path -LiteralPath $Candidate).Path
+    }
+
+    return $null
+}
+
+function Get-ExecutablePathFromCommandLine {
+    param([string]$CommandLine)
+
+    if ([string]::IsNullOrWhiteSpace($CommandLine)) {
+        return $null
+    }
+
+    $trimmed = $CommandLine.Trim()
+    if ($trimmed.StartsWith('"') -and $trimmed -match '^"([^"]+)"') {
+        return $matches[1]
+    }
+
+    $first = $trimmed.Split(" ", 2)[0]
+    if ($first.StartsWith("\??\")) {
+        return $first.Substring(4)
+    }
+
+    return $first
+}
+
+function Find-MySqlClientNearServer {
+    param([string]$ServerExecutable)
+
+    $serverPath = Resolve-CommandOrExistingFile -Candidate $ServerExecutable
+    if ($null -eq $serverPath) {
+        return $null
+    }
+
+    $binDir = Split-Path -Parent $serverPath
+    foreach ($name in @("mariadb.exe", "mysql.exe")) {
+        $candidate = Join-Path $binDir $name
+        if (Test-Path -LiteralPath $candidate -PathType Leaf) {
+            return (Resolve-Path -LiteralPath $candidate).Path
+        }
+    }
+
+    return $null
+}
+
+function Find-MySqlClientInDirectory {
+    param([string]$Directory)
+
+    if ([string]::IsNullOrWhiteSpace($Directory)) {
+        return $null
+    }
+
+    $directories = @($Directory)
+    $binDir = Join-Path $Directory "bin"
+    if (Test-Path -LiteralPath $binDir -PathType Container) {
+        $directories = @($binDir) + $directories
+    }
+
+    foreach ($dir in $directories) {
+        foreach ($name in @("mariadb.exe", "mysql.exe")) {
+            $candidate = Join-Path $dir $name
+            if (Test-Path -LiteralPath $candidate -PathType Leaf) {
+                return (Resolve-Path -LiteralPath $candidate).Path
+            }
+        }
+    }
+
+    return $null
+}
+
+function Find-MySqlCommandFromRegistry {
+    $registryPaths = @(
+        "HKCU:\Software\Microsoft\Windows\CurrentVersion\App Paths\mariadb.exe",
+        "HKCU:\Software\Microsoft\Windows\CurrentVersion\App Paths\mysql.exe",
+        "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\mariadb.exe",
+        "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\mysql.exe",
+        "HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\App Paths\mariadb.exe",
+        "HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\App Paths\mysql.exe"
+    )
+
+    foreach ($path in $registryPaths) {
+        try {
+            $item = Get-Item -LiteralPath $path -ErrorAction SilentlyContinue
+            if ($null -eq $item) {
+                continue
+            }
+
+            $value = $item.GetValue("")
+            $resolved = Resolve-CommandOrExistingFile -Candidate $value
+            if ($null -ne $resolved) {
+                return $resolved
+            }
+        } catch {
+            continue
+        }
+    }
+
+    return $null
+}
+
+function Find-MySqlCommandFromUninstallRegistry {
+    if ([System.Environment]::OSVersion.Platform -ne [System.PlatformID]::Win32NT) {
+        return $null
+    }
+
+    $registryRoots = @(
+        "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall",
+        "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall",
+        "HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall"
+    )
+
+    foreach ($root in $registryRoots) {
+        try {
+            $items = @(Get-ChildItem -LiteralPath $root -ErrorAction SilentlyContinue)
+        } catch {
+            continue
+        }
+
+        foreach ($item in $items) {
+            try {
+                $props = Get-ItemProperty -LiteralPath $item.PSPath -ErrorAction Stop
+            } catch {
+                continue
+            }
+
+            $displayName = [string]$props.DisplayName
+            if ($displayName -notmatch "(?i)(mariadb|mysql)") {
+                continue
+            }
+
+            $locations = @($props.InstallLocation, $props.InstallSource)
+            $innoAppPath = $props.PSObject.Properties["Inno Setup: App Path"]
+            if ($null -ne $innoAppPath) {
+                $locations += $innoAppPath.Value
+            }
+
+            foreach ($location in $locations) {
+                $clientPath = Find-MySqlClientInDirectory -Directory $location
+                if ($null -ne $clientPath) {
+                    return $clientPath
+                }
+            }
+
+            $uninstallPath = Get-ExecutablePathFromCommandLine -CommandLine $props.UninstallString
+            if ($null -ne $uninstallPath) {
+                $clientPath = Find-MySqlClientNearServer -ServerExecutable $uninstallPath
+                if ($null -ne $clientPath) {
+                    return $clientPath
+                }
+            }
+        }
+    }
+
+    return $null
+}
+
+function Find-MySqlCommandFromService {
+    if ([System.Environment]::OSVersion.Platform -ne [System.PlatformID]::Win32NT) {
+        return $null
+    }
+
+    try {
+        $services = @(Get-CimInstance -ClassName Win32_Service -Filter "Name LIKE '%MariaDB%' OR DisplayName LIKE '%MariaDB%' OR Name LIKE '%MySQL%' OR DisplayName LIKE '%MySQL%'" -ErrorAction Stop)
+    } catch {
+        return $null
+    }
+
+    foreach ($service in $services) {
+        $serverPath = Get-ExecutablePathFromCommandLine -CommandLine $service.PathName
+        $clientPath = Find-MySqlClientNearServer -ServerExecutable $serverPath
+        if ($null -ne $clientPath) {
+            return $clientPath
+        }
+    }
+
+    return $null
+}
+
+function Find-MySqlCommandFromKnownDirectories {
+    $roots = @()
+    if ($env:ProgramFiles) { $roots += $env:ProgramFiles }
+    if (${env:ProgramFiles(x86)}) { $roots += ${env:ProgramFiles(x86)} }
+    if ($env:ProgramW6432) { $roots += $env:ProgramW6432 }
+    if ($env:ProgramData) { $roots += $env:ProgramData }
+    if ($env:LOCALAPPDATA) { $roots += (Join-Path $env:LOCALAPPDATA "Microsoft\WinGet\Packages") }
+    if ($env:USERPROFILE) {
+        $roots += (Join-Path $env:USERPROFILE "scoop\apps")
+    }
+    if ($env:SCOOP) { $roots += (Join-Path $env:SCOOP "apps") }
+    $roots += "C:\"
+
+    $patterns = @()
+    foreach ($root in ($roots | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -Unique)) {
+        $patterns += (Join-Path $root "MariaDB*\bin\mariadb.exe")
+        $patterns += (Join-Path $root "MariaDB*\bin\mysql.exe")
+        $patterns += (Join-Path $root "MariaDB Server*\bin\mariadb.exe")
+        $patterns += (Join-Path $root "MariaDB Server*\bin\mysql.exe")
+        $patterns += (Join-Path $root "MySQL\MySQL Server *\bin\mysql.exe")
+        $patterns += (Join-Path $root "MySQL Server *\bin\mysql.exe")
+        $patterns += (Join-Path $root "mysql*\bin\mysql.exe")
+        $patterns += (Join-Path $root "MariaDB.Server_*\MariaDB*\bin\mariadb.exe")
+        $patterns += (Join-Path $root "MariaDB.Server_*\MariaDB*\bin\mysql.exe")
+        $patterns += (Join-Path $root "mariadb\current\bin\mariadb.exe")
+        $patterns += (Join-Path $root "mariadb\current\bin\mysql.exe")
+        $patterns += (Join-Path $root "mysql\current\bin\mysql.exe")
+        $patterns += (Join-Path $root "chocolatey\lib\mariadb\tools\*\bin\mariadb.exe")
+        $patterns += (Join-Path $root "chocolatey\lib\mysql\tools\*\bin\mysql.exe")
+    }
+
+    foreach ($pattern in ($patterns | Select-Object -Unique)) {
+        $matches = @(Get-ChildItem -Path $pattern -File -ErrorAction SilentlyContinue | Sort-Object LastWriteTimeUtc, FullName -Descending)
+        if ($matches.Count -gt 0) {
+            return $matches[0].FullName
+        }
+    }
+
+    foreach ($root in ($roots | Where-Object { Test-Path -LiteralPath $_ -PathType Container } | Select-Object -Unique)) {
+        foreach ($filter in @("MariaDB*", "MySQL*")) {
+            $directories = @(Get-ChildItem -LiteralPath $root -Directory -Filter $filter -ErrorAction SilentlyContinue | Sort-Object LastWriteTimeUtc, FullName -Descending)
+            foreach ($directory in $directories) {
+                $clientPath = Find-MySqlClientInDirectory -Directory $directory.FullName
+                if ($null -ne $clientPath) {
+                    return $clientPath
+                }
+            }
+        }
+    }
+
+    return $null
+}
+
 function Find-MySqlCommand {
+    $configured = Get-EnvValue "MYSQL_BIN"
+    $resolved = Resolve-CommandOrExistingFile -Candidate $configured
+    if ($null -ne $resolved) {
+        return $resolved
+    }
+
     $command = Find-OptionalCommand -Names @("mariadb.exe", "mysql.exe", "mariadb", "mysql")
     if ($null -ne $command) {
         return $command
     }
 
-    $roots = @()
-    if ($env:ProgramFiles) { $roots += $env:ProgramFiles }
-    if (${env:ProgramFiles(x86)}) { $roots += ${env:ProgramFiles(x86)} }
-    if ($env:ProgramW6432) { $roots += $env:ProgramW6432 }
-
-    $patterns = @()
-    foreach ($root in ($roots | Select-Object -Unique)) {
-        $patterns += (Join-Path $root "MariaDB*\bin\mariadb.exe")
-        $patterns += (Join-Path $root "MariaDB*\bin\mysql.exe")
-        $patterns += (Join-Path $root "MySQL\MySQL Server *\bin\mysql.exe")
+    $registryCommand = Find-MySqlCommandFromRegistry
+    if ($null -ne $registryCommand) {
+        return $registryCommand
     }
 
-    foreach ($pattern in ($patterns | Select-Object -Unique)) {
-        $matches = @(Get-ChildItem -Path $pattern -File -ErrorAction SilentlyContinue | Sort-Object FullName -Descending)
-        if ($matches.Count -gt 0) {
-            return $matches[0].FullName
-        }
+    $serviceCommand = Find-MySqlCommandFromService
+    if ($null -ne $serviceCommand) {
+        return $serviceCommand
+    }
+
+    $uninstallCommand = Find-MySqlCommandFromUninstallRegistry
+    if ($null -ne $uninstallCommand) {
+        return $uninstallCommand
+    }
+
+    $knownDirectoryCommand = Find-MySqlCommandFromKnownDirectories
+    if ($null -ne $knownDirectoryCommand) {
+        return $knownDirectoryCommand
     }
 
     return $null
@@ -258,6 +515,76 @@ function Find-MsBuildCommand {
     return $null
 }
 
+function Get-ManagedNuGetPath {
+    return (Join-Path (Join-Path (Get-EchoGateToolsRoot) $script:AetherManagedNuGet.DirectoryName) $script:AetherManagedNuGet.FileName)
+}
+
+function Find-NuGetCommand {
+    foreach ($envName in @("NUGET_EXE", "NUGET_BIN")) {
+        $configured = Get-EnvValue $envName
+        $resolved = Resolve-CommandOrExistingFile -Candidate $configured
+        if ($null -ne $resolved) {
+            return $resolved
+        }
+    }
+
+    $managedNuGet = Get-ManagedNuGetPath
+    if (Test-Path -LiteralPath $managedNuGet -PathType Leaf) {
+        return (Resolve-Path -LiteralPath $managedNuGet).Path
+    }
+
+    return (Find-OptionalCommand -Names @("nuget.exe", "nuget"))
+}
+
+function Install-ManagedNuGet {
+    param([switch]$Force)
+
+    $nuget = Get-ManagedNuGetPath
+    if ((Test-Path -LiteralPath $nuget -PathType Leaf) -and -not $Force) {
+        return (Resolve-Path -LiteralPath $nuget).Path
+    }
+
+    $nugetDir = Split-Path -Parent $nuget
+    New-Item -ItemType Directory -Force -Path $nugetDir | Out-Null
+
+    if ((Test-Path -LiteralPath $nuget -PathType Leaf) -and $Force) {
+        Remove-Item -LiteralPath $nuget -Force
+    }
+
+    Write-Host "Downloading NuGet from official distribution endpoint"
+    Write-Host "  $($script:AetherManagedNuGet.Url)"
+    Write-Host "  -> $nuget"
+    try {
+        [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+    } catch {
+    }
+    Invoke-WebRequest -Uri $script:AetherManagedNuGet.Url -OutFile $nuget
+
+    if (-not (Test-Path -LiteralPath $nuget -PathType Leaf)) {
+        throw "Managed NuGet download did not produce $nuget."
+    }
+
+    $signatureCommand = Get-Command Get-AuthenticodeSignature -ErrorAction SilentlyContinue
+    if ($null -ne $signatureCommand) {
+        $signature = Get-AuthenticodeSignature -LiteralPath $nuget
+        if ($signature.Status -ne "Valid") {
+            Remove-Item -LiteralPath $nuget -Force -ErrorAction SilentlyContinue
+            throw "Managed NuGet Authenticode signature is $($signature.Status), expected Valid."
+        }
+    }
+
+    return (Resolve-Path -LiteralPath $nuget).Path
+}
+
+function Get-NuGetCommand {
+    $nuget = Find-NuGetCommand
+    if ($null -ne $nuget) {
+        return $nuget
+    }
+
+    throw "NuGet was not found on PATH or in Echo Gate managed tools. Run tools\windows\install-prereqs.ps1 -Mode Build -Install, or set NUGET_EXE to the full nuget.exe path."
+}
+
 function Test-DotNetFramework472 {
     try {
         $release = Get-ItemPropertyValue -LiteralPath "HKLM:\SOFTWARE\Microsoft\NET Framework Setup\NDP\v4\Full" -Name Release -ErrorAction Stop
@@ -294,10 +621,145 @@ function Test-PhpMysqli {
     }
 
     try {
-        $modules = & $Php -m 2>$null
-        return ($modules -contains "mysqli")
+        $modules = @(& $Php -m 2>&1)
+        return ($modules | Where-Object { $_ -eq "mysqli" }).Count -gt 0
     } catch {
         return $false
+    }
+}
+
+function Get-PhpMysqliDiagnostics {
+    param([string]$Php)
+
+    if ([string]::IsNullOrEmpty($Php)) {
+        return [pscustomobject]@{
+            Php = ""
+            Ini = ""
+            ExtensionDir = ""
+            MysqliDll = ""
+            ModuleOutput = @("PHP was not found.")
+        }
+    }
+
+    $phpDir = Split-Path -Parent $Php
+    $ini = Get-PhpIniPath -Php $Php
+    $extensionDir = Join-Path $phpDir "ext"
+    if ($null -ne $ini -and (Test-Path -LiteralPath $ini -PathType Leaf)) {
+        foreach ($line in Get-Content -LiteralPath $ini) {
+            if ($line -match "^\s*extension_dir\s*=\s*`"?([^`"]+)`"?\s*$") {
+                $configured = $Matches[1].Trim()
+                if ([System.IO.Path]::IsPathRooted($configured)) {
+                    $extensionDir = $configured
+                } else {
+                    $extensionDir = Join-Path $phpDir $configured
+                }
+            }
+        }
+    }
+
+    $mysqliDll = Join-Path $extensionDir "php_mysqli.dll"
+    $moduleOutput = @()
+    try {
+        $moduleOutput = @(& $Php -m 2>&1)
+    } catch {
+        $moduleOutput = @($_.Exception.Message)
+    }
+
+    return [pscustomobject]@{
+        Php = $Php
+        Ini = $ini
+        ExtensionDir = $extensionDir
+        MysqliDll = $mysqliDll
+        ModuleOutput = $moduleOutput
+    }
+}
+
+function Get-PhpMysqliStatus {
+    param([string]$Php)
+
+    $diag = Get-PhpMysqliDiagnostics -Php $Php
+    $loaded = $false
+    foreach ($line in $diag.ModuleOutput) {
+        if ("$line" -eq "mysqli") {
+            $loaded = $true
+            break
+        }
+    }
+
+    $iniExists = (-not [string]::IsNullOrWhiteSpace($diag.Ini) -and (Test-Path -LiteralPath $diag.Ini -PathType Leaf))
+    $extensionDirExists = (-not [string]::IsNullOrWhiteSpace($diag.ExtensionDir) -and (Test-Path -LiteralPath $diag.ExtensionDir -PathType Container))
+    $mysqliDllExists = (-not [string]::IsNullOrWhiteSpace($diag.MysqliDll) -and (Test-Path -LiteralPath $diag.MysqliDll -PathType Leaf))
+    $iniHasMysqli = $false
+    $iniHasExtensionDir = $false
+
+    if ($iniExists) {
+        foreach ($line in Get-Content -LiteralPath $diag.Ini) {
+            if ($line -match "^\s*extension\s*=\s*(mysqli|php_mysqli\.dll)\s*$") {
+                $iniHasMysqli = $true
+            }
+            if ($line -match "^\s*extension_dir\s*=") {
+                $iniHasExtensionDir = $true
+            }
+        }
+    }
+
+    $loaderOutput = @($diag.ModuleOutput | Where-Object { "$_" -match "(?i)(mysqli|warning|error|unable|failed|dll|extension)" })
+    $reason = "mysqli is loaded."
+    if ([string]::IsNullOrEmpty($Php)) {
+        $reason = "php.exe was not found."
+    } elseif (-not $iniExists) {
+        $reason = "php.ini was not found or loaded."
+    } elseif (-not $extensionDirExists) {
+        $reason = "extension_dir does not exist."
+    } elseif (-not $mysqliDllExists) {
+        $reason = "php_mysqli.dll is missing from extension_dir."
+    } elseif (-not $iniHasExtensionDir) {
+        $reason = "php.ini does not define extension_dir."
+    } elseif (-not $iniHasMysqli) {
+        $reason = "php.ini does not enable extension=mysqli."
+    } elseif (-not $loaded -and $loaderOutput.Count -gt 0) {
+        $reason = "PHP reported a loader error for mysqli."
+    } elseif (-not $loaded) {
+        $reason = "php_mysqli.dll is present and php.ini enables it, but php -m did not list mysqli."
+    }
+
+    return [pscustomobject]@{
+        Loaded = $loaded
+        Reason = $reason
+        Php = $diag.Php
+        Ini = $diag.Ini
+        IniExists = $iniExists
+        ExtensionDir = $diag.ExtensionDir
+        ExtensionDirExists = $extensionDirExists
+        MysqliDll = $diag.MysqliDll
+        MysqliDllExists = $mysqliDllExists
+        IniHasMysqli = $iniHasMysqli
+        IniHasExtensionDir = $iniHasExtensionDir
+        LoaderOutput = $loaderOutput
+    }
+}
+
+function Write-PhpMysqliDiagnostics {
+    param([string]$Php)
+
+    $status = Get-PhpMysqliStatus -Php $Php
+    Write-Host "  php.exe:                 $($status.Php)"
+    Write-Host "  php.ini:                 $($status.Ini)"
+    Write-Host "  php.ini exists:          $($status.IniExists)"
+    Write-Host "  extension_dir:           $($status.ExtensionDir)"
+    Write-Host "  extension_dir exists:    $($status.ExtensionDirExists)"
+    Write-Host "  extension=mysqli in ini: $($status.IniHasMysqli)"
+    Write-Host "  extension_dir in ini:    $($status.IniHasExtensionDir)"
+    Write-Host "  php_mysqli.dll:          $($status.MysqliDll)"
+    Write-Host "  php_mysqli.dll exists:   $($status.MysqliDllExists)"
+    Write-Host "  php -m lists mysqli:     $($status.Loaded)"
+    Write-Host "  result:                  $($status.Reason)"
+
+    if ($status.LoaderOutput.Count -gt 0) {
+        Write-Host "  PHP loader output:"
+        foreach ($line in $status.LoaderOutput) {
+            Write-Host "    $line"
+        }
     }
 }
 
@@ -363,25 +825,41 @@ function Enable-PhpMysqli {
         throw "Could not find or create php.ini next to '$php'."
     }
 
+    $extensionDir = Join-Path $phpDir "ext"
+    if (-not (Test-Path -LiteralPath $extensionDir -PathType Container)) {
+        throw "PHP extension directory was not found: $extensionDir"
+    }
+    $extensionDirForIni = $extensionDir.Replace("\", "/")
+    $mysqliDll = Join-Path $extensionDir "php_mysqli.dll"
+    if (-not (Test-Path -LiteralPath $mysqliDll -PathType Leaf)) {
+        Write-Warning "php_mysqli.dll was not found at $mysqliDll."
+    }
+
     $lines = @(Get-Content -LiteralPath $ini)
     $updated = New-Object System.Collections.Generic.List[string]
     $hasMysqli = $false
     $hasExtensionDir = $false
 
     foreach ($line in $lines) {
-        if ($line -match "^\s*;?\s*extension\s*=\s*mysqli\s*$") {
+        if ($line -match "^\s*;?\s*extension\s*=\s*(mysqli|php_mysqli\.dll)\s*$") {
             $updated.Add("extension=mysqli")
             $hasMysqli = $true
             continue
         }
 
-        if ($line -match "^\s*;?\s*extension_dir\s*=\s*`"?ext`"?\s*$") {
-            $updated.Add('extension_dir = "ext"')
-            $hasExtensionDir = $true
+        if ($line -match "^\s*;?\s*extension_dir\s*=") {
+            if (-not $hasExtensionDir) {
+                $updated.Add("extension_dir = `"$extensionDirForIni`"")
+                $hasExtensionDir = $true
+            } elseif ($line -match "^\s*extension_dir\s*=") {
+                $updated.Add("; $line")
+            } else {
+                $updated.Add($line)
+            }
             continue
         }
 
-        if ($line -match "^\s*extension\s*=\s*mysqli\s*$") {
+        if ($line -match "^\s*extension\s*=\s*(mysqli|php_mysqli\.dll)\s*$") {
             $hasMysqli = $true
         }
         if ($line -match "^\s*extension_dir\s*=") {
@@ -391,8 +869,8 @@ function Enable-PhpMysqli {
         $updated.Add($line)
     }
 
-    if (-not $hasExtensionDir -and (Test-Path -LiteralPath (Join-Path $phpDir "ext"))) {
-        $updated.Add('extension_dir = "ext"')
+    if (-not $hasExtensionDir) {
+        $updated.Add("extension_dir = `"$extensionDirForIni`"")
     }
     if (-not $hasMysqli) {
         $updated.Add("extension=mysqli")
@@ -401,14 +879,21 @@ function Enable-PhpMysqli {
     Set-Content -LiteralPath $ini -Value $updated -Encoding ASCII
     Write-Host "Enabled PHP mysqli extension in $ini"
 
-    return (Test-PhpMysqli -Php $php)
+    $enabled = Test-PhpMysqli -Php $php
+    if (-not $enabled) {
+        Write-PhpMysqliDiagnostics -Php $php
+    }
+
+    return $enabled
 }
 
 function Install-ManagedPhp {
+    param([switch]$Force)
+
     $toolsRoot = Get-EchoGateToolsRoot
     $installRoot = Join-Path $toolsRoot $script:MeteorManagedPhp.DirectoryName
     $php = Join-Path $installRoot "php.exe"
-    if (Test-Path -LiteralPath $php) {
+    if ((Test-Path -LiteralPath $php) -and -not $Force) {
         [void](Enable-PhpMysqli -Php $php)
         return (Resolve-Path -LiteralPath $php).Path
     }
@@ -418,6 +903,10 @@ function Install-ManagedPhp {
     New-Item -ItemType Directory -Force -Path $toolsRoot | Out-Null
 
     $archive = Join-Path $cacheRoot "$($script:MeteorManagedPhp.DirectoryName).zip"
+    if ($Force -and (Test-Path -LiteralPath $archive -PathType Leaf)) {
+        Remove-Item -LiteralPath $archive -Force
+    }
+
     $needsDownload = $true
     if (Test-Path -LiteralPath $archive) {
         $existingHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $archive).Hash.ToLowerInvariant()
@@ -425,7 +914,9 @@ function Install-ManagedPhp {
     }
 
     if ($needsDownload) {
-        Write-Host "Downloading managed PHP $($script:MeteorManagedPhp.Version)"
+        Write-Host "Downloading managed PHP $($script:MeteorManagedPhp.Version) from official Windows PHP archive"
+        Write-Host "  $($script:MeteorManagedPhp.Url)"
+        Write-Host "  -> $archive"
         Invoke-WebRequest -Uri $script:MeteorManagedPhp.Url -OutFile $archive
     }
 
@@ -495,11 +986,11 @@ function Join-ProcessArguments {
 function Get-MySqlCommand {
     $configured = Get-EnvValue "MYSQL_BIN"
     if (-not [string]::IsNullOrEmpty($configured)) {
-        $command = Get-Command $configured -ErrorAction SilentlyContinue
-        if ($null -eq $command) {
+        $resolved = Resolve-CommandOrExistingFile -Candidate $configured
+        if ($null -eq $resolved) {
             throw "MYSQL_BIN is set to '$configured', but that command was not found."
         }
-        return $command.Source
+        return $resolved
     }
 
     $command = Find-MySqlCommand
@@ -507,7 +998,7 @@ function Get-MySqlCommand {
         return $command
     }
 
-    throw "MariaDB/MySQL client was not found on PATH or in common Program Files install folders. Install MariaDB/MySQL, open a new PowerShell window, or set MYSQL_BIN to the full client path."
+    throw "MariaDB/MySQL client was not found on PATH, in common install folders, registry entries, WinGet/Scoop/Chocolatey package folders, or next to an installed MariaDB/MySQL Windows service. Install MariaDB/MySQL, open a new PowerShell window, run tools\windows\diagnose-mariadb.ps1, or set MYSQL_BIN to the full mariadb.exe/mysql.exe path."
 }
 
 function Get-PhpCommand {

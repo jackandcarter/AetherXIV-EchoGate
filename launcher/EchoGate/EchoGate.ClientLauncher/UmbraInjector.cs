@@ -89,6 +89,10 @@ internal static class UmbraInjector
         Environment.SetEnvironmentVariable("AETHER_UMBRA_LOAD_DELAY_MS", options.LoadDelayMilliseconds.ToString());
         Environment.SetEnvironmentVariable("AETHER_UMBRA_REPOSITORY_URLS", string.Join(";", options.RepositoryUrls));
         Environment.SetEnvironmentVariable("AETHER_UMBRA_REPOSITORIES_JSON", options.RepositoriesJson);
+        if (options.EnableManagedOnWine)
+            Environment.SetEnvironmentVariable("AETHER_UMBRA_ENABLE_MANAGED_ON_WINE", "1");
+        else
+            Environment.SetEnvironmentVariable("AETHER_UMBRA_ENABLE_MANAGED_ON_WINE", null);
     }
 
     private static string UmbraCacheDirectoryFor(string pluginDirectory)

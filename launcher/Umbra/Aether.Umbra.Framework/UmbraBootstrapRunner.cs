@@ -2,9 +2,9 @@ namespace Aether.Umbra.Framework;
 
 public static class UmbraBootstrapRunner
 {
-    public static async Task<int> RunFromEnvironmentAsync()
+    public static async Task<int> RunFromEnvironmentAsync(string? explicitLogPath = null)
     {
-        UmbraRuntimeOptions options = UmbraRuntimeOptions.FromEnvironment();
+        UmbraRuntimeOptions options = UmbraRuntimeOptions.FromEnvironment(explicitLogPath);
         UmbraRuntimeLog log = UmbraRuntimeLog.Open(options.LogPath);
         try
         {

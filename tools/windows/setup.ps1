@@ -16,7 +16,9 @@ param(
     [switch]$StartLocalStack,
     [switch]$SkipWeb,
     [int]$StartupTimeoutSeconds = 45,
-    [switch]$NoElevate
+    [switch]$NoElevate,
+    [switch]$NoSetupLog,
+    [switch]$RefreshManagedTools
 )
 
 . "$PSScriptRoot\common.ps1"
@@ -35,6 +37,8 @@ if ($InstallMissing -and -not $NoElevate -and -not (Test-WindowsAdministrator) -
     if ($SkipLauncher) { $forwarded += "-SkipLauncher" }
     if ($StartLocalStack) { $forwarded += "-StartLocalStack" }
     if ($SkipWeb) { $forwarded += "-SkipWeb" }
+    if ($NoSetupLog) { $forwarded += "-NoSetupLog" }
+    if ($RefreshManagedTools) { $forwarded += "-RefreshManagedTools" }
     $forwarded += @("-StartupTimeoutSeconds", "$StartupTimeoutSeconds")
 
     Write-Host "Requesting administrator permission for Windows prerequisite setup..."
@@ -42,52 +46,78 @@ if ($InstallMissing -and -not $NoElevate -and -not (Test-WindowsAdministrator) -
     return
 }
 
-Write-Host "Echo Gate Windows setup"
-Write-Host "Mode: $Mode"
-if ($Mode -ne "Run") { Write-Host "Runtime: $Runtime" }
-Write-Host
-
-& "$PSScriptRoot\install-prereqs.ps1" -Mode $Mode -Install:$InstallMissing -Yes:$Yes
-
-if (-not $SkipDatabase) {
-    & "$PSScriptRoot\setup-local-db.ps1"
+$setupTranscriptStarted = $false
+$setupLogPath = $null
+if (-not $NoSetupLog) {
+    try {
+        $setupLogDir = Join-Path (Get-EchoGateDataRoot) "Logs"
+        New-Item -ItemType Directory -Force -Path $setupLogDir | Out-Null
+        $setupLogPath = Join-Path $setupLogDir ("windows-setup-{0:yyyyMMdd-HHmmss}.log" -f (Get-Date))
+        Start-Transcript -LiteralPath $setupLogPath -Append | Out-Null
+        $setupTranscriptStarted = $true
+        Write-Host "Setup log: $setupLogPath"
+    } catch {
+        Write-Warning "Could not start setup transcript: $($_.Exception.Message)"
+    }
 }
 
-if ($Mode -ne "Run" -and -not $SkipBuild) {
-    & "$PSScriptRoot\build-legacy.ps1" -Configuration $Configuration
-}
+try {
+    Write-Host "Echo Gate Windows setup"
+    Write-Host "Mode: $Mode"
+    if ($Mode -ne "Run") { Write-Host "Runtime: $Runtime" }
+    Write-Host
 
-if (-not $SkipRuntimeData) {
-    $copyArgs = @("-Configuration", $Configuration)
-    if ($ClientDir -ne "") { $copyArgs += @("-ClientDir", $ClientDir) }
-    & "$PSScriptRoot\copy-runtime-data.ps1" @copyArgs
-}
+    & "$PSScriptRoot\install-prereqs.ps1" -Mode $Mode -Install:$InstallMissing -Yes:$Yes -RefreshManagedTools:$RefreshManagedTools
 
-if ($Mode -ne "Run" -and -not $SkipLauncher) {
-    & "$PSScriptRoot\build-echo-gate.ps1" -Runtime $Runtime -Configuration $Configuration
-}
+    if (-not $SkipDatabase) {
+        & "$PSScriptRoot\setup-local-db.ps1"
+    }
 
-if (-not $SkipSmoke) {
-    $smokeArgs = @("-Configuration", $Configuration)
-    if ($AllowMissingStaticActors) { $smokeArgs += "-AllowMissingStaticActors" }
-    if ($Mode -ne "Run") { $smokeArgs += "-BuildTools" }
-    & "$PSScriptRoot\smoke-local.ps1" @smokeArgs
-}
+    if ($Mode -ne "Run" -and -not $SkipBuild) {
+        & "$PSScriptRoot\build-legacy.ps1" -Configuration $Configuration
+    }
 
-Write-Host
-& "$PSScriptRoot\doctor.ps1" -Configuration $Configuration -ClientDir $ClientDir -AllowMissingStaticActors:$AllowMissingStaticActors -BuildTools:($Mode -ne "Run")
+    if (-not $SkipRuntimeData) {
+        $copyArgs = @("-Configuration", $Configuration)
+        if ($ClientDir -ne "") { $copyArgs += @("-ClientDir", $ClientDir) }
+        & "$PSScriptRoot\copy-runtime-data.ps1" @copyArgs
+    }
 
-Write-Host
-Write-Host "Windows setup complete."
-Write-Host "Setup did not start the launcher web service or game servers."
-Write-Host "To start a local self-hosted stack:"
-Write-Host "  .\tools\windows\run-local-stack.ps1"
-Write-Host "To start only game services without the local launcher web service:"
-Write-Host "  .\tools\windows\run-local-stack.ps1 -SkipWeb"
+    if ($Mode -ne "Run" -and -not $SkipLauncher) {
+        & "$PSScriptRoot\build-echo-gate.ps1" -Runtime $Runtime -Configuration $Configuration
+    }
 
-if ($StartLocalStack) {
-    $stackArgs = @("-Configuration", $Configuration, "-StartupTimeoutSeconds", "$StartupTimeoutSeconds")
-    if ($SkipWeb) { $stackArgs += "-SkipWeb" }
-    if ($ClientDir -ne "") { $stackArgs += @("-ClientDir", $ClientDir) }
-    & "$PSScriptRoot\run-local-stack.ps1" @stackArgs
+    if (-not $SkipSmoke) {
+        $smokeArgs = @("-Configuration", $Configuration)
+        if ($AllowMissingStaticActors) { $smokeArgs += "-AllowMissingStaticActors" }
+        if ($Mode -ne "Run") { $smokeArgs += "-BuildTools" }
+        & "$PSScriptRoot\smoke-local.ps1" @smokeArgs
+    }
+
+    Write-Host
+    & "$PSScriptRoot\doctor.ps1" -Configuration $Configuration -ClientDir $ClientDir -AllowMissingStaticActors:$AllowMissingStaticActors -BuildTools:($Mode -ne "Run")
+
+    Write-Host
+    Write-Host "Windows setup complete."
+    Write-Host "Setup did not start the launcher web service or game servers."
+    Write-Host "To start a local self-hosted stack:"
+    Write-Host "  .\tools\windows\run-local-stack.ps1"
+    Write-Host "To start only game services without the local launcher web service:"
+    Write-Host "  .\tools\windows\run-local-stack.ps1 -SkipWeb"
+
+    if ($StartLocalStack) {
+        $stackArgs = @("-Configuration", $Configuration, "-StartupTimeoutSeconds", "$StartupTimeoutSeconds")
+        if ($SkipWeb) { $stackArgs += "-SkipWeb" }
+        if ($ClientDir -ne "") { $stackArgs += @("-ClientDir", $ClientDir) }
+        & "$PSScriptRoot\run-local-stack.ps1" @stackArgs
+    }
+} finally {
+    if ($setupTranscriptStarted) {
+        Write-Host
+        Write-Host "Setup log saved: $setupLogPath"
+        try {
+            Stop-Transcript | Out-Null
+        } catch {
+        }
+    }
 }

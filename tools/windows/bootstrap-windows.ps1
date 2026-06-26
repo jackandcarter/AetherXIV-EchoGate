@@ -7,7 +7,8 @@ param(
     [switch]$SkipDatabase,
     [switch]$SkipLauncher,
     [switch]$InstallMissing,
-    [switch]$Yes
+    [switch]$Yes,
+    [switch]$RefreshManagedTools
 )
 
 . "$PSScriptRoot\common.ps1"
@@ -19,6 +20,7 @@ if ($SkipDatabase) { $setupArgs += "-SkipDatabase" }
 if ($SkipLauncher) { $setupArgs += "-SkipLauncher" }
 if ($InstallMissing) { $setupArgs += "-InstallMissing" }
 if ($Yes) { $setupArgs += "-Yes" }
+if ($RefreshManagedTools) { $setupArgs += "-RefreshManagedTools" }
 
 Write-Host "bootstrap-windows.ps1 is a compatibility wrapper. New users should run tools\windows\setup.ps1 -Mode Build."
 & "$PSScriptRoot\setup.ps1" @setupArgs

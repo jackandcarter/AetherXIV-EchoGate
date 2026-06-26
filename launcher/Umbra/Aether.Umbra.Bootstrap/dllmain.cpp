@@ -2610,8 +2610,13 @@ namespace
             return false;
         }
 
+        wchar_t managedLogPath[BufferChars]{};
+        GetUmbraEnvironmentValue(L"LOG", managedLogPath, BufferChars);
+        AppendLogValue(log, L"umbra_coreclr_managed_log_arg", managedLogPath);
         AppendLogLiteral(log, L"umbra_coreclr_in_process_start=true");
-        int managedResult = reinterpret_cast<coreclr_bootstrap_fn>(entryPoint)(nullptr, 0);
+        int managedResult = reinterpret_cast<coreclr_bootstrap_fn>(entryPoint)(
+            managedLogPath,
+            static_cast<int>((StringLength(managedLogPath) + 1) * sizeof(wchar_t)));
         AppendLogUInt(log, L"umbra_coreclr_in_process_result", static_cast<unsigned long>(managedResult));
 
         HeapFree(heap, 0, trustedPlatformAssemblies);

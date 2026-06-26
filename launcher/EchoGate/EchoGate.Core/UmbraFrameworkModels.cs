@@ -8,7 +8,9 @@ public sealed record UmbraFrameworkCatalog(
 {
     public UmbraFrameworkArtifact? SelectDefault(string? gameSha256 = null)
     {
-        IEnumerable<UmbraFrameworkArtifact> candidates = Artifacts.Where(artifact => artifact.IsActive);
+        IEnumerable<UmbraFrameworkArtifact> candidates = Artifacts.Where(artifact =>
+            artifact.IsActive
+            && artifact.UsesAetherEntrypoints);
         if (!string.IsNullOrWhiteSpace(gameSha256))
         {
             candidates = candidates.Where(artifact =>
@@ -41,6 +43,11 @@ public sealed record UmbraFrameworkArtifact(
 {
     public string StableId => RuntimeInstallStore.SanitizePathSegment(
         $"{PlatformRid}-{Name}-{Version}-{ShortArchiveHash}");
+
+    public bool UsesAetherEntrypoints =>
+        string.Equals(Path.GetFileName(BootstrapRelativePath), "Aether.Umbra.Bootstrap.x86.dll", StringComparison.OrdinalIgnoreCase)
+        && (string.Equals(Path.GetFileName(FrameworkRelativePath), "Aether.Umbra.Framework.dll", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(Path.GetFileName(FrameworkRelativePath), "Aether.Umbra.Framework.exe", StringComparison.OrdinalIgnoreCase));
 
     private string ShortArchiveHash => string.IsNullOrWhiteSpace(Sha256)
         ? "nohash"

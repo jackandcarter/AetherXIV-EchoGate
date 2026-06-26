@@ -42,13 +42,15 @@ Set-ExecutionPolicy -Scope Process Bypass
 
 `-InstallMissing` asks Windows for administrator permission when needed. The setup script installs/verifies prerequisites, prepares the database, prepares local client-derived runtime data, runs smoke checks, and writes an environment report to Echo Gate app data. It does not move or copy your client install folder.
 
+Setup transcripts are saved automatically under `%APPDATA%\Demi Dev Unit\Echo Gate\Logs\windows-setup-*.log`. The final machine/setup report is written to `%APPDATA%\Demi Dev Unit\Echo Gate\setup-state.json`.
+
 If you only want to inspect the machine without installing anything:
 
 ```powershell
 .\tools\windows\doctor.ps1 -ClientDir "C:\Path\To\FINAL FANTASY XIV"
 ```
 
-The setup uses `winget` where it is reliable, installs Echo Gate's managed PHP from the official Windows PHP build when PHP is missing, verifies the PHP zip checksum, refreshes `PATH` for the current PowerShell process, and enables PHP `mysqli` automatically.
+The setup uses `winget` where it is reliable, installs Echo Gate's managed PHP from the official Windows PHP build when PHP is missing, verifies the PHP zip checksum, refreshes `PATH` for the current PowerShell process, and enables PHP `mysqli` automatically. Source builds also fall back to a managed `nuget.exe` under Echo Gate app data when NuGet is not available on `PATH`.
 
 The default local database settings are:
 
@@ -59,7 +61,7 @@ password: aether_dev
 hosts: localhost, 127.0.0.1
 ```
 
-The setup script asks for your MariaDB admin password so it can create the database, import `Data/sql/*.sql`, grant the local app user access, prepare runtime data, and run a smoke check. Leaving the prompt blank is fine only if your MariaDB root/admin account has no password.
+The setup script asks for your MariaDB admin password so it can create the database, import `Data/sql/*.sql`, grant the local app user access, prepare runtime data, and run a smoke check. There is no AetherXIV default for the MariaDB admin password; it belongs to your local MariaDB install. Try a blank password only if the MariaDB installer never asked you to set one. If that is wrong, setup lets you retry the admin username and password without restarting.
 
 5. Start the local hosting stack.
 
@@ -185,7 +187,7 @@ Check release/runtime prerequisites:
 .\tools\windows\install-prereqs.ps1 -Mode Run
 ```
 
-Install missing release/runtime prerequisites with `winget`:
+Install missing release/runtime prerequisites:
 
 ```powershell
 .\tools\windows\install-prereqs.ps1 -Mode Run -Install
@@ -198,6 +200,12 @@ Check or install source-build prerequisites:
 .\tools\windows\install-prereqs.ps1 -Mode Build -Install
 ```
 
+Refresh Echo Gate managed tools, such as managed PHP and managed NuGet, from their official sources:
+
+```powershell
+.\tools\windows\install-prereqs.ps1 -Mode Build -Install -RefreshManagedTools
+```
+
 One-command release setup:
 
 ```powershell
@@ -208,6 +216,13 @@ Write a setup report without changing anything:
 
 ```powershell
 .\tools\windows\doctor.ps1 -ClientDir "C:\Path\To\FINAL FANTASY XIV"
+```
+
+Setup logs and reports:
+
+```text
+%APPDATA%\Demi Dev Unit\Echo Gate\Logs\windows-setup-*.log
+%APPDATA%\Demi Dev Unit\Echo Gate\setup-state.json
 ```
 
 Database only:
@@ -311,11 +326,44 @@ If `php mysqli` is missing, rerun:
 .\tools\windows\setup.ps1 -InstallMissing -ClientDir "C:\Path\To\FINAL FANTASY XIV"
 ```
 
-The setup script will try to create or update `php.ini` and enable `extension=mysqli`. If it still cannot repair PHP automatically, run `php --ini` and check the active `php.ini` manually.
+The setup script reports whether PHP was found, whether `php.ini` exists, whether `extension_dir` exists, whether `php_mysqli.dll` exists, whether `extension=mysqli` is enabled, and whether `php -m` actually lists `mysqli`. If repair is needed, it creates or updates `php.ini`, sets `extension_dir` to the detected PHP `ext` folder, and enables `extension=mysqli`.
 
-If `winget` says `No newer package versions are available` while installing MariaDB/MySQL, it usually means the package is already installed. Open a new PowerShell window and rerun the prerequisite check. If MariaDB/MySQL is still not detected, set `MYSQL_BIN` to the full path of `mariadb.exe` or `mysql.exe`.
+If NuGet is missing during a source build, rerun:
+
+```powershell
+.\tools\windows\install-prereqs.ps1 -Mode Build -Install
+```
+
+`build-legacy.ps1` also installs a managed `nuget.exe` automatically if NuGet is still not found.
+
+If `winget` says `No newer package versions are available` while installing MariaDB/MySQL, it usually means the package is already installed. Open a new PowerShell window and rerun the prerequisite check.
+
+If MariaDB/MySQL is still not detected, run the detector:
+
+```powershell
+.\tools\windows\diagnose-mariadb.ps1
+```
+
+If the detector prints a MariaDB client path, test the admin login manually:
+
+```powershell
+& "C:\Program Files\MariaDB 11.x\bin\mariadb.exe" -h localhost -P 3306 -u root -p
+```
+
+Then force setup to use that client in the current PowerShell window:
+
+```powershell
+$env:MYSQL_BIN = "C:\Program Files\MariaDB 11.x\bin\mariadb.exe"
+.\tools\windows\setup.ps1 -InstallMissing
+```
 
 If the database setup cannot connect, confirm MariaDB is running and rerun:
+
+```powershell
+.\tools\windows\setup-local-db.ps1 -AdminUser root
+```
+
+If the root/admin password is wrong, the script will offer another admin username and password prompt. For a fresh local MariaDB install that never asked for a password, try submitting a blank password first. If blank fails too, MariaDB likely has a password from a previous data directory or a silent installer setting. Reinstall or reset MariaDB with a known local root password, then rerun setup with:
 
 ```powershell
 .\tools\windows\setup-local-db.ps1 -AdminUser root
