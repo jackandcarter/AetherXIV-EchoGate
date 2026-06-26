@@ -61,7 +61,7 @@ password: aether_dev
 hosts: localhost, 127.0.0.1
 ```
 
-The setup script asks for your MariaDB admin password so it can create the database, import `Data/sql/*.sql`, grant the local app user access, prepare runtime data, and run a smoke check. There is no AetherXIV default for the MariaDB admin password; it belongs to your local MariaDB install. Try a blank password only if the MariaDB installer never asked you to set one. If that is wrong, setup lets you retry the admin username and password without restarting.
+The setup script asks for your MariaDB admin password before it imports any SQL. There is no AetherXIV default for the MariaDB admin password; it belongs to your local MariaDB install. Blank root passwords are uncommon on Windows, so setup requires a separate confirmation before trying a blank password. If the login is wrong, setup lets you retry the admin username and password without restarting.
 
 5. Start the local hosting stack.
 
@@ -328,7 +328,7 @@ If `php mysqli` is missing, rerun:
 .\tools\windows\setup.ps1 -InstallMissing -ClientDir "C:\Path\To\FINAL FANTASY XIV"
 ```
 
-The setup script reports whether PHP was found, whether `php.ini` exists, whether `extension_dir` exists, whether `php_mysqli.dll` exists, whether `extension=mysqli` is enabled, and whether `php -m` actually lists `mysqli`. If repair is needed, it creates or updates `php.ini`, sets `extension_dir` to the detected PHP `ext` folder, and enables `extension=mysqli`. If PHP still reports a loader error, setup prints the loader output. A message like `VCRUNTIME140.dll ... is not compatible with this PHP build` means the Microsoft Visual C++ x64 runtime is too old; rerun setup with `-InstallMissing` and let it install or repair the official Microsoft redistributable.
+The setup script reports whether PHP was found, whether `php.ini` exists, whether `extension_dir` exists, whether `php_mysqli.dll` exists, whether `extension=mysqli` is enabled, and whether `php -m` actually lists `mysqli`. If repair is needed, it creates or updates `php.ini`, sets `extension_dir` to the detected PHP `ext` folder, enables one `extension=mysqli` entry, and comments out duplicate active `mysqli` extension lines. If PHP still reports a loader error, setup prints the loader output. A message like `VCRUNTIME140.dll ... is not compatible with this PHP build` means the Microsoft Visual C++ x64 runtime is too old; rerun setup with `-InstallMissing` and let it install or repair the official Microsoft redistributable.
 
 If NuGet is missing during a source build, rerun:
 

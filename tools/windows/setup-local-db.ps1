@@ -17,12 +17,25 @@ if ($AdminPassword -ne "") { $db.AdminPass = $AdminPassword }
 function Read-MariaDbAdminPassword {
     param([string]$User)
 
-    $secure = Read-Host "MariaDB admin password for '$User' (leave blank if none)" -AsSecureString
-    $bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure)
-    try {
-        return [Runtime.InteropServices.Marshal]::PtrToStringBSTR($bstr)
-    } finally {
-        [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr)
+    while ($true) {
+        Write-Host "Enter the MariaDB admin password for '$User'."
+        Write-Host "Use the root password you chose during MariaDB setup. Blank passwords are uncommon on Windows."
+        $secure = Read-Host "Password" -AsSecureString
+        $bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure)
+        try {
+            $password = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($bstr)
+        } finally {
+            [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr)
+        }
+
+        if ($password -ne "") {
+            return $password
+        }
+
+        $blankConfirm = Read-Host "Use a blank MariaDB admin password for '$User'? [y/N]"
+        if ($blankConfirm -match "^(y|yes)$") {
+            return ""
+        }
     }
 }
 
@@ -76,7 +89,11 @@ Write-Host "DB client:   $mysql"
 Write-Host "             If MariaDB is installed but setup cannot find it, set MYSQL_BIN to this client path."
 Write-Host
 
-$adminPasswordKnown = ($db.AdminPass -ne "")
+$adminPasswordKnown = (
+    $PSBoundParameters.ContainsKey("AdminPassword") -or
+    (Get-EnvValue "DB_ADMIN_PASS" "") -ne "" -or
+    (Get-EnvValue "DB_PASS" "") -ne ""
+)
 while ($true) {
     if (-not $adminPasswordKnown) {
         Set-MariaDbAdminPassword -Password (Read-MariaDbAdminPassword -User $db.AdminUser)

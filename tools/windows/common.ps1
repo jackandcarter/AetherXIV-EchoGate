@@ -665,6 +665,58 @@ function ConvertTo-VersionOrNull {
     return $null
 }
 
+function Invoke-ProcessCapture {
+    param(
+        [Parameter(Mandatory = $true)][string]$FilePath,
+        [string[]]$Arguments = @(),
+        [string]$InputFile = ""
+    )
+
+    $processInfo = [System.Diagnostics.ProcessStartInfo]::new()
+    $processInfo.FileName = $FilePath
+    if ($processInfo.PSObject.Properties.Name -contains "ArgumentList") {
+        foreach ($arg in $Arguments) {
+            [void]$processInfo.ArgumentList.Add($arg)
+        }
+    } else {
+        $processInfo.Arguments = Join-ProcessArguments -Arguments $Arguments
+    }
+    $processInfo.UseShellExecute = $false
+    $processInfo.CreateNoWindow = $true
+    $processInfo.RedirectStandardOutput = $true
+    $processInfo.RedirectStandardError = $true
+    if ($InputFile -ne "") {
+        $processInfo.RedirectStandardInput = $true
+    }
+
+    $process = [System.Diagnostics.Process]::Start($processInfo)
+    try {
+        if ($InputFile -ne "") {
+            $fileStream = $null
+            try {
+                $fileStream = [System.IO.File]::OpenRead($InputFile)
+                $fileStream.CopyTo($process.StandardInput.BaseStream)
+            } finally {
+                if ($null -ne $fileStream) { $fileStream.Dispose() }
+                if ($null -ne $process.StandardInput) { $process.StandardInput.Close() }
+            }
+        }
+
+        $stdout = $process.StandardOutput.ReadToEnd()
+        $stderr = $process.StandardError.ReadToEnd()
+        $process.WaitForExit()
+        return [pscustomobject]@{
+            ExitCode = $process.ExitCode
+            Stdout = $stdout
+            Stderr = $stderr
+        }
+    } finally {
+        if ($null -ne $process) {
+            $process.Dispose()
+        }
+    }
+}
+
 function Test-VcRedistX64 {
     $status = Get-VcRedistX64Status
     return $status.Ok
@@ -816,7 +868,8 @@ function Test-PhpMysqli {
     }
 
     try {
-        $modules = @(& $Php -m 2>&1)
+        $result = Invoke-ProcessCapture -FilePath $Php -Arguments @("-m")
+        $modules = @($result.Stdout -split "`r?`n")
         return ($modules | Where-Object { $_ -eq "mysqli" }).Count -gt 0
     } catch {
         return $false
@@ -855,7 +908,14 @@ function Get-PhpMysqliDiagnostics {
     $mysqliDll = Join-Path $extensionDir "php_mysqli.dll"
     $moduleOutput = @()
     try {
-        $moduleOutput = @(& $Php -m 2>&1)
+        $result = Invoke-ProcessCapture -FilePath $Php -Arguments @("-m")
+        $moduleOutput = @()
+        if (-not [string]::IsNullOrWhiteSpace($result.Stdout)) {
+            $moduleOutput += ($result.Stdout.Trim() -split "`r?`n")
+        }
+        if (-not [string]::IsNullOrWhiteSpace($result.Stderr)) {
+            $moduleOutput += ($result.Stderr.Trim() -split "`r?`n")
+        }
     } catch {
         $moduleOutput = @($_.Exception.Message)
     }
@@ -966,7 +1026,8 @@ function Get-PhpIniPath {
     }
 
     try {
-        $iniOutput = & $Php --ini 2>$null
+        $result = Invoke-ProcessCapture -FilePath $Php -Arguments @("--ini")
+        $iniOutput = @($result.Stdout -split "`r?`n")
         foreach ($line in $iniOutput) {
             if ($line -match "^\s*Loaded Configuration File:\s*(.+)\s*$") {
                 $candidate = $Matches[1].Trim()
@@ -1037,8 +1098,14 @@ function Enable-PhpMysqli {
 
     foreach ($line in $lines) {
         if ($line -match "^\s*;?\s*extension\s*=\s*(mysqli|php_mysqli\.dll)\s*$") {
-            $updated.Add("extension=mysqli")
-            $hasMysqli = $true
+            if (-not $hasMysqli) {
+                $updated.Add("extension=mysqli")
+                $hasMysqli = $true
+            } elseif ($line -match "^\s*extension\s*=") {
+                $updated.Add("; duplicate disabled by AetherXIV setup: $line")
+            } else {
+                $updated.Add($line)
+            }
             continue
         }
 
@@ -1054,9 +1121,6 @@ function Enable-PhpMysqli {
             continue
         }
 
-        if ($line -match "^\s*extension\s*=\s*(mysqli|php_mysqli\.dll)\s*$") {
-            $hasMysqli = $true
-        }
         if ($line -match "^\s*extension_dir\s*=") {
             $hasExtensionDir = $true
         }
@@ -1256,46 +1320,28 @@ function Invoke-MySql {
         $args += @("-e", $Sql)
     }
 
-    if ($InputFile -ne "") {
-        $processInfo = [System.Diagnostics.ProcessStartInfo]::new()
-        $processInfo.FileName = $MySql
-        if ($processInfo.PSObject.Properties.Name -contains "ArgumentList") {
-            foreach ($arg in $args) {
-                [void]$processInfo.ArgumentList.Add($arg)
-            }
-        } else {
-            $processInfo.Arguments = Join-ProcessArguments -Arguments $args
-        }
-        $processInfo.UseShellExecute = $false
-        $processInfo.RedirectStandardInput = $true
+    $result = Invoke-ProcessCapture -FilePath $MySql -Arguments $args -InputFile $InputFile
 
-        $process = [System.Diagnostics.Process]::Start($processInfo)
-        $exitCode = $null
-        try {
-            $fileStream = [System.IO.File]::OpenRead($InputFile)
-            try {
-                $fileStream.CopyTo($process.StandardInput.BaseStream)
-            } finally {
-                $fileStream.Dispose()
-                $process.StandardInput.Close()
-            }
-            $process.WaitForExit()
-            $exitCode = $process.ExitCode
-        } finally {
-            if ($null -ne $process) {
-                $process.Dispose()
-            }
+    if ($result.ExitCode -ne 0) {
+        $detailLines = @()
+        if (-not [string]::IsNullOrWhiteSpace($result.Stderr)) {
+            $detailLines += ($result.Stderr.Trim() -split "`r?`n")
         }
+        if (-not [string]::IsNullOrWhiteSpace($result.Stdout)) {
+            $detailLines += ($result.Stdout.Trim() -split "`r?`n")
+        }
+        $detail = ($detailLines | Select-Object -First 8) -join " "
+        if ($detail -ne "") {
+            throw "MariaDB/MySQL command failed with exit code $($result.ExitCode). $detail"
+        }
+        throw "MariaDB/MySQL command failed with exit code $($result.ExitCode)."
+    }
 
-        if ($exitCode -ne 0) {
-            throw "MariaDB/MySQL command failed with exit code $exitCode."
-        }
-    } else {
-        & $MySql @args
-
-        if ($LASTEXITCODE -ne 0) {
-            throw "MariaDB/MySQL command failed with exit code $LASTEXITCODE."
-        }
+    if (-not [string]::IsNullOrWhiteSpace($result.Stderr)) {
+        Write-Warning $result.Stderr.Trim()
+    }
+    if (-not [string]::IsNullOrWhiteSpace($result.Stdout)) {
+        Write-Output $result.Stdout.TrimEnd()
     }
 }
 
