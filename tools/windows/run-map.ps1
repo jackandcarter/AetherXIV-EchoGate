@@ -1,6 +1,8 @@
 param(
     [string]$Configuration = "Release",
-    [string]$ReadyFile = ""
+    [string]$ReadyFile = "",
+    [string]$ClientDir = "",
+    [switch]$NoPrepareRuntimeData
 )
 . "$PSScriptRoot\common.ps1"
 $root = Get-MeteorRoot
@@ -11,6 +13,16 @@ $mapPort = Get-EnvValue "MAP_PORT" "1989"
 $resolved = Resolve-ServerExecutable -RootDir $root -ServerName "Map Server" -Configuration $Configuration
 $dir = $resolved.Directory
 $exe = $resolved.Path
+
+$runtimeStaticActors = Join-Path $dir "staticactors.bin"
+$runtimeScriptProbe = Join-Path $dir "scripts\effects\default.lua"
+if (-not $NoPrepareRuntimeData -and (-not (Test-Path -LiteralPath $runtimeStaticActors -PathType Leaf) -or -not (Test-Path -LiteralPath $runtimeScriptProbe -PathType Leaf))) {
+    Write-Host "Map runtime data is incomplete; copying configs, scripts, and static actor data."
+    $copyArgs = @("-Configuration", $Configuration)
+    if ($ClientDir -ne "") { $copyArgs += @("-ClientDir", $ClientDir) }
+    & "$PSScriptRoot\copy-runtime-data.ps1" @copyArgs
+}
+
 $previousAetherReadyFile = $env:AETHER_READY_FILE
 $previousReadyFile = $env:METEOR_READY_FILE
 if ($ReadyFile -ne "") { $env:AETHER_READY_FILE = $ReadyFile; $env:METEOR_READY_FILE = $ReadyFile }

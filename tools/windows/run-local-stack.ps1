@@ -155,7 +155,9 @@ try {
     Start-StackScript -ScriptName "run-lobby.ps1" -Arguments @("-Configuration", $Configuration, "-ReadyFile", $lobbyReady)
     Wait-ForReadyFile -Name "lobby server" -ReadyFile $lobbyReady -TimeoutSeconds $StartupTimeoutSeconds
 
-    Start-StackScript -ScriptName "run-map.ps1" -Arguments @("-Configuration", $Configuration, "-ReadyFile", $mapReady)
+    $mapArgs = @("-Configuration", $Configuration, "-ReadyFile", $mapReady)
+    if ($ClientDir -ne "") { $mapArgs += @("-ClientDir", $ClientDir) }
+    Start-StackScript -ScriptName "run-map.ps1" -Arguments $mapArgs
     Wait-ForReadyFile -Name "map server" -ReadyFile $mapReady -TimeoutSeconds $StartupTimeoutSeconds
 
     Start-StackScript -ScriptName "run-world.ps1" -Arguments @("-Configuration", $Configuration, "-ReadyFile", $worldReady)

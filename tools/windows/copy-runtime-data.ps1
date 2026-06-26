@@ -30,7 +30,7 @@ Write-Host "Runtime database configs use $($db.AppUser)@$($db.AppHost):$($db.App
 
 $staticActors = Join-Path $root "Data\staticactors.bin"
 if (-not (Test-Path -LiteralPath $staticActors) -and -not $NoPrepareStaticActors) {
-    $args = @()
+    $args = @("-Configuration", $Configuration)
     if ($ClientDir -ne "") { $args += @("-ClientDir", $ClientDir) }
     try {
         & "$PSScriptRoot\prepare-client-data.ps1" @args

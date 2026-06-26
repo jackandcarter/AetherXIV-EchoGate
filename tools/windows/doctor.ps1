@@ -136,6 +136,27 @@ if (Test-Path -LiteralPath $localStaticActors) {
     Add-Check "Data staticactors.bin" "missing" "Run copy-runtime-data.ps1 after selecting the client path." | Out-Null
 }
 
+try {
+    $mapDir = Resolve-ServerDirectory -RootDir $root -ServerName "Map Server" -Configuration $Configuration
+    $mapStaticActors = Join-Path $mapDir "staticactors.bin"
+    if (Test-Path -LiteralPath $mapStaticActors -PathType Leaf) {
+        Add-Check "Map runtime staticactors.bin" "ok" $mapStaticActors | Out-Null
+    } elseif ($AllowMissingStaticActors) {
+        Add-Check "Map runtime staticactors.bin" "missing allowed" $mapStaticActors | Out-Null
+    } else {
+        Add-Check "Map runtime staticactors.bin" "missing" "Run copy-runtime-data.ps1 or prepare-client-data.ps1." | Out-Null
+    }
+
+    $mapScriptsProbe = Join-Path $mapDir "scripts\effects\default.lua"
+    if (Test-Path -LiteralPath $mapScriptsProbe -PathType Leaf) {
+        Add-Check "Map runtime scripts" "ok" (Join-Path $mapDir "scripts") | Out-Null
+    } else {
+        Add-Check "Map runtime scripts" "missing" "Run copy-runtime-data.ps1 before starting Map Server." | Out-Null
+    }
+} catch {
+    Add-Check "Map runtime data" "not checked" $_.Exception.Message $false | Out-Null
+}
+
 $servers = @(
     @("Lobby executable", "Lobby Server"),
     @("Map executable", "Map Server"),
