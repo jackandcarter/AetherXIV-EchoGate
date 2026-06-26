@@ -42,7 +42,7 @@ Set-ExecutionPolicy -Scope Process Bypass
 
 `-InstallMissing` asks Windows for administrator permission when needed. The setup script installs/verifies prerequisites, prepares the database, prepares local client-derived runtime data, runs smoke checks, and writes an environment report to Echo Gate app data. It does not move or copy your client install folder.
 
-Setup transcripts are saved automatically under `%APPDATA%\Demi Dev Unit\Echo Gate\Logs\windows-setup-*.log`. The final machine/setup report is written to `%APPDATA%\Demi Dev Unit\Echo Gate\setup-state.json`.
+Setup transcripts are saved automatically under `tools\windows\logs\windows-setup-*.log`. The final machine/setup report is written to `%APPDATA%\Demi Dev Unit\Echo Gate\setup-state.json`.
 
 If you only want to inspect the machine without installing anything:
 
@@ -50,7 +50,7 @@ If you only want to inspect the machine without installing anything:
 .\tools\windows\doctor.ps1 -ClientDir "C:\Path\To\FINAL FANTASY XIV"
 ```
 
-The setup uses `winget` where it is reliable, installs Echo Gate's managed PHP from the official Windows PHP build when PHP is missing, verifies the PHP zip checksum, refreshes `PATH` for the current PowerShell process, and enables PHP `mysqli` automatically. Source builds also fall back to a managed `nuget.exe` under Echo Gate app data when NuGet is not available on `PATH`.
+The setup uses one canonical entrypoint, `tools\windows\setup.ps1`. Internally it uses `winget` where it is reliable, installs Echo Gate's managed PHP from the official Windows PHP build when PHP is missing, verifies the PHP zip checksum, repairs the Microsoft Visual C++ x64 runtime from Microsoft's official redistributable when it is too old for PHP, refreshes `PATH` for the current PowerShell process, and enables PHP `mysqli` automatically. Source builds also fall back to a managed `nuget.exe` under Echo Gate app data when NuGet is not available on `PATH`.
 
 The default local database settings are:
 
@@ -221,7 +221,9 @@ Write a setup report without changing anything:
 Setup logs and reports:
 
 ```text
-%APPDATA%\Demi Dev Unit\Echo Gate\Logs\windows-setup-*.log
+tools\windows\logs\windows-setup-*.log
+tools\windows\logs\install-prereqs-*.log
+tools\windows\logs\build-legacy-*.log
 %APPDATA%\Demi Dev Unit\Echo Gate\setup-state.json
 ```
 
@@ -326,7 +328,7 @@ If `php mysqli` is missing, rerun:
 .\tools\windows\setup.ps1 -InstallMissing -ClientDir "C:\Path\To\FINAL FANTASY XIV"
 ```
 
-The setup script reports whether PHP was found, whether `php.ini` exists, whether `extension_dir` exists, whether `php_mysqli.dll` exists, whether `extension=mysqli` is enabled, and whether `php -m` actually lists `mysqli`. If repair is needed, it creates or updates `php.ini`, sets `extension_dir` to the detected PHP `ext` folder, and enables `extension=mysqli`.
+The setup script reports whether PHP was found, whether `php.ini` exists, whether `extension_dir` exists, whether `php_mysqli.dll` exists, whether `extension=mysqli` is enabled, and whether `php -m` actually lists `mysqli`. If repair is needed, it creates or updates `php.ini`, sets `extension_dir` to the detected PHP `ext` folder, and enables `extension=mysqli`. If PHP still reports a loader error, setup prints the loader output. A message like `VCRUNTIME140.dll ... is not compatible with this PHP build` means the Microsoft Visual C++ x64 runtime is too old; rerun setup with `-InstallMissing` and let it install or repair the official Microsoft redistributable.
 
 If NuGet is missing during a source build, rerun:
 

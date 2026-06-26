@@ -8,6 +8,16 @@ param(
 
 . "$PSScriptRoot\common.ps1"
 
+$toolLogPath = Start-WindowsToolLog -Name "install-prereqs"
+trap {
+    if (-not [string]::IsNullOrWhiteSpace($toolLogPath)) {
+        Write-Host
+        Write-Host "Tool log saved: $toolLogPath"
+        Stop-WindowsToolLog -Path $toolLogPath
+    }
+    throw
+}
+
 function Requirement {
     param(
         [string]$Name,
@@ -203,9 +213,23 @@ $runRequirements = @(
             return "not found by PATH, MYSQL_BIN, registry, service, or common install folders"
         } -WingetId "MariaDB.Server" -Hint "Required for local database setup. If it is installed but not detected, run tools\windows\diagnose-mariadb.ps1 or set MYSQL_BIN to the full mariadb.exe/mysql.exe path.")
     (Requirement -Name "Microsoft Visual C++ x64 runtime" -Test { Test-VcRedistX64 } -Detail {
-            if (Test-VcRedistX64) { return "detected in Visual C++ runtime registry" }
-            return "not detected in Visual C++ runtime registry"
-        } -WingetId "Microsoft.VCRedist.2015+.x64" -Hint "Required by the managed PHP runtime from windows.php.net.")
+            $status = Get-VcRedistX64Status
+            if ($status.Ok) {
+                if ($null -ne $status.RuntimeVersion) { return "found: $($status.RuntimePath) ($($status.RuntimeVersion))" }
+                return "found in registry: $($status.RegistryPath) ($($status.RegistryVersion))"
+            }
+            return $status.Reason
+        } -Repair { Install-VcRedistX64 } -Diagnose {
+            $status = Get-VcRedistX64Status
+            Write-Host "  required version:        $($status.MinimumVersion)"
+            Write-Host "  runtime dll:             $($status.RuntimePath)"
+            Write-Host "  runtime dll version:     $($status.RuntimeVersion)"
+            Write-Host "  registry installed:      $($status.RegistryInstalled)"
+            Write-Host "  registry path:           $($status.RegistryPath)"
+            Write-Host "  registry version:        $($status.RegistryVersion)"
+            Write-Host "  official source:         $($status.Source)"
+            Write-Host "  result:                  $($status.Reason)"
+        } -Hint "Required by the managed PHP runtime from windows.php.net. Setup repairs it with Microsoft's official latest x64 Visual C++ Redistributable.")
     (Requirement -Name "PHP" -Test { $null -ne (Find-PhpCommand) } -Detail {
             $php = Find-PhpCommand
             if ($null -ne $php) { return "found: $php" }
@@ -357,4 +381,10 @@ if ($Install) {
     Write-Host "Prerequisite install pass complete. PATH was refreshed for this PowerShell process."
 } else {
     Write-Host "No prerequisites were installed or repaired. Rerun with -Install to fix missing prerequisites."
+}
+
+if (-not [string]::IsNullOrWhiteSpace($toolLogPath)) {
+    Write-Host
+    Write-Host "Tool log saved: $toolLogPath"
+    Stop-WindowsToolLog -Path $toolLogPath
 }

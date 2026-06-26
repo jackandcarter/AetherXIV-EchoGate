@@ -73,10 +73,17 @@ if ($null -ne $php) {
 
 if (-not $runningOnWindows) {
     Add-Check "VC++ x64 runtime" "not checked" "Windows-only check." $false | Out-Null
-} elseif (Test-VcRedistX64) {
-    Add-Check "VC++ x64 runtime" "ok" | Out-Null
 } else {
-    Add-Check "VC++ x64 runtime" "missing" "Required by managed PHP." | Out-Null
+    $vcStatus = Get-VcRedistX64Status
+    if ($vcStatus.Ok) {
+        $detail = "required >= $($vcStatus.MinimumVersion)"
+        if ($null -ne $vcStatus.RuntimeVersion) {
+            $detail = "$($vcStatus.RuntimePath) ($($vcStatus.RuntimeVersion)); $detail"
+        }
+        Add-Check "VC++ x64 runtime" "ok" $detail | Out-Null
+    } else {
+        Add-Check "VC++ x64 runtime" "missing" "$($vcStatus.Reason) Run setup.ps1 -InstallMissing." | Out-Null
+    }
 }
 
 if (-not $runningOnWindows) {

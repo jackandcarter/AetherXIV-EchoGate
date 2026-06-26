@@ -5,6 +5,17 @@ param(
 )
 
 . "$PSScriptRoot\common.ps1"
+
+$toolLogPath = Start-WindowsToolLog -Name "build-legacy"
+trap {
+    if (-not [string]::IsNullOrWhiteSpace($toolLogPath)) {
+        Write-Host
+        Write-Host "Tool log saved: $toolLogPath"
+        Stop-WindowsToolLog -Path $toolLogPath
+    }
+    throw
+}
+
 $root = Get-MeteorRoot
 $solution = Join-Path $root "AetherXIV.Core.sln"
 if (-not (Test-Path -LiteralPath $solution)) { throw "Solution file not found: $solution" }
@@ -26,11 +37,18 @@ if ($null -eq $msbuild) {
 }
 $args = @($solution, "/p:Configuration=$Configuration", "/verbosity:minimal")
 if (-not $ShowLegacyWarnings) {
-    $nowarn = "0108,0162,0168,0169,0219,0414,0649,0659,0675"
+    $nowarn = "0108;0162;0168;0169;0219;0414;0649;0659;0675"
+    $escapedNoWarn = $nowarn.Replace(";", "%3B")
     Write-Host "Suppressing known legacy C# warning noise: $nowarn"
-    $args += "/p:NoWarn=$nowarn"
+    $args += "/p:NoWarn=$escapedNoWarn"
 }
 
 Write-Host "Building AetherXIV.Core.sln ($Configuration)"
 & $msbuild @args
 if ($LASTEXITCODE -ne 0) { throw "MSBuild failed with exit code $LASTEXITCODE." }
+
+if (-not [string]::IsNullOrWhiteSpace($toolLogPath)) {
+    Write-Host
+    Write-Host "Tool log saved: $toolLogPath"
+    Stop-WindowsToolLog -Path $toolLogPath
+}

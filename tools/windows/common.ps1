@@ -14,6 +14,13 @@ $script:AetherManagedNuGet = [pscustomobject]@{
     Url = "https://dist.nuget.org/win-x86-commandline/latest/nuget.exe"
 }
 
+$script:AetherVcRedistX64 = [pscustomobject]@{
+    DirectoryName = "VcRedist"
+    FileName = "vc_redist.x64.exe"
+    Url = "https://aka.ms/vc14/vc_redist.x64.exe"
+    MinimumVersion = [version]"14.44.0.0"
+}
+
 function Get-MeteorRoot {
     $scriptDir = Split-Path -Parent $PSScriptRoot
     return (Resolve-Path (Join-Path $scriptDir "..")).Path
@@ -112,6 +119,49 @@ function Get-EchoGateToolsRoot {
 
 function Get-EchoGateSetupStatePath {
     return (Join-Path (Get-EchoGateDataRoot) "setup-state.json")
+}
+
+function Get-WindowsToolsLogRoot {
+    return (Join-Path $PSScriptRoot "logs")
+}
+
+function Start-WindowsToolLog {
+    param([string]$Name = "windows-tool")
+
+    if ($env:AETHER_WINDOWS_TOOL_LOG_ACTIVE -eq "1") {
+        return $null
+    }
+
+    try {
+        $logRoot = Get-WindowsToolsLogRoot
+        New-Item -ItemType Directory -Force -Path $logRoot | Out-Null
+        $safeName = ($Name -replace "[^A-Za-z0-9_.-]", "-").Trim("-")
+        if ([string]::IsNullOrWhiteSpace($safeName)) {
+            $safeName = "windows-tool"
+        }
+        $logPath = Join-Path $logRoot ("{0}-{1:yyyyMMdd-HHmmss}.log" -f $safeName, (Get-Date))
+        Start-Transcript -LiteralPath $logPath -Append | Out-Null
+        $env:AETHER_WINDOWS_TOOL_LOG_ACTIVE = "1"
+        Write-Host "Tool log: $logPath"
+        return $logPath
+    } catch {
+        Write-Warning "Could not start Windows tool transcript: $($_.Exception.Message)"
+        return $null
+    }
+}
+
+function Stop-WindowsToolLog {
+    param([string]$Path = "")
+
+    if ([string]::IsNullOrWhiteSpace($Path)) {
+        return
+    }
+
+    try {
+        Stop-Transcript | Out-Null
+    } catch {
+    }
+    [Environment]::SetEnvironmentVariable("AETHER_WINDOWS_TOOL_LOG_ACTIVE", $null, "Process")
 }
 
 function Write-EchoGateSetupState {
@@ -594,23 +644,168 @@ function Test-DotNetFramework472 {
     }
 }
 
+function ConvertTo-VersionOrNull {
+    param([object]$Value)
+
+    if ($null -eq $Value) {
+        return $null
+    }
+
+    $text = "$Value"
+    if ($text -match "(\d+)\.(\d+)(?:\.(\d+))?(?:\.(\d+))?") {
+        $major = [int]$Matches[1]
+        $minor = [int]$Matches[2]
+        $build = 0
+        $revision = 0
+        if (-not [string]::IsNullOrWhiteSpace($Matches[3])) { $build = [int]$Matches[3] }
+        if (-not [string]::IsNullOrWhiteSpace($Matches[4])) { $revision = [int]$Matches[4] }
+        return [version]::new($major, $minor, $build, $revision)
+    }
+
+    return $null
+}
+
 function Test-VcRedistX64 {
-    $paths = @(
+    $status = Get-VcRedistX64Status
+    return $status.Ok
+}
+
+function Get-VcRedistX64InstallerPath {
+    $cacheRoot = Join-Path (Get-EchoGateDataRoot) "ToolCache"
+    return (Join-Path (Join-Path $cacheRoot $script:AetherVcRedistX64.DirectoryName) $script:AetherVcRedistX64.FileName)
+}
+
+function Get-VcRedistX64Status {
+    $minimum = $script:AetherVcRedistX64.MinimumVersion
+    $registryVersion = $null
+    $registryInstalled = $false
+    $registryPath = ""
+    $runtimePath = ""
+    $runtimeVersion = $null
+
+    $registryPaths = @(
         "HKLM:\SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64",
         "HKLM:\SOFTWARE\WOW6432Node\Microsoft\VisualStudio\14.0\VC\Runtimes\x64"
     )
 
-    foreach ($path in $paths) {
+    foreach ($path in $registryPaths) {
         try {
-            $installed = Get-ItemPropertyValue -LiteralPath $path -Name Installed -ErrorAction Stop
+            $item = Get-ItemProperty -LiteralPath $path -ErrorAction Stop
+            $installed = $item.Installed
             if ([int]$installed -eq 1) {
-                return $true
+                $registryInstalled = $true
+                $registryPath = $path
+                $major = 0
+                $minor = 0
+                $bld = 0
+                $rbld = 0
+                if ($null -ne $item.Major) { $major = [int]$item.Major }
+                if ($null -ne $item.Minor) { $minor = [int]$item.Minor }
+                if ($null -ne $item.Bld) { $bld = [int]$item.Bld }
+                if ($null -ne $item.Rbld) { $rbld = [int]$item.Rbld }
+                if ($major -gt 0) {
+                    $registryVersion = [version]::new($major, $minor, $bld, $rbld)
+                }
+                break
             }
         } catch {
         }
     }
 
-    return $false
+    $systemRoot = $env:SystemRoot
+    if (-not [string]::IsNullOrWhiteSpace($systemRoot)) {
+        $candidate = Join-Path (Join-Path $systemRoot "System32") "vcruntime140.dll"
+        if (Test-Path -LiteralPath $candidate -PathType Leaf) {
+            $runtimePath = (Resolve-Path -LiteralPath $candidate).Path
+            try {
+                $runtimeVersion = ConvertTo-VersionOrNull -Value (Get-Item -LiteralPath $runtimePath).VersionInfo.FileVersion
+            } catch {
+            }
+        }
+    }
+
+    $bestVersion = $runtimeVersion
+    if ($null -eq $bestVersion) {
+        $bestVersion = $registryVersion
+    }
+
+    $ok = ($registryInstalled -and $null -ne $bestVersion -and $bestVersion -ge $minimum)
+    $reason = "Visual C++ x64 runtime is installed and new enough."
+    if (-not $registryInstalled -and $runtimePath -eq "") {
+        $reason = "Visual C++ x64 runtime is not installed."
+    } elseif ($null -eq $bestVersion) {
+        $reason = "Visual C++ x64 runtime was found, but its version could not be read."
+    } elseif ($bestVersion -lt $minimum) {
+        $reason = "Visual C++ x64 runtime is $bestVersion, but this PHP build requires at least $minimum."
+    } elseif (-not $registryInstalled) {
+        $reason = "vcruntime140.dll is present, but the Visual C++ x64 runtime registry entry is missing."
+    }
+
+    return [pscustomobject]@{
+        Ok = $ok
+        Reason = $reason
+        MinimumVersion = $minimum
+        RegistryInstalled = $registryInstalled
+        RegistryPath = $registryPath
+        RegistryVersion = $registryVersion
+        RuntimePath = $runtimePath
+        RuntimeVersion = $runtimeVersion
+        Source = $script:AetherVcRedistX64.Url
+    }
+}
+
+function Install-VcRedistX64 {
+    param([switch]$Force)
+
+    if ([System.Environment]::OSVersion.Platform -eq [System.PlatformID]::Win32NT -and -not (Test-WindowsAdministrator)) {
+        throw "Visual C++ Redistributable repair requires administrator permission. Run tools\windows\setup.ps1 -InstallMissing from an elevated prompt, or allow setup to elevate."
+    }
+
+    $installer = Get-VcRedistX64InstallerPath
+    $installerDir = Split-Path -Parent $installer
+    New-Item -ItemType Directory -Force -Path $installerDir | Out-Null
+
+    if ($Force -and (Test-Path -LiteralPath $installer -PathType Leaf)) {
+        Remove-Item -LiteralPath $installer -Force
+    }
+
+    if (-not (Test-Path -LiteralPath $installer -PathType Leaf)) {
+        Write-Host "Downloading Microsoft Visual C++ Redistributable x64"
+        Write-Host "  $($script:AetherVcRedistX64.Url)"
+        Write-Host "  -> $installer"
+        try {
+            [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+        } catch {
+        }
+        Invoke-WebRequest -Uri $script:AetherVcRedistX64.Url -OutFile $installer
+    }
+
+    if (-not (Test-Path -LiteralPath $installer -PathType Leaf)) {
+        throw "Visual C++ Redistributable download did not produce $installer."
+    }
+
+    $signatureCommand = Get-Command Get-AuthenticodeSignature -ErrorAction SilentlyContinue
+    if ($null -ne $signatureCommand) {
+        $signature = Get-AuthenticodeSignature -LiteralPath $installer
+        if ($signature.Status -ne "Valid") {
+            Remove-Item -LiteralPath $installer -Force -ErrorAction SilentlyContinue
+            throw "Visual C++ Redistributable Authenticode signature is $($signature.Status), expected Valid."
+        }
+    }
+
+    Write-Host "Installing Microsoft Visual C++ Redistributable x64"
+    $process = Start-Process -FilePath $installer -ArgumentList @("/install", "/quiet", "/norestart") -Wait -PassThru
+    if ($process.ExitCode -eq 3010) {
+        Write-Warning "Visual C++ Redistributable installed and requested a reboot. Restart Windows before running the launcher if PHP still reports runtime loader errors."
+    } elseif ($process.ExitCode -ne 0) {
+        $statusAfterInstall = Get-VcRedistX64Status
+        if (-not $statusAfterInstall.Ok) {
+            throw "Visual C++ Redistributable installer failed with exit code $($process.ExitCode). $($statusAfterInstall.Reason)"
+        }
+        Write-Warning "Visual C++ Redistributable installer returned exit code $($process.ExitCode), but the runtime now satisfies setup."
+    }
+
+    return (Get-VcRedistX64Status).Ok
 }
 
 function Test-PhpMysqli {

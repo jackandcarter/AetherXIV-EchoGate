@@ -50,12 +50,8 @@ $setupTranscriptStarted = $false
 $setupLogPath = $null
 if (-not $NoSetupLog) {
     try {
-        $setupLogDir = Join-Path (Get-EchoGateDataRoot) "Logs"
-        New-Item -ItemType Directory -Force -Path $setupLogDir | Out-Null
-        $setupLogPath = Join-Path $setupLogDir ("windows-setup-{0:yyyyMMdd-HHmmss}.log" -f (Get-Date))
-        Start-Transcript -LiteralPath $setupLogPath -Append | Out-Null
-        $setupTranscriptStarted = $true
-        Write-Host "Setup log: $setupLogPath"
+        $setupLogPath = Start-WindowsToolLog -Name "windows-setup"
+        $setupTranscriptStarted = (-not [string]::IsNullOrWhiteSpace($setupLogPath))
     } catch {
         Write-Warning "Could not start setup transcript: $($_.Exception.Message)"
     }
@@ -115,9 +111,6 @@ try {
     if ($setupTranscriptStarted) {
         Write-Host
         Write-Host "Setup log saved: $setupLogPath"
-        try {
-            Stop-Transcript | Out-Null
-        } catch {
-        }
+        Stop-WindowsToolLog -Path $setupLogPath
     }
 }
