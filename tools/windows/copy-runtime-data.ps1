@@ -26,6 +26,7 @@ foreach ($configPath in @((Join-Path $lobbyDir "lobby_config.ini"), (Join-Path $
     Set-IniValue -Path $configPath -Key "username" -Value $db.AppUser
     Set-IniValue -Path $configPath -Key "password" -Value $db.AppPass
 }
+Write-Host "Runtime database configs use $($db.AppUser)@$($db.AppHost):$($db.AppPort)/$($db.DbName)"
 
 $staticActors = Join-Path $root "Data\staticactors.bin"
 if (-not (Test-Path -LiteralPath $staticActors) -and -not $NoPrepareStaticActors) {
@@ -34,13 +35,15 @@ if (-not (Test-Path -LiteralPath $staticActors) -and -not $NoPrepareStaticActors
     try {
         & "$PSScriptRoot\prepare-client-data.ps1" @args
     } catch {
-        Write-Warning "Static actor data was not prepared automatically: $($_.Exception.Message)"
+        Write-Warning "Static actor data was not prepared automatically: $($_.Exception.Message) Rerun setup with -ClientDir `"C:\Path\To\FINAL FANTASY XIV`", or use -AllowMissingStaticActors only if you are intentionally skipping map runtime readiness."
     }
 }
 
 if (Test-Path -LiteralPath $staticActors) {
     Copy-Item -LiteralPath $staticActors -Destination $mapDir -Force
     Write-Host "Copied staticactors.bin to $mapDir"
+} elseif ($NoPrepareStaticActors) {
+    Write-Warning "Data\staticactors.bin is missing and static actor preparation was skipped; Map Server will not be runtime-ready."
 } else {
     Write-Warning "Data\staticactors.bin is missing; Map Server will not be runtime-ready."
 }

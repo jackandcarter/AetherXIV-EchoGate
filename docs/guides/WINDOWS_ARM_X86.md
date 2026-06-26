@@ -63,6 +63,10 @@ hosts: localhost, 127.0.0.1
 
 The setup script asks for your MariaDB admin password before it imports any SQL. There is no AetherXIV default for the MariaDB admin password; it belongs to your local MariaDB install. Blank root passwords are uncommon on Windows, so setup requires a separate confirmation before trying a blank password. If the login is wrong, setup lets you retry the admin username and password without restarting.
 
+If the target database already contains tables, setup asks whether to keep the existing database and skip SQL import or drop/recreate it. `-Yes` never drops existing data automatically. To intentionally rebuild the local database from the one-command setup, add `-DropDatabase`.
+
+Map runtime setup also needs the legacy client static actor file. Pass `-ClientDir` pointing at your FFXIV 1.x client root so setup can copy `rq9q1797qvs.san` or `staticactors.bin` into local `Data\staticactors.bin`. If you are only checking build tools and do not need map runtime readiness yet, use `-AllowMissingStaticActors`.
+
 5. Start the local hosting stack.
 
 ```powershell
@@ -210,6 +214,12 @@ One-command release setup:
 
 ```powershell
 .\tools\windows\setup.ps1 -InstallMissing -ClientDir "C:\Path\To\FINAL FANTASY XIV"
+```
+
+One-command setup with a fresh local database:
+
+```powershell
+.\tools\windows\setup.ps1 -InstallMissing -DropDatabase -ClientDir "C:\Path\To\FINAL FANTASY XIV"
 ```
 
 Write a setup report without changing anything:

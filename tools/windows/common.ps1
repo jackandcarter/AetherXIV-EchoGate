@@ -1345,6 +1345,56 @@ function Invoke-MySql {
     }
 }
 
+function Invoke-MySqlScalar {
+    param(
+        [Parameter(Mandatory = $true)][string]$MySql,
+        [Parameter(Mandatory = $true)][string]$HostName,
+        [Parameter(Mandatory = $true)][string]$Port,
+        [Parameter(Mandatory = $true)][string]$User,
+        [string]$Password = "",
+        [string]$Database = "",
+        [Parameter(Mandatory = $true)][string]$Sql
+    )
+
+    $args = @("--default-character-set=utf8", "--batch", "--skip-column-names", "-h", $HostName, "-P", $Port, "-u", $User)
+    if ($Password -ne "") {
+        $args += "-p$Password"
+    }
+    if ($Database -ne "") {
+        $args += $Database
+    }
+    $args += @("-e", $Sql)
+
+    $result = Invoke-ProcessCapture -FilePath $MySql -Arguments $args
+    if ($result.ExitCode -ne 0) {
+        $detailLines = @()
+        if (-not [string]::IsNullOrWhiteSpace($result.Stderr)) {
+            $detailLines += ($result.Stderr.Trim() -split "`r?`n")
+        }
+        if (-not [string]::IsNullOrWhiteSpace($result.Stdout)) {
+            $detailLines += ($result.Stdout.Trim() -split "`r?`n")
+        }
+        $detail = ($detailLines | Select-Object -First 8) -join " "
+        if ($detail -ne "") {
+            throw "MariaDB/MySQL scalar query failed with exit code $($result.ExitCode). $detail"
+        }
+        throw "MariaDB/MySQL scalar query failed with exit code $($result.ExitCode)."
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($result.Stderr)) {
+        Write-Warning $result.Stderr.Trim()
+    }
+
+    foreach ($line in ($result.Stdout -split "`r?`n")) {
+        $trimmed = "$line".Trim()
+        if ($trimmed -ne "") {
+            return $trimmed
+        }
+    }
+
+    return ""
+}
+
 function Resolve-ServerDirectory {
     param(
         [Parameter(Mandatory = $true)][string]$RootDir,
@@ -1355,6 +1405,7 @@ function Resolve-ServerDirectory {
     $exeName = Get-ServerExecutableName -ServerName $ServerName
     $sourceBuild = Join-Path $RootDir "$ServerName\bin\$Configuration"
     $releaseLayout = Join-Path $RootDir $ServerName
+    $flatBuild = Join-Path $RootDir "bin\$Configuration"
 
     if (Test-Path -LiteralPath (Join-Path $sourceBuild $exeName)) {
         return $sourceBuild
@@ -1364,8 +1415,16 @@ function Resolve-ServerDirectory {
         return $releaseLayout
     }
 
+    if (Test-Path -LiteralPath (Join-Path $flatBuild $exeName)) {
+        return $flatBuild
+    }
+
     if (Test-Path -LiteralPath $sourceBuild) {
         return $sourceBuild
+    }
+
+    if (Test-Path -LiteralPath $flatBuild) {
+        return $flatBuild
     }
 
     return $releaseLayout
@@ -1398,9 +1457,11 @@ function Resolve-ServerExecutable {
     $legacyName = "MeteorXIV.Core.$(($ServerName -split ' ')[0]).exe"
     $sourceBuild = Join-Path $RootDir "$ServerName\bin\$Configuration"
     $releaseLayout = Join-Path $RootDir $ServerName
+    $flatBuild = Join-Path $RootDir "bin\$Configuration"
     $legacyMatches = @(@(
         (Join-Path $sourceBuild $legacyName),
-        (Join-Path $releaseLayout $legacyName)
+        (Join-Path $releaseLayout $legacyName),
+        (Join-Path $flatBuild $legacyName)
     ) | Where-Object { Test-Path -LiteralPath $_ })
 
     if ($legacyMatches.Count -gt 0) {
@@ -1485,7 +1546,10 @@ function Get-EchoGateClientPathCandidates {
         $candidates += (Join-Path $desktop "FFXIV")
     }
 
-    return ($candidates | Where-Object { $_ -ne "" } | Select-Object -Unique)
+    return ($candidates |
+        Where-Object { $null -ne $_ -and -not [string]::IsNullOrWhiteSpace("$_") } |
+        ForEach-Object { "$_".Trim() } |
+        Select-Object -Unique)
 }
 
 function Find-EchoGateClientInstall {

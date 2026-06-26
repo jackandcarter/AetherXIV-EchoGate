@@ -8,6 +8,7 @@ param(
     [switch]$InstallMissing,
     [switch]$Yes,
     [switch]$SkipDatabase,
+    [switch]$DropDatabase,
     [switch]$SkipRuntimeData,
     [switch]$SkipSmoke,
     [switch]$AllowMissingStaticActors,
@@ -24,12 +25,16 @@ param(
 . "$PSScriptRoot\common.ps1"
 $root = Get-MeteorRoot
 Import-MeteorEnv $root
+if (-not [string]::IsNullOrWhiteSpace($ClientDir)) {
+    $env:CLIENT_DIR = $ClientDir
+}
 
 if ($InstallMissing -and -not $NoElevate -and -not (Test-WindowsAdministrator) -and [System.Environment]::OSVersion.Platform -eq [System.PlatformID]::Win32NT) {
     $forwarded = @("-Mode", $Mode, "-Runtime", $Runtime, "-Configuration", $Configuration, "-InstallMissing", "-NoElevate")
     if ($ClientDir -ne "") { $forwarded += @("-ClientDir", $ClientDir) }
     if ($Yes) { $forwarded += "-Yes" }
     if ($SkipDatabase) { $forwarded += "-SkipDatabase" }
+    if ($DropDatabase) { $forwarded += "-DropDatabase" }
     if ($SkipRuntimeData) { $forwarded += "-SkipRuntimeData" }
     if ($SkipSmoke) { $forwarded += "-SkipSmoke" }
     if ($AllowMissingStaticActors) { $forwarded += "-AllowMissingStaticActors" }
@@ -66,7 +71,7 @@ try {
     & "$PSScriptRoot\install-prereqs.ps1" -Mode $Mode -Install:$InstallMissing -Yes:$Yes -RefreshManagedTools:$RefreshManagedTools
 
     if (-not $SkipDatabase) {
-        & "$PSScriptRoot\setup-local-db.ps1"
+        & "$PSScriptRoot\setup-local-db.ps1" -Drop:$DropDatabase -Yes:$Yes
     }
 
     if ($Mode -ne "Run" -and -not $SkipBuild) {
@@ -76,6 +81,7 @@ try {
     if (-not $SkipRuntimeData) {
         $copyArgs = @("-Configuration", $Configuration)
         if ($ClientDir -ne "") { $copyArgs += @("-ClientDir", $ClientDir) }
+        if ($AllowMissingStaticActors) { $copyArgs += "-NoPrepareStaticActors" }
         & "$PSScriptRoot\copy-runtime-data.ps1" @copyArgs
     }
 

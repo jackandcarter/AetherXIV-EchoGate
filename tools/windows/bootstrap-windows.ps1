@@ -5,6 +5,7 @@ param(
     [string]$ClientDir = "",
     [switch]$SkipBuild,
     [switch]$SkipDatabase,
+    [switch]$DropDatabase,
     [switch]$SkipLauncher,
     [switch]$InstallMissing,
     [switch]$Yes,
@@ -17,6 +18,7 @@ $setupArgs = @("-Mode", "Build", "-Runtime", $Runtime, "-Configuration", $Config
 if ($ClientDir -ne "") { $setupArgs += @("-ClientDir", $ClientDir) }
 if ($SkipBuild) { $setupArgs += "-SkipBuild" }
 if ($SkipDatabase) { $setupArgs += "-SkipDatabase" }
+if ($DropDatabase) { $setupArgs += "-DropDatabase" }
 if ($SkipLauncher) { $setupArgs += "-SkipLauncher" }
 if ($InstallMissing) { $setupArgs += "-InstallMissing" }
 if ($Yes) { $setupArgs += "-Yes" }

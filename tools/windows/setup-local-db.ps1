@@ -2,6 +2,7 @@ param(
     [switch]$Drop,
     [switch]$NoImport,
     [switch]$NoUser,
+    [switch]$Yes,
     [string]$AdminUser = "",
     [string]$AdminPassword = ""
 )
@@ -66,6 +67,43 @@ function Read-MariaDbAdminUser {
     return $newUser.Trim()
 }
 
+function Get-ExistingDatabaseTableCount {
+    $dbNameSql = Escape-SqlLiteral $db.DbName
+    $sql = "SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = '$dbNameSql';"
+    $value = Invoke-MySqlScalar -MySql $mysql -HostName $db.DbHost -Port $db.DbPort -User $db.AdminUser -Password $db.AdminPass -Sql $sql
+    if ([string]::IsNullOrWhiteSpace($value)) {
+        return 0
+    }
+    return [int]$value
+}
+
+function Confirm-RecreateExistingDatabase {
+    param([int]$TableCount)
+
+    if ($Yes) {
+        Write-Host "Existing database '$($db.DbName)' has $TableCount table(s). Keeping it because -Yes never drops data automatically."
+        Write-Host "Use -Drop to recreate the database."
+        return $false
+    }
+
+    while ($true) {
+        $answer = Read-Host "Database '$($db.DbName)' already has $TableCount table(s). Keep it and skip SQL import, or drop/recreate it? [K]eep/[R]ecreate"
+        if ([string]::IsNullOrWhiteSpace($answer) -or $answer -match "^(k|keep|s|skip)$") {
+            return $false
+        }
+        if ($answer -match "^(r|recreate|replace|drop|d)$") {
+            $confirm = Read-Host "This will DROP '$($db.DbName)' and import a fresh schema. Type RECREATE to continue"
+            return ($confirm -ceq "RECREATE")
+        }
+    }
+}
+
+function Ensure-DatabaseExists {
+    $dbNameSql = Escape-SqlIdentifier $db.DbName
+    $quotedDbName = ([char]96) + $dbNameSql + ([char]96)
+    Invoke-MySql -MySql $mysql -HostName $db.DbHost -Port $db.DbPort -User $db.AdminUser -Password $db.AdminPass -Sql "CREATE DATABASE IF NOT EXISTS $quotedDbName CHARACTER SET utf8 COLLATE utf8_general_ci;"
+}
+
 Write-Host "AetherXIV local database setup"
 Write-Host "Database:    $($db.DbName)"
 Write-Host "App account: $($db.AppUser) / $($db.AppPass)"
@@ -116,21 +154,35 @@ while ($true) {
     }
 }
 
-if (-not $NoImport) {
-    $importArgs = @{
-        AdminUser = $db.AdminUser
-    }
-    if ($Drop) { $importArgs.Drop = $true }
-    if ($db.AdminPass -ne "") { $importArgs.AdminPassword = $db.AdminPass }
-    & "$PSScriptRoot\import-db.ps1" @importArgs
-}
-
 if (-not $NoUser) {
+    Ensure-DatabaseExists
     $userArgs = @{
         AdminUser = $db.AdminUser
     }
     if ($db.AdminPass -ne "") { $userArgs.AdminPassword = $db.AdminPass }
     & "$PSScriptRoot\create-db-user.ps1" @userArgs
+}
+
+if (-not $NoImport) {
+    $shouldImport = $true
+    $existingTableCount = Get-ExistingDatabaseTableCount
+    if ($existingTableCount -gt 0 -and -not $Drop) {
+        if (Confirm-RecreateExistingDatabase -TableCount $existingTableCount) {
+            $Drop = $true
+        } else {
+            $shouldImport = $false
+            Write-Host "Skipping SQL import for existing database '$($db.DbName)'."
+        }
+    }
+
+    if ($shouldImport) {
+        $importArgs = @{
+            AdminUser = $db.AdminUser
+        }
+        if ($Drop) { $importArgs.Drop = $true }
+        if ($db.AdminPass -ne "") { $importArgs.AdminPassword = $db.AdminPass }
+        & "$PSScriptRoot\import-db.ps1" @importArgs
+    }
 }
 
 Write-Host "Local database setup complete."

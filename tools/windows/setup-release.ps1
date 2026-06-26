@@ -3,6 +3,7 @@ param(
     [switch]$InstallMissing,
     [switch]$Yes,
     [switch]$SkipDatabase,
+    [switch]$DropDatabase,
     [switch]$SkipRuntimeData,
     [switch]$SkipSmoke,
     [switch]$AllowMissingStaticActors,
@@ -16,6 +17,7 @@ if ($ClientDir -ne "") { $setupArgs += @("-ClientDir", $ClientDir) }
 if ($InstallMissing) { $setupArgs += "-InstallMissing" }
 if ($Yes) { $setupArgs += "-Yes" }
 if ($SkipDatabase) { $setupArgs += "-SkipDatabase" }
+if ($DropDatabase) { $setupArgs += "-DropDatabase" }
 if ($SkipRuntimeData) { $setupArgs += "-SkipRuntimeData" }
 if ($SkipSmoke) { $setupArgs += "-SkipSmoke" }
 if ($AllowMissingStaticActors) { $setupArgs += "-AllowMissingStaticActors" }
