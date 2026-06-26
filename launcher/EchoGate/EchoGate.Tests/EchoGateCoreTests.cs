@@ -869,6 +869,71 @@ public sealed class EchoGateCoreTests
     }
 
     [Fact]
+    public void PatchLibraryReportDetectsSelectedFfxivRootLayout()
+    {
+        string root = CreateTempDirectory();
+        string ffxivRoot = Path.Combine(root, "ffxiv");
+        foreach (PatchEntry entry in LegacyPatchManifest.Entries)
+        {
+            string patchPath = Path.Combine(ffxivRoot, entry.RepositoryId, "patch", entry.PatchFileName);
+            Directory.CreateDirectory(Path.GetDirectoryName(patchPath)!);
+            File.WriteAllText(patchPath, "patch");
+        }
+
+        PatchLibraryReport report = LegacyPatchManifest.InspectLibrary(
+            ffxivRoot,
+            PatchLibraryInspectionMode.PresenceOnly);
+
+        Assert.True(report.IsPatchChainReady);
+        Assert.True(report.IsComplete);
+        Assert.Equal(ffxivRoot, report.PatchBasePath);
+        Assert.Equal(52, report.PresentPatchCount);
+    }
+
+    [Fact]
+    public void PatchLibraryReportDetectsFlatPatchFolderLayout()
+    {
+        string root = CreateTempDirectory();
+        foreach (PatchEntry entry in LegacyPatchManifest.Entries)
+        {
+            string patchPath = Path.Combine(root, entry.PatchFileName);
+            File.WriteAllText(patchPath, "patch");
+        }
+
+        PatchLibraryReport report = LegacyPatchManifest.InspectLibrary(
+            root,
+            PatchLibraryInspectionMode.PresenceOnly);
+
+        Assert.True(report.IsPatchChainReady);
+        Assert.True(report.IsComplete);
+        Assert.Equal(root, report.PatchBasePath);
+        Assert.Equal(52, report.PresentPatchCount);
+    }
+
+    [Fact]
+    public void PatchLibraryReportDetectsSelectedRepositoryPatchFolderLayout()
+    {
+        string root = CreateTempDirectory();
+        string gamePatchRoot = Path.Combine(root, "ffxiv", "48eca647", "patch");
+        foreach (PatchEntry entry in LegacyPatchManifest.Entries.Where(entry => entry.Repository == PatchRepository.Game))
+        {
+            string patchPath = Path.Combine(gamePatchRoot, entry.PatchFileName);
+            Directory.CreateDirectory(Path.GetDirectoryName(patchPath)!);
+            File.WriteAllText(patchPath, "patch");
+        }
+
+        PatchLibraryReport report = LegacyPatchManifest.InspectLibrary(
+            gamePatchRoot,
+            PatchLibraryInspectionMode.PresenceOnly);
+
+        Assert.False(report.IsPatchChainReady);
+        Assert.Equal(gamePatchRoot, report.PatchBasePath);
+        Assert.Equal(51, report.PresentPatchCount);
+        Assert.Single(report.MissingPatchFiles);
+        Assert.Equal(PatchRepository.Boot, report.MissingPatchFiles[0].Repository);
+    }
+
+    [Fact]
     public void PatchLibraryReportPrefersMoreCompletePatchLayout()
     {
         string root = CreateTempDirectory();

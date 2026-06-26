@@ -145,6 +145,20 @@ The release packages do not include:
 
 `staticactors.bin` is client-derived and must be prepared locally from your own FFXIV 1.x client folder.
 
+## Patch Library Layouts
+
+Echo Gate can validate and apply local user-provided 1.x patch files. The folder picker accepts these layouts:
+
+```text
+PatchLibrary\ffxiv\48eca647\patch\D2012.09.19.0001.patch
+PatchLibrary\ffxiv_patches\48eca647\patch\D2012.09.19.0001.patch
+PatchLibrary\48eca647\patch\D2012.09.19.0001.patch
+PatchLibrary\D2012.09.19.0001.patch
+```
+
+The boot repository patch uses repository id `2d2a390f`; game patches use `48eca647`.
+Selecting only `48eca647\patch` can validate the game patches, but it cannot be ready until the boot patch is also present.
+
 ## Source Build Path
 
 Use this path if you are building from a full source checkout.

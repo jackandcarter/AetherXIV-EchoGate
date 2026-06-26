@@ -47,6 +47,8 @@ public static class LegacyPatchApplier
         if (string.IsNullOrWhiteSpace(clientInstall.RootPath) || !Directory.Exists(clientInstall.RootPath))
             throw new InvalidOperationException("Client root does not exist.");
 
+        EnsureClientRootWritable(clientInstall.RootPath);
+
         if (!patchLibraryReport.IsPatchChainReady)
             throw new InvalidOperationException("Patch library is not ready.");
 
@@ -78,7 +80,17 @@ public static class LegacyPatchApplier
                 $"Starting patch {index + 1}/{patches.Count}: {patch.Entry.PatchFileName}",
                 true);
 
-            ApplyPatchFile(clientRoot, patch.PatchPath, messages, progress, context, cancellationToken);
+            try
+            {
+                ApplyPatchFile(clientRoot, patch.PatchPath, messages, progress, context, cancellationToken);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                throw new InvalidOperationException(
+                    $"Failed to apply patch {index + 1}/{patches.Count} {patch.Entry.PatchFileName}: {ex.Message}",
+                    ex);
+            }
+
             completedBytes += patchLength;
 
             ReportProgress(
@@ -103,6 +115,41 @@ public static class LegacyPatchApplier
             true));
 
         return new PatchApplyResult(patches.Count, messages);
+    }
+
+    public static void EnsureClientRootWritable(string clientRoot)
+    {
+        if (string.IsNullOrWhiteSpace(clientRoot) || !Directory.Exists(clientRoot))
+            throw new InvalidOperationException("Client root does not exist.");
+
+        string normalizedRoot = Path.GetFullPath(clientRoot);
+        string probePath = Path.Combine(normalizedRoot, $".echogate-write-test-{Guid.NewGuid():N}.tmp");
+        try
+        {
+            File.WriteAllBytes(probePath, [0x45, 0x47]);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            throw new UnauthorizedAccessException(
+                "Client folder is not writable. On Windows, patching a client under Program Files usually requires running Echo Gate as administrator or moving/copying the client to a writable folder.",
+                ex);
+        }
+        catch (IOException ex)
+        {
+            throw new IOException($"Client folder write test failed: {ex.Message}", ex);
+        }
+        finally
+        {
+            try
+            {
+                if (File.Exists(probePath))
+                    File.Delete(probePath);
+            }
+            catch
+            {
+                // A failed cleanup is non-fatal; the patcher has proven write access.
+            }
+        }
     }
 
     public static void ApplyPatchFile(

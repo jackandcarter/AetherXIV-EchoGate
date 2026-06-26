@@ -107,6 +107,33 @@ public sealed record PatchLibraryReport(
     }
 }
 
+internal sealed record PatchLibraryLayout(
+    string RootPath,
+    string RelativePathPattern,
+    int Priority,
+    string? RepositoryId = null,
+    bool Metainfo = false)
+{
+    public static PatchLibraryLayout Empty { get; } = new("", "", int.MaxValue);
+
+    public string BasePath => RootPath;
+
+    public bool AppliesTo(PatchEntry entry)
+    {
+        return string.IsNullOrWhiteSpace(RepositoryId)
+            || string.Equals(RepositoryId, entry.RepositoryId, StringComparison.OrdinalIgnoreCase);
+    }
+
+    public string GetPath(PatchEntry entry)
+    {
+        string fileName = Metainfo ? entry.TorrentFileName : entry.PatchFileName;
+        string relativePath = RelativePathPattern
+            .Replace("{repo}", entry.RepositoryId, StringComparison.Ordinal)
+            .Replace("{file}", fileName, StringComparison.Ordinal);
+        return Path.Combine(RootPath, relativePath);
+    }
+}
+
 public static class LegacyPatchManifest
 {
     public static IReadOnlyList<PatchEntry> Entries { get; } = CreateEntries();
@@ -123,17 +150,15 @@ public static class LegacyPatchManifest
         List<PatchEntry> missingPatches = new();
         List<PatchEntry> missingMetainfo = new();
         List<PatchFileReport> invalidPatches = new();
-        string patchBasePath = ResolveBestBasePath(normalizedRoot, entry => Path.Combine(entry.RepositoryId, "patch", entry.PatchFileName));
-        string metainfoBasePath = ResolveBestBasePath(normalizedRoot, entry => Path.Combine(entry.RepositoryId, "metainfo", entry.TorrentFileName));
+        PatchLibraryLayout patchLayout = ResolveBestLayout(normalizedRoot, metainfo: false);
+        PatchLibraryLayout metainfoLayout = ResolveBestLayout(normalizedRoot, metainfo: true);
+        string patchBasePath = patchLayout.BasePath;
+        string metainfoBasePath = metainfoLayout.BasePath;
 
         foreach (PatchEntry entry in Entries)
         {
-            string patchPath = string.IsNullOrWhiteSpace(patchBasePath)
-                ? ""
-                : Path.Combine(patchBasePath, entry.RepositoryId, "patch", entry.PatchFileName);
-            string metainfoPath = string.IsNullOrWhiteSpace(metainfoBasePath)
-                ? ""
-                : Path.Combine(metainfoBasePath, entry.RepositoryId, "metainfo", entry.TorrentFileName);
+            string patchPath = ResolveEntryPath(patchLayout, entry, metainfo: false);
+            string metainfoPath = ResolveEntryPath(metainfoLayout, entry, metainfo: true);
             bool patchExists = !string.IsNullOrWhiteSpace(patchPath) && File.Exists(patchPath);
             bool metainfoExists = !string.IsNullOrWhiteSpace(metainfoPath) && File.Exists(metainfoPath);
             long? actualSize = patchExists ? new FileInfo(patchPath).Length : null;
@@ -180,28 +205,65 @@ public static class LegacyPatchManifest
             inspectionMode);
     }
 
-    private static string ResolveBestBasePath(string normalizedRoot, Func<PatchEntry, string> relativePathFactory)
+    private static PatchLibraryLayout ResolveBestLayout(string normalizedRoot, bool metainfo)
     {
         if (string.IsNullOrWhiteSpace(normalizedRoot))
-            return "";
+            return PatchLibraryLayout.Empty;
 
-        string[] candidates =
-        {
-            Path.Combine(normalizedRoot, "ffxiv"),
-            Path.Combine(normalizedRoot, "ffxiv_patches"),
-            normalizedRoot
-        };
-
-        return candidates
-            .Select(path => new
+        return CreateLayouts(normalizedRoot, metainfo)
+            .Select(layout => new
             {
-                Path = path,
-                PresentCount = Entries.Count(entry => File.Exists(Path.Combine(path, relativePathFactory(entry))))
+                Layout = layout,
+                PresentCount = Entries.Count(entry => layout.AppliesTo(entry) && File.Exists(layout.GetPath(entry)))
             })
             .OrderByDescending(candidate => candidate.PresentCount)
-            .ThenBy(candidate => candidate.Path.EndsWith($"{Path.DirectorySeparatorChar}ffxiv_patches", StringComparison.Ordinal) ? 0 : 1)
+            .ThenBy(candidate => candidate.Layout.Priority)
             .First()
-            .Path;
+            .Layout;
+    }
+
+    private static string ResolveEntryPath(PatchLibraryLayout preferredLayout, PatchEntry entry, bool metainfo)
+    {
+        if (preferredLayout != PatchLibraryLayout.Empty && preferredLayout.AppliesTo(entry))
+            return preferredLayout.GetPath(entry);
+
+        if (string.IsNullOrWhiteSpace(preferredLayout.RootPath))
+            return "";
+
+        PatchLibraryLayout fallback = CreateLayouts(preferredLayout.RootPath, metainfo)
+            .Where(layout => layout.AppliesTo(entry))
+            .OrderBy(layout => layout.Priority)
+            .First();
+        return fallback.GetPath(entry);
+    }
+
+    private static IReadOnlyList<PatchLibraryLayout> CreateLayouts(string normalizedRoot, bool metainfo)
+    {
+        string folder = metainfo ? "metainfo" : "patch";
+        string leaf = Path.GetFileName(normalizedRoot.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+        string parent = Path.GetFileName(Path.GetDirectoryName(normalizedRoot.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)) ?? "");
+
+        List<PatchLibraryLayout> layouts =
+        [
+            new(Path.Combine(normalizedRoot, "ffxiv_patches"), Path.Combine("{repo}", folder, "{file}"), 0, Metainfo: metainfo),
+            new(Path.Combine(normalizedRoot, "ffxiv"), Path.Combine("{repo}", folder, "{file}"), 1, Metainfo: metainfo),
+            new(normalizedRoot, Path.Combine("{repo}", folder, "{file}"), 2, Metainfo: metainfo),
+            new(normalizedRoot, "{file}", 20, Metainfo: metainfo)
+        ];
+
+        if (IsRepositoryId(leaf))
+            layouts.Add(new PatchLibraryLayout(normalizedRoot, Path.Combine(folder, "{file}"), 10, leaf, metainfo));
+
+        if (string.Equals(leaf, folder, StringComparison.OrdinalIgnoreCase) && IsRepositoryId(parent))
+            layouts.Add(new PatchLibraryLayout(normalizedRoot, "{file}", 5, parent, metainfo));
+
+        return layouts;
+    }
+
+    private static bool IsRepositoryId(string value)
+    {
+        return string.Equals(value, "2d2a390f", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(value, "48eca647", StringComparison.OrdinalIgnoreCase);
     }
 
     private static IReadOnlyList<PatchEntry> CreateEntries()

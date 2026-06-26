@@ -2326,7 +2326,8 @@ public sealed partial class MainWindow : Window
                 "Invalid patch: "
                 + $"{report.Entry.RelativePatchPath} "
                 + $"expected {report.Entry.ExpectedSizeBytes} bytes/{report.Entry.ExpectedCrc32Text}, "
-                + $"actual {actualSize} bytes/{actualCrc32}");
+                + $"actual {actualSize} bytes/{actualCrc32}, "
+                + $"path {report.PatchPath}");
         }
 
         if (entries.Count > 3)
