@@ -101,7 +101,7 @@ of re-importing `Data/sql/launcher_services.sql`:
 On Windows, the same migration directory can be applied with:
 
 ```powershell
-.\tools\windows\import-db.ps1 -SqlDir Data\sql\migrations
+.\tools\windows\apply-db-migrations.ps1
 ```
 
 For manual database maintenance, the SQL file is:

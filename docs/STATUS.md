@@ -4,7 +4,7 @@ This matrix is the short version of where the project stands today.
 
 | Area | Status | Notes |
 | --- | --- | --- |
-| Local MariaDB setup | Working | `tools/setup-local-db.sh` creates `ffxiv_server`, imports SQL, and creates `aetherxiv` / `aether_dev` by default. |
+| Local MariaDB setup | Working | `tools/setup-local-db.sh` creates `ffxiv_server`, imports SQL, and creates `aetherxiv` / `aether_dev` by default. Existing databases can apply migrations with `tools/apply-db-migrations.sh` or `tools/windows/apply-db-migrations.ps1`. |
 | Shared env defaults | Working | `.env.defaults` is checked in. `.env.local` is optional for overrides. |
 | PHP launcher services | Working locally | Status, news, login, account creation, patch manifest, and runtime catalog endpoints are present. |
 | Lobby Server | Working for local flow | Auth/session and character handoff path are usable for playtests. |

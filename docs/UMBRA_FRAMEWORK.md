@@ -58,7 +58,8 @@ Plugin catalog:
 - Fresh databases get these tables from `Data/sql/launcher_services.sql`.
   Existing VPS/dev databases can apply
   `Data/sql/migrations/20260625_launcher_umbra_services.sql` with
-  `./tools/apply-db-migrations.sh`.
+  `./tools/apply-db-migrations.sh` on macOS/Linux or
+  `.\tools\windows\apply-db-migrations.ps1` on Windows.
 - Custom repository URLs are user-provided HTTPS URLs, with localhost HTTP
   allowed for development.
 - Endpoint: `/launcher/umbra/plugin-blocklist`

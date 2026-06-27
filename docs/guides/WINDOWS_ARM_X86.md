@@ -257,6 +257,12 @@ Database only:
 .\tools\windows\setup-local-db.ps1
 ```
 
+Apply non-destructive database migrations after pulling newer branch changes:
+
+```powershell
+.\tools\windows\apply-db-migrations.ps1
+```
+
 Drop and recreate the database before importing:
 
 ```powershell

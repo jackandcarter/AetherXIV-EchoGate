@@ -79,5 +79,13 @@ Before adding rows to a gameplay table:
 5. Add comments or docs when a row is test-only.
 
 Existing databases should receive non-destructive table/data updates through
-`Data/sql/migrations/` and `./tools/apply-db-migrations.sh` rather than by
-dropping and reimporting local playtest data.
+`Data/sql/migrations/` and the platform migration runner rather than by dropping
+and reimporting local playtest data.
+
+```sh
+./tools/apply-db-migrations.sh
+```
+
+```powershell
+.\tools\windows\apply-db-migrations.ps1
+```

@@ -58,6 +58,12 @@ Existing databases can apply non-destructive launcher/Umbra service migrations w
 ./tools/apply-db-migrations.sh
 ```
 
+On Windows:
+
+```powershell
+.\tools\windows\apply-db-migrations.ps1
+```
+
 Run migrations after pulling newer 1.3 branch changes. They add service tables
 and gameplay seed updates such as the Gridania tutorial companion action lists
 without dropping existing accounts or characters.
