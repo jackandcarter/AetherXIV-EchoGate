@@ -45,10 +45,76 @@ if [[ "$DB_ADMIN_SUDO" == "1" ]]; then
 fi
 mysql_cmd+=("$MYSQL_BIN")
 
+mysql_exec() {
+  "${mysql_cmd[@]}" "${mysql_args[@]}" "$DB_NAME" "$@"
+}
+
+mysql_scalar() {
+  "${mysql_cmd[@]}" "${mysql_args[@]}" "$DB_NAME" -N -B -e "$1"
+}
+
+sql_escape_literal() {
+  printf "%s" "$1" | sed "s/'/''/g"
+}
+
+sha256_file() {
+  if command -v shasum >/dev/null 2>&1; then
+    shasum -a 256 "$1" | awk '{print tolower($1)}'
+  elif command -v sha256sum >/dev/null 2>&1; then
+    sha256sum "$1" | awk '{print tolower($1)}'
+  else
+    echo "Neither shasum nor sha256sum was found; cannot checksum migrations." >&2
+    exit 2
+  fi
+}
+
+ensure_migration_ledger() {
+  mysql_exec <<'SQL'
+CREATE TABLE IF NOT EXISTS `aether_schema_migrations` (
+  `migration_name` varchar(255) NOT NULL,
+  `checksum_sha256` char(64) NOT NULL,
+  `applied_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`migration_name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+SQL
+}
+
+get_applied_migration_checksum() {
+  local migration_name_sql
+  migration_name_sql="$(sql_escape_literal "$1")"
+  mysql_scalar "SELECT checksum_sha256 FROM aether_schema_migrations WHERE migration_name = '$migration_name_sql' LIMIT 1;"
+}
+
+record_applied_migration() {
+  local migration_name_sql checksum_sql
+  migration_name_sql="$(sql_escape_literal "$1")"
+  checksum_sql="$(sql_escape_literal "$2")"
+  mysql_scalar "INSERT INTO aether_schema_migrations (migration_name, checksum_sha256) VALUES ('$migration_name_sql', '$checksum_sql');" >/dev/null
+}
+
 echo "Applying AetherXIV DB migrations to $DB_NAME from $MIGRATIONS_DIR"
+ensure_migration_ledger
+applied=0
+skipped=0
 for sql_file in "$MIGRATIONS_DIR"/*.sql; do
   [[ -e "$sql_file" ]] || continue
-  echo "Applying $(basename "$sql_file")"
-  "${mysql_cmd[@]}" "${mysql_args[@]}" "$DB_NAME" < "$sql_file"
+  migration_name="$(basename "$sql_file")"
+  checksum="$(sha256_file "$sql_file")"
+  recorded_checksum="$(get_applied_migration_checksum "$migration_name")"
+
+  if [[ -n "$recorded_checksum" ]]; then
+    if [[ "$recorded_checksum" != "$checksum" ]]; then
+      echo "Warning: skipping $migration_name: already applied with checksum $recorded_checksum, but current checksum is $checksum." >&2
+    else
+      echo "Skipping $migration_name: already applied."
+    fi
+    skipped=$((skipped + 1))
+    continue
+  fi
+
+  echo "Applying $migration_name"
+  mysql_exec < "$sql_file"
+  record_applied_migration "$migration_name" "$checksum"
+  applied=$((applied + 1))
 done
-echo "Database migrations complete: $DB_NAME"
+echo "Database migrations complete: $applied applied, $skipped skipped."

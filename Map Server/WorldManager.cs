@@ -447,7 +447,7 @@ namespace AetherXIV.Core.Map
                 {
                     conn.Open();
                     var query = @"
-                    SELECT bsl.bnpcId, bsl.groupId, bsl.positionX, bsl.positionY, bsl.positionZ, bsl.rotation, 
+                    SELECT bsl.bnpcId, bsl.customDisplayName, bsl.groupId, bsl.positionX, bsl.positionY, bsl.positionZ, bsl.rotation,
                     bgr.groupId, bgr.poolId, bgr.scriptName, bgr.minLevel, bgr.maxLevel, bgr.respawnTime, bgr.hp, bgr.mp,
                     bgr.dropListId, bgr.allegiance, bgr.spawnType, bgr.animationId, bgr.actorState, bgr.privateAreaName, bgr.privateAreaLevel, bgr.zoneId,
                     bpo.poolId, bpo.genusId, bpo.actorClassId, bpo.currentJob, bpo.combatSkill, bpo.combatDelay, bpo.combatDmgMult, bpo.aggroType,
@@ -479,9 +479,11 @@ namespace AetherXIV.Core.Map
                                 // todo: add to private areas, set up immunity, mob linking,
                                 // - load skill/spell/drop lists, set detection icon, load pool/family/group mods
 
+                                string customDisplayName = reader.IsDBNull(reader.GetOrdinal("customDisplayName")) ? "" : reader.GetString("customDisplayName");
+
                                 var battleNpc = new BattleNpc(actorId, Server.GetWorldManager().GetActorClass(reader.GetUInt32("actorClassId")),
                                     reader.GetString("scriptName"), zone, reader.GetFloat("positionX"), reader.GetFloat("positionY"), reader.GetFloat("positionZ"), reader.GetFloat("rotation"),
-                                    reader.GetUInt16("actorState"), reader.GetUInt32("animationId"), "");
+                                    reader.GetUInt16("actorState"), reader.GetUInt32("animationId"), customDisplayName);
 
                                 battleNpc.SetBattleNpcId(reader.GetUInt32("bnpcId"));
 
@@ -572,7 +574,7 @@ namespace AetherXIV.Core.Map
                 {
                     conn.Open();
                     var query = @"
-                    SELECT bsl.bnpcId, bsl.groupId, bsl.positionX, bsl.positionY, bsl.positionZ, bsl.rotation, 
+                    SELECT bsl.bnpcId, bsl.customDisplayName, bsl.groupId, bsl.positionX, bsl.positionY, bsl.positionZ, bsl.rotation,
                     bgr.groupId, bgr.poolId, bgr.scriptName, bgr.minLevel, bgr.maxLevel, bgr.respawnTime, bgr.hp, bgr.mp,
                     bgr.dropListId, bgr.allegiance, bgr.spawnType, bgr.animationId, bgr.actorState, bgr.privateAreaName, bgr.privateAreaLevel, bgr.zoneId,
                     bpo.poolId, bpo.genusId, bpo.actorClassId, bpo.currentJob, bpo.combatSkill, bpo.combatDelay, bpo.combatDmgMult, bpo.aggroType,
@@ -610,15 +612,16 @@ namespace AetherXIV.Core.Map
                             // - load skill/spell/drop lists, set detection icon, load pool/family/group mods
                             var allegiance = (CharacterTargetingAllegiance)reader.GetByte("allegiance");
                             BattleNpc battleNpc = null;
+                            string customDisplayName = reader.IsDBNull(reader.GetOrdinal("customDisplayName")) ? "" : reader.GetString("customDisplayName");
 
                             if (allegiance == CharacterTargetingAllegiance.Player)
                                 battleNpc = new Ally(actorId, Server.GetWorldManager().GetActorClass(reader.GetUInt32("actorClassId")),
                                 reader.GetString("scriptName"), area, reader.GetFloat("positionX"), reader.GetFloat("positionY"), reader.GetFloat("positionZ"), reader.GetFloat("rotation"),
-                                reader.GetUInt16("actorState"), reader.GetUInt32("animationId"), "");
+                                reader.GetUInt16("actorState"), reader.GetUInt32("animationId"), customDisplayName);
                             else
                                 battleNpc = new BattleNpc(actorId, Server.GetWorldManager().GetActorClass(reader.GetUInt32("actorClassId")),
                                 reader.GetString("scriptName"), area, reader.GetFloat("positionX"), reader.GetFloat("positionY"), reader.GetFloat("positionZ"), reader.GetFloat("rotation"),
-                                reader.GetUInt16("actorState"), reader.GetUInt32("animationId"), "");
+                                reader.GetUInt16("actorState"), reader.GetUInt32("animationId"), customDisplayName);
                             
                             battleNpc.SetBattleNpcId(reader.GetUInt32("bnpcId"));
                             battleNpc.SetMod((uint)Modifier.MovementSpeed, reader.GetByte("speed"));

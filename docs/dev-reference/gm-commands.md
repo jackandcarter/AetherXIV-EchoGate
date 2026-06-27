@@ -10,6 +10,7 @@ Parameter strings come from each command's Lua `properties.parameters` value. In
 | --- | --- | --- |
 | `!queststate` | none | Prints position, private-area state, pending destination, scenario quest phases/flags, and NPC Linkpearl states. |
 | `!mypos` | none | Prints the current in-game position for spawn and zone work. |
+| `!pinspawn` | `ss` | Captures a provisional battle NPC spawn audit pin at the player's current position. Use prompt mode with no arguments, or one-shot mode with enemy name and source note. |
 | `!warp` | `sssssss` | Moves inside the current zone or requests a zone change. Supports target names and `@` offsets. |
 | `!warpaeth` | `s` | Teleports to a known aetheryte or aetherial gate from `Data/scripts/aetheryte.lua`; does not attune or unlock anything. |
 | `!warpid` | `s` | Teleports to an actor by unique ID. |
@@ -31,6 +32,7 @@ Parameter strings come from each command's Lua `properties.parameters` value. In
 | Command | Parameters | Notes |
 | --- | --- | --- |
 | `!mypos` | none | Reports `x`, `y`, `z`, and rotation. |
+| `!pinspawn` | `ss` | Records `enemyName`, source note, zone, position, rotation, character, and timestamp into `server_battlenpc_spawn_audit_pins`. These rows are provisional audit pins only and do not spawn actors. |
 | `!nudge` | `ss` | Moves the player forward, up, or down. |
 | `!warp` | `sssssss` | Broad movement helper. |
 | `!warpaeth` | `s` | Known destination aliases plus numeric IDs. |
@@ -102,6 +104,7 @@ Parameter strings come from each command's Lua `properties.parameters` value. In
 
 - Many command descriptions are stale because the `properties.description` text was copied during early development.
 - Prefer `!queststate`, diagnostics, and trace files when trying to understand a flow.
+- Use `!pinspawn` when visually comparing archival footage or packet evidence to the live world. Promote reviewed pins into durable spawn rows with an explicit migration; do not point loaders at the audit table.
 - Prefer SQL seed rows and loader paths for durable spawn work. `!spawn` and `!spawnnpc` are great probes but not final content.
 - `!setmod` is useful for experiments, but stat-system work should flow through recalculated layers whenever possible.
 - `!workvalue` is one of the most important commands for client UI reverse engineering because it exercises server-to-client work value writes and UI callbacks.

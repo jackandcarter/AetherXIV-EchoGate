@@ -164,11 +164,8 @@ namespace AetherXIV.Core.Map
                         ChatMessagePacket chatMessage = new ChatMessagePacket(subpacket.data);
                         //Program.Log.Info("Got type-{5} message: {0} @ {1}, {2}, {3}, Rot: {4}", chatMessage.message, chatMessage.posX, chatMessage.posY, chatMessage.posZ, chatMessage.posRot, chatMessage.logType);
                    
-                        if (chatMessage.message.StartsWith("!"))
-                        {
-                            if (Server.GetCommandProcessor().DoCommand(chatMessage.message, session))
-                                return; ;
-                        }
+                        if (Server.GetCommandProcessor().HandleChatInput(chatMessage.message, session))
+                            return;
 
                         if (chatMessage.logType == SendMessagePacket.MESSAGE_TYPE_SAY || chatMessage.logType == SendMessagePacket.MESSAGE_TYPE_SHOUT)
                             session.GetActor().BroadcastPacket(SendMessagePacket.BuildPacket(session.id, chatMessage.logType, session.GetActor().customDisplayName, chatMessage.message), false);

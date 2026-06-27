@@ -13,8 +13,21 @@ namespace AetherXIV.Core.Map
     class CommandProcessor
     {
         private static Dictionary<uint, ItemData> gamedataItems = Server.GetGamedataItems();
+        private readonly Dictionary<uint, SpawnPinPromptState> spawnPinPrompts = new Dictionary<uint, SpawnPinPromptState>();
 
         const UInt32 ITEM_GIL = 1000001;
+
+        private enum SpawnPinPromptStep
+        {
+            EnemyName,
+            SourceNote
+        }
+
+        private class SpawnPinPromptState
+        {
+            public SpawnPinPromptStep Step;
+            public string EnemyName;
+        }
       
         /// <summary>
         /// We only use the default options for SendMessagePacket.
@@ -28,12 +41,34 @@ namespace AetherXIV.Core.Map
                 session.GetActor().QueuePacket(SendMessagePacket.BuildPacket(session.id, SendMessagePacket.MESSAGE_TYPE_GENERAL_INFO, "", message));
         }
 
+        private void SendPinSpawnMessage(Player player, String message)
+        {
+            if (player != null)
+                player.SendMessage(SendMessagePacket.MESSAGE_TYPE_SYSTEM_ERROR, "[pinspawn] ", message);
+            else
+                Program.Log.Info(String.Format("[pinspawn] {0}", message));
+        }
+
+        internal bool HandleChatInput(string input, Session session)
+        {
+            if (String.IsNullOrEmpty(input))
+                return false;
+
+            if (input.StartsWith("!"))
+                return DoCommand(input, session);
+
+            if (session != null && spawnPinPrompts.ContainsKey(session.id))
+                return ContinuePinSpawnPrompt(input, session);
+
+            return false;
+        }
+
         internal bool DoCommand(string input, Session session)
         {
             if (!input.Any() || input.Equals("") || input.Length == 1)
                 return false;
 
-            input.Trim();
+            input = input.Trim();
             input = input.StartsWith("!") ? input.Substring(1) : input;
 
             var split = input.Split('"')
@@ -71,6 +106,12 @@ namespace AetherXIV.Core.Map
 
                         LuaEngine.RunGMCommand(player, c, null, true);
                     }
+                    return true;
+                }
+
+                if (cmd.Equals("pinspawn", StringComparison.OrdinalIgnoreCase))
+                {
+                    HandlePinSpawnCommand(split, session, player);
                     return true;
                 }
 
@@ -121,6 +162,88 @@ namespace AetherXIV.Core.Map
                 #endregion
             }
             return false;
+        }
+
+        private void HandlePinSpawnCommand(string[] split, Session session, Player player)
+        {
+            if (player == null || session == null)
+            {
+                Program.Log.Info("[pinspawn] This command must be run by an in-game player.");
+                return;
+            }
+
+            if (split.Length == 1)
+            {
+                spawnPinPrompts[session.id] = new SpawnPinPromptState { Step = SpawnPinPromptStep.EnemyName };
+                SendPinSpawnMessage(player, "Enemy name? Type cancel to stop.");
+                return;
+            }
+
+            string enemyName = split[1];
+            string sourceNote = split.Length > 2 ? String.Join(" ", split.Skip(2).ToArray()) : "";
+            SavePinSpawn(player, enemyName, sourceNote);
+        }
+
+        private bool ContinuePinSpawnPrompt(string input, Session session)
+        {
+            Player player = session.GetActor();
+            string value = input == null ? "" : input.Trim();
+
+            if (value.Equals("cancel", StringComparison.OrdinalIgnoreCase))
+            {
+                spawnPinPrompts.Remove(session.id);
+                SendPinSpawnMessage(player, "Canceled.");
+                return true;
+            }
+
+            SpawnPinPromptState prompt = spawnPinPrompts[session.id];
+
+            if (prompt.Step == SpawnPinPromptStep.EnemyName)
+            {
+                if (String.IsNullOrEmpty(value))
+                {
+                    SendPinSpawnMessage(player, "Enemy name cannot be blank. Type cancel to stop.");
+                    return true;
+                }
+
+                prompt.EnemyName = value;
+                prompt.Step = SpawnPinPromptStep.SourceNote;
+                SendPinSpawnMessage(player, "Source note? Type skip for blank, or cancel to stop.");
+                return true;
+            }
+
+            string sourceNote = value.Equals("skip", StringComparison.OrdinalIgnoreCase) ? "" : value;
+            spawnPinPrompts.Remove(session.id);
+            SavePinSpawn(player, prompt.EnemyName, sourceNote);
+            return true;
+        }
+
+        private void SavePinSpawn(Player player, string enemyName, string sourceNote)
+        {
+            if (String.IsNullOrWhiteSpace(enemyName))
+            {
+                SendPinSpawnMessage(player, "Enemy name cannot be blank.");
+                return;
+            }
+
+            uint pinId = Database.SaveBattleNpcSpawnAuditPin(player, enemyName, sourceNote);
+            if (pinId == 0)
+            {
+                SendPinSpawnMessage(player, "Could not save pin. Is the spawn audit migration applied?");
+                return;
+            }
+
+            SendPinSpawnMessage(
+                player,
+                String.Format(
+                    "Saved provisional pin #{0}: {1} at Zone:{2} X:{3:0.000} Y:{4:0.000} Z:{5:0.000} Rot:{6:0.000}",
+                    pinId,
+                    enemyName.Trim(),
+                    player.zoneId,
+                    player.positionX,
+                    player.positionY,
+                    player.positionZ,
+                    player.rotation));
         }
     }
 

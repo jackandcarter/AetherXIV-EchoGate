@@ -2832,6 +2832,86 @@ namespace AetherXIV.Core.Map
             }
         }
 
+        public static uint SaveBattleNpcSpawnAuditPin(Player player, string enemyName, string sourceNote)
+        {
+            if (player == null)
+                return 0;
+
+            enemyName = (enemyName ?? "").Trim();
+            sourceNote = (sourceNote ?? "").Trim();
+
+            if (enemyName.Length == 0)
+                return 0;
+
+            if (enemyName.Length > 64)
+                enemyName = enemyName.Substring(0, 64);
+
+            if (sourceNote.Length > 255)
+                sourceNote = sourceNote.Substring(0, 255);
+
+            string createdByName = player.customDisplayName ?? player.actorName ?? "";
+            if (createdByName.Length > 64)
+                createdByName = createdByName.Substring(0, 64);
+
+            using (MySqlConnection conn = new MySqlConnection(String.Format("Server={0}; Port={1}; Database={2}; UID={3}; Password={4}", ConfigConstants.DATABASE_HOST, ConfigConstants.DATABASE_PORT, ConfigConstants.DATABASE_NAME, ConfigConstants.DATABASE_USERNAME, ConfigConstants.DATABASE_PASSWORD)))
+            {
+                try
+                {
+                    conn.Open();
+
+                    string query = @"
+                        INSERT INTO server_battlenpc_spawn_audit_pins
+                        (
+                            enemyName,
+                            sourceNote,
+                            zoneId,
+                            positionX,
+                            positionY,
+                            positionZ,
+                            rotation,
+                            createdByCharacterId,
+                            createdByCharacterName
+                        )
+                        VALUES
+                        (
+                            @enemyName,
+                            @sourceNote,
+                            @zoneId,
+                            @positionX,
+                            @positionY,
+                            @positionZ,
+                            @rotation,
+                            @createdByCharacterId,
+                            @createdByCharacterName
+                        )";
+
+                    MySqlCommand cmd = new MySqlCommand(query, conn);
+                    cmd.Parameters.AddWithValue("@enemyName", enemyName);
+                    cmd.Parameters.AddWithValue("@sourceNote", sourceNote);
+                    cmd.Parameters.AddWithValue("@zoneId", player.zoneId);
+                    cmd.Parameters.AddWithValue("@positionX", player.positionX);
+                    cmd.Parameters.AddWithValue("@positionY", player.positionY);
+                    cmd.Parameters.AddWithValue("@positionZ", player.positionZ);
+                    cmd.Parameters.AddWithValue("@rotation", player.rotation);
+                    cmd.Parameters.AddWithValue("@createdByCharacterId", player.actorId);
+                    cmd.Parameters.AddWithValue("@createdByCharacterName", createdByName);
+                    cmd.ExecuteNonQuery();
+
+                    return Convert.ToUInt32(cmd.LastInsertedId);
+                }
+                catch (MySqlException e)
+                {
+                    Program.Log.Error(e.ToString());
+                }
+                finally
+                {
+                    conn.Dispose();
+                }
+            }
+
+            return 0;
+        }
+
         public static void PlayerCharacterUpdateClassLevel(Player player, byte classId, short level)
         {
             string query;
