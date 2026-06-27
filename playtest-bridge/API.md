@@ -78,7 +78,7 @@ Starts bridge-managed services.
   "services": "web,lobby,map,world",
   "fresh": true,
   "new_session": true,
-  "trace_dir": "/tmp/meteorxiv-traces"
+  "trace_dir": "/tmp/aetherxiv-traces"
 }
 ```
 

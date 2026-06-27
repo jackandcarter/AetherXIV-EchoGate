@@ -47,6 +47,8 @@ function onEventStarted(player, actor, triggerName)
 	elseif player:IsDiscipleOfLand() then
 		waitForSignal("abilityUsed");
 	end
+
+	player:GetZone():SetBattleNpcMinimumHpLock(0);
 	
 	waitForSignal("mobkill");
 	worldMaster = GetWorldMaster();

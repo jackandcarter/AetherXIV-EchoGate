@@ -885,7 +885,7 @@ namespace AetherXIV.Core.Map.actors.chara.ai.utils
 
             //The party modifier isn't clear yet. It seems like it might just be 0.667 for any number of members in a group, but the 1.19 notes say it's variable
             //There also seem to be some cases where it simply doesn't apply but it isn't obvious if that's correct or when it applies if it is correct
-            double partyModifier = player.currentParty.GetMemberCount() == 1 ? 1.0 : 0.667;
+            double partyModifier = (player.currentParty == null || player.currentParty.GetMemberCount() == 1) ? 1.0 : 0.667;
 
             baseEXP = (ushort) (baseEXP * dlvlModifier * partyModifier);
 

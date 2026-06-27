@@ -15,6 +15,9 @@ function onCreateContentArea(players, director, contentArea, contentGroup)
 	mob1 = contentArea:SpawnActor(2205403, "mob1", -3.02+3, 17.35, 14.24, -2.81, 0, 0, true);
 	mob2 = contentArea:SpawnActor(2205403, "mob2", -3.02, 17.35, 14.24, -2.81, 0, 0, true);
 	mob3 = contentArea:SpawnActor(2205403, "mob3", -3.02-3, 17.35, 14.24, -2.81, 0, 0, true);
+	mob1:SetMod(modifiersGlobal.MinimumHpLock, 1);
+	mob2:SetMod(modifiersGlobal.MinimumHpLock, 1);
+	mob3:SetMod(modifiersGlobal.MinimumHpLock, 1);
 	
 	for _, player in pairs(players) do
         contentGroup:AddMember(player);
@@ -62,6 +65,8 @@ function onEventStarted(player, director, triggerName)
 	elseif player:IsDiscipleOfLand() then
 		waitForSignal("abilityUsed");
 	end
+
+	player:GetZone():SetBattleNpcMinimumHpLock(0);
 	
 	waitForSignal("mobkill");
 	waitForSignal("mobkill");

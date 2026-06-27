@@ -39,7 +39,11 @@ namespace AetherXIV.Core.Map.actors.chara.ai.controllers
         {
             //lua.LuaEngine.CallLuaBattleFunction(owner, "tryAggro", owner, GetContentGroupCharas());
 
-            foreach(Character chara in GetContentGroupCharas())
+            var contentGroupCharas = GetContentGroupCharas();
+            if (contentGroupCharas == null)
+                return;
+
+            foreach(Character chara in contentGroupCharas)
             {
                 if(chara.IsPlayer())
                 {

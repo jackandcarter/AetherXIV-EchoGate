@@ -2367,19 +2367,29 @@ namespace AetherXIV.Core.Map.Actors
                 return;
 
             Party partyGroup = (Party) currentParty;
+            partyGroup.SendDeletePacket(playerSession);
 
+            DevDiagnostics.Trace(
+                "party.player.leave",
+                "player", customDisplayName,
+                "actor", String.Format("0x{0:X}", actorId),
+                "group", partyGroup.groupIndex,
+                "membersBefore", partyGroup.members.Count);
+
+            partyGroup.RemoveMember(actorId);
+
+            bool hasSessionMember = false;
             for (int i = 0; i < partyGroup.members.Count; i++)
             {
-                if (partyGroup.members[i] == actorId)
+                if (Server.GetServer().GetSession(partyGroup.members[i]) != null)
                 {
-                    partyGroup.members.RemoveAt(i);
+                    hasSessionMember = true;
                     break;
                 }
             }
 
-            //currentParty.members.Remove(this);
-            if (partyGroup.members.Count == 0)
-                Server.GetWorldManager().NoMembersInParty((Party)currentParty);
+            if (!hasSessionMember)
+                Server.GetWorldManager().NoMembersInParty(partyGroup);
 
             currentParty = null;
         }

@@ -4,7 +4,9 @@ param(
     [string]$ClientDir = "",
     [int]$StartupTimeoutSeconds = 45,
     [switch]$SkipWeb,
-    [switch]$NoLauncherStatusUpdate
+    [switch]$NoLauncherStatusUpdate,
+    [switch]$DevDiagnostics,
+    [string]$DevDiagnosticsDir = ""
 )
 
 . "$PSScriptRoot\common.ps1"
@@ -130,8 +132,15 @@ Test-ServerExecutables
 
 $webHost = Resolve-WaitHost -BindValue (Get-EnvValue "WEB_BIND" "127.0.0.1")
 $webPort = [int](Get-EnvValue "WEB_PORT" "8080")
-$readyDirectory = Join-Path ([System.IO.Path]::GetTempPath()) ("meteorxiv-ready-{0}" -f ([guid]::NewGuid().ToString("N")))
+$readyDirectory = Join-Path ([System.IO.Path]::GetTempPath()) ("aetherxiv-ready-{0}" -f ([guid]::NewGuid().ToString("N")))
+$traceDirectory = $DevDiagnosticsDir
+if ($DevDiagnostics -and $traceDirectory -eq "") {
+    $traceDirectory = Join-Path ([System.IO.Path]::GetTempPath()) "aetherxiv-traces"
+}
 New-Item -ItemType Directory -Force -Path $readyDirectory | Out-Null
+if ($traceDirectory -ne "") {
+    New-Item -ItemType Directory -Force -Path $traceDirectory | Out-Null
+}
 $lobbyReady = New-ReadyFile -Name "lobby" -ReadyDirectory $readyDirectory
 $mapReady = New-ReadyFile -Name "map" -ReadyDirectory $readyDirectory
 $worldReady = New-ReadyFile -Name "world" -ReadyDirectory $readyDirectory
@@ -152,15 +161,23 @@ try {
         Write-Host "Skipping local launcher web service."
     }
 
-    Start-StackScript -ScriptName "run-lobby.ps1" -Arguments @("-Configuration", $Configuration, "-ReadyFile", $lobbyReady)
+    $lobbyArgs = @("-Configuration", $Configuration, "-ReadyFile", $lobbyReady)
+    if ($DevDiagnostics) { $lobbyArgs += "-DevDiagnostics" }
+    if ($traceDirectory -ne "") { $lobbyArgs += @("-DevDiagnosticsDir", $traceDirectory) }
+    Start-StackScript -ScriptName "run-lobby.ps1" -Arguments $lobbyArgs
     Wait-ForReadyFile -Name "lobby server" -ReadyFile $lobbyReady -TimeoutSeconds $StartupTimeoutSeconds
 
     $mapArgs = @("-Configuration", $Configuration, "-ReadyFile", $mapReady)
     if ($ClientDir -ne "") { $mapArgs += @("-ClientDir", $ClientDir) }
+    if ($DevDiagnostics) { $mapArgs += "-DevDiagnostics" }
+    if ($traceDirectory -ne "") { $mapArgs += @("-DevDiagnosticsDir", $traceDirectory) }
     Start-StackScript -ScriptName "run-map.ps1" -Arguments $mapArgs
     Wait-ForReadyFile -Name "map server" -ReadyFile $mapReady -TimeoutSeconds $StartupTimeoutSeconds
 
-    Start-StackScript -ScriptName "run-world.ps1" -Arguments @("-Configuration", $Configuration, "-ReadyFile", $worldReady)
+    $worldArgs = @("-Configuration", $Configuration, "-ReadyFile", $worldReady)
+    if ($DevDiagnostics) { $worldArgs += "-DevDiagnostics" }
+    if ($traceDirectory -ne "") { $worldArgs += @("-DevDiagnosticsDir", $traceDirectory) }
+    Start-StackScript -ScriptName "run-world.ps1" -Arguments $worldArgs
     Wait-ForReadyFile -Name "world server" -ReadyFile $worldReady -TimeoutSeconds $StartupTimeoutSeconds
 
     if (-not $NoLauncherStatusUpdate) {

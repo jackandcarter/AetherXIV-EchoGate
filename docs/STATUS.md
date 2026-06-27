@@ -9,7 +9,7 @@ This matrix is the short version of where the project stands today.
 | PHP launcher services | Working locally | Status, news, login, account creation, patch manifest, and runtime catalog endpoints are present. |
 | Lobby Server | Working for local flow | Auth/session and character handoff path are usable for playtests. |
 | World Server | Working for local flow | Accepts client world connections and coordinates map handoff. |
-| Map Server | Working for startup/playtest | Loads zone data, actors, commands, Lua scripts, and `staticactors.bin` when prepared. |
+| Map Server | Working for startup/playtest | Loads zone data, actors, commands, Lua scripts, and `staticactors.bin` when prepared. Gridania opening tutorial now has action-gated wolf mortality, director-owned companion cleanup, and seeded Yda/Papalymo action lists. |
 | `staticactors.bin` setup | Working locally | Helpers can prepare it from the saved Echo Gate client path, `CLIENT_DIR`, or a prompted path. |
 | Echo Gate Home/Server tabs | Working | Account, login, news, service status, and local server profile settings are implemented. |
 | Echo Gate Client tab | Working | Validates the local 1.23b client and user-provided patch library metadata. |
@@ -22,14 +22,15 @@ This matrix is the short version of where the project stands today.
 | Windows ARM64 | Partial | Echo Gate publish target exists; Windows x86 client emulation and runtime behavior need validation. |
 | Steam Deck | Experimental | Expected to follow the Linux path in Desktop Mode, but hardware validation is still pending. |
 | Approved runtime catalog | Partial | Service contract exists; hosted runtime archives and release process still need production packaging. |
-| Gameplay systems | Partial | Core flow is usable, but quests, inventory, trade, bazaar, battle details, and persistence need deeper testing. |
+| Gameplay systems | Partial | Core flow is usable, Gridania/Ul'dah tutorial paths are improving, but quests, inventory, trade, bazaar, battle details, and persistence need deeper testing. |
+| Umbra framework | Testing shell | Launcher catalog/install, in-process bootstrap, DX9/ImGui shell, bottom-right toasts, repository parsing, system-plugin startup, and Dev Bridge control exist. Third-party plugin execution is still disabled by default. |
 | Reverse-engineering tools | Available | Dev-only packet and trace tooling is documented in `docs/REVERSE_ENGINEERING_TOOLS.md`. |
 
 ## Current Best Test Path
 
 1. Set up the local database.
 2. Build the legacy servers.
-3. Copy runtime data and prepare `staticactors.bin`.
+3. Apply DB migrations, then copy runtime data and prepare `staticactors.bin`.
 4. Run PHP, Lobby, Map, and World services.
 5. Build or open Echo Gate.
 6. Select a local user-owned client folder.

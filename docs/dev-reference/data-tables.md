@@ -25,8 +25,8 @@ This page is a fast inventory of SQL tables that matter for reverse engineering 
 | `server_battlenpc_pool_mods` | `7` | Pool-level modifiers. |
 | `server_battlenpc_spawn_mods` | `3` | Spawn-level modifiers. |
 | `server_battlenpc_genus_mods` | `0` | Genus-level modifiers. |
-| `server_battlenpc_skill_list` | `0` | Future skill-list data. |
-| `server_battlenpc_spell_list` | `0` | Future spell-list data. |
+| `server_battlenpc_skill_list` | `3` | Battle NPC skill-list data. Current seed includes Yda's Gridania tutorial companion list. |
+| `server_battlenpc_spell_list` | `3` | Battle NPC spell-list data. Current seed includes Papalymo's Gridania tutorial companion list. |
 
 ## Battle Commands, Traits, and Effects
 
@@ -77,3 +77,7 @@ Before adding rows to a gameplay table:
 3. Confirm joins are complete. Battle NPC rows need spawn, group, pool, and genus rows.
 4. Confirm client acceptance with live traces when actor classes, models, or UI state are involved.
 5. Add comments or docs when a row is test-only.
+
+Existing databases should receive non-destructive table/data updates through
+`Data/sql/migrations/` and `./tools/apply-db-migrations.sh` rather than by
+dropping and reimporting local playtest data.

@@ -1,5 +1,6 @@
 require ("global")
 require ("modifiers")
+require ("ally")
 
 function onCreate(starterPlayer, contentArea, director)
 	--papalymo = contentArea:SpawnActor(2290005, "papalymo", 365.89, 4.0943, -706.72, -0.718);
@@ -14,8 +15,9 @@ function onCreate(starterPlayer, contentArea, director)
 	mob1 = GetWorldManager().SpawnBattleNpcById(3, contentArea);
 	mob2 = GetWorldManager().SpawnBattleNpcById(4, contentArea);
     mob3 = GetWorldManager().SpawnBattleNpcById(5, contentArea);
-	starterPlayer.currentParty:AddMember(papalymo.actorId);
-    starterPlayer.currentParty:AddMember(yda.actorId);
+	mob1:SetMod(modifiersGlobal.MinimumHpLock, 1);
+	mob2:SetMod(modifiersGlobal.MinimumHpLock, 1);
+	mob3:SetMod(modifiersGlobal.MinimumHpLock, 1);
 	starterPlayer:SetMod(modifiersGlobal.MinimumHpLock, 1);
 	
 	
@@ -47,7 +49,7 @@ function onUpdate(tick, area)
 			if player then
 				local exitLoop = false
 				
-				if allies then
+				if allies and player:GetTempVar("gridaniaTutorialAlliesReleased") == 1 then
 					for i = 0, #allies - 1 do
 						if allies[i] then							
 							if not allies[i]:IsEngaged() then

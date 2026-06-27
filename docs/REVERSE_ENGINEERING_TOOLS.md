@@ -6,11 +6,11 @@ For a readable entry point into GM commands, known enemies, zone/spawn data, cli
 
 ## Dev Diagnostics
 
-Enable structured traces with either `--dev-diagnostics` or `METEOR_DEV_DIAGNOSTICS=1`.
+Enable structured traces with either `--dev-diagnostics` or `AETHER_DEV_DIAGNOSTICS=1`. The older `METEOR_DEV_DIAGNOSTICS` variable is still accepted for compatibility, but new instructions should use the Aether names.
 
 ```bash
-METEOR_DEV_DIAGNOSTICS=1 ./tools/run-map.sh
-METEOR_DEV_DIAGNOSTICS=1 ./tools/run-world.sh
+AETHER_DEV_DIAGNOSTICS=1 ./tools/run-map.sh
+AETHER_DEV_DIAGNOSTICS=1 ./tools/run-world.sh
 ```
 
 The run scripts pass additional flags through to the server binaries:
@@ -29,13 +29,29 @@ World Server/bin/Release/dev-diagnostics/
 Lobby Server/bin/Release/dev-diagnostics/
 ```
 
-Set `METEOR_DEV_DIAGNOSTICS_DIR` to write all traces to a dedicated folder.
+Set `AETHER_DEV_DIAGNOSTICS_DIR` to write all traces to a dedicated folder.
 
 ```bash
-METEOR_DEV_DIAGNOSTICS=1 \
-METEOR_DEV_DIAGNOSTICS_DIR=/tmp/meteorxiv-traces \
+AETHER_DEV_DIAGNOSTICS=1 \
+AETHER_DEV_DIAGNOSTICS_DIR=/tmp/aetherxiv-traces \
 ./tools/run-map.sh
 ```
+
+On Windows, the easiest full-stack capture is:
+
+```powershell
+.\tools\windows\run-local-stack.ps1 -PrepareRuntimeData -ClientDir "C:\Path\To\FINAL FANTASY XIV" -DevDiagnostics -DevDiagnosticsDir "$env:TEMP\aetherxiv-traces"
+```
+
+To start each server manually on Windows:
+
+```powershell
+.\tools\windows\run-lobby.ps1 -DevDiagnostics -DevDiagnosticsDir "$env:TEMP\aetherxiv-traces"
+.\tools\windows\run-map.ps1 -DevDiagnostics -DevDiagnosticsDir "$env:TEMP\aetherxiv-traces"
+.\tools\windows\run-world.ps1 -DevDiagnostics -DevDiagnosticsDir "$env:TEMP\aetherxiv-traces"
+```
+
+Ask testers to zip and send the JSONL files from the diagnostics directory. With the commands above, those files are written to `%TEMP%\aetherxiv-traces` and are named like `lobby-YYYYMMDD-HHMMSS.jsonl`, `map-YYYYMMDD-HHMMSS.jsonl`, and `world-YYYYMMDD-HHMMSS.jsonl`.
 
 Current trace categories:
 
@@ -99,7 +115,7 @@ The bridge wraps the existing server scripts and starts:
 - Map server with diagnostics.
 - World server with diagnostics.
 
-It writes structured traces to `/tmp/meteorxiv-traces` by default and captured server logs to `playtest-bridge/.state/logs/`.
+It writes structured traces to `/tmp/aetherxiv-traces` by default and captured server logs to `playtest-bridge/.state/logs/`.
 
 Common bridge commands:
 

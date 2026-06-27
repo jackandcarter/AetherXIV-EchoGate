@@ -19,3 +19,7 @@ CREATE TABLE `server_battlenpc_skill_list` (
   `skillId` int(10) unsigned NOT NULL DEFAULT '0',
   PRIMARY KEY (`skillListId`, `skillId`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
+
+INSERT INTO `server_battlenpc_skill_list` VALUES (30010,27110);
+INSERT INTO `server_battlenpc_skill_list` VALUES (30010,27111);
+INSERT INTO `server_battlenpc_skill_list` VALUES (30010,27114);

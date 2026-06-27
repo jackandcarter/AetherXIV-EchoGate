@@ -439,6 +439,10 @@
     <Content Include="..\Data\map_config.ini">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+    <Content Include="..\Data\scripts\**\*.*">
+      <Link>scripts\%(RecursiveDir)%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
     <None Include="packages.config" />
     <Compile Include="Packets\WorldPackets\Send\WorldRequestZoneChangePacket.cs" />
   </ItemGroup>

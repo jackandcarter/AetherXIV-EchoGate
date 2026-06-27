@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using System.Linq;
 using AetherXIV.Core.Map.packets.send;
 using AetherXIV.Core.Map.actors.director;
+using AetherXIV.Core.Map.actors.chara;
 
 namespace AetherXIV.Core.Map.Actors
 {
@@ -427,6 +428,117 @@ namespace AetherXIV.Core.Map.Actors
         public virtual List<BattleNpc> GetMonsters()
         {
             return GetAllActors<BattleNpc>();
+        }
+
+        public int SetBattleNpcMinimumHpLock(uint minimumHp)
+        {
+            int updated = 0;
+            lock (mActorList)
+            {
+                foreach (BattleNpc battleNpc in mActorList.Values.OfType<BattleNpc>())
+                {
+                    battleNpc.SetMod((uint)Modifier.MinimumHpLock, minimumHp);
+                    updated++;
+                    DevDiagnostics.Trace(
+                        "area.battleNpc.minimumHpLock",
+                        "area", zoneName,
+                        "privateArea", this is PrivateArea,
+                        "actor", String.Format("0x{0:X}", battleNpc.actorId),
+                        "actorName", battleNpc.GetName(),
+                        "uniqueId", battleNpc.GetUniqueId(),
+                        "hp", battleNpc.GetHP(),
+                        "maxHp", battleNpc.GetMaxHP(),
+                        "minimumHpLock", minimumHp);
+                }
+            }
+            return updated;
+        }
+
+        public int EngageAlliesForPlayer(Player player)
+        {
+            if (player == null)
+                return 0;
+
+            if (player.currentContentGroup == null)
+            {
+                DevDiagnostics.Trace(
+                    "director.ally.engage",
+                    "area", zoneName,
+                    "player", String.Format("0x{0:X}", player.actorId),
+                    "playerName", player.GetName(),
+                    "state", "blocked",
+                    "reason", "player has no content group");
+                return 0;
+            }
+
+            int engaged = 0;
+            Character target = player.target as Character;
+
+            lock (mActorList)
+            {
+                if (target == null || target.IsDead() || !(target is BattleNpc) || target is Ally)
+                    target = FindDirectorEnemyForPlayer(player);
+
+                if (target == null)
+                {
+                    DevDiagnostics.Trace(
+                        "director.ally.engage",
+                        "area", zoneName,
+                        "player", String.Format("0x{0:X}", player.actorId),
+                        "playerName", player.GetName(),
+                        "state", "blocked",
+                        "reason", "no enemy target");
+                    return 0;
+                }
+
+                foreach (Ally ally in mActorList.Values.OfType<Ally>())
+                {
+                    if (ally.IsDead() || ally.currentContentGroup != player.currentContentGroup)
+                        continue;
+
+                    ally.neutral = false;
+                    ally.isAutoAttackEnabled = true;
+                    ally.SetMod((uint)Modifier.MovementSpeed, 8);
+                    ally.hateContainer.AddBaseHate(target);
+
+                    if (target is BattleNpc battleNpc)
+                        battleNpc.hateContainer.AddBaseHate(ally);
+
+                    ally.Engage(target);
+                    engaged++;
+
+                    DevDiagnostics.Trace(
+                        "director.ally.engage",
+                        "area", zoneName,
+                        "player", String.Format("0x{0:X}", player.actorId),
+                        "playerName", player.GetName(),
+                        "ally", String.Format("0x{0:X}", ally.actorId),
+                        "allyName", ally.GetName(),
+                        "target", String.Format("0x{0:X}", target.actorId),
+                        "targetName", target.GetName(),
+                        "state", ally.IsEngaged() ? "engaged" : "requested",
+                        "allyContentGroup", ally.currentContentGroup == null ? "none" : ally.currentContentGroup.groupIndex.ToString(),
+                        "playerContentGroup", player.currentContentGroup == null ? "none" : player.currentContentGroup.groupIndex.ToString());
+                }
+            }
+
+            return engaged;
+        }
+
+        private Character FindDirectorEnemyForPlayer(Player player)
+        {
+            foreach (BattleNpc battleNpc in mActorList.Values.OfType<BattleNpc>())
+            {
+                if (battleNpc is Ally || battleNpc.IsDead())
+                    continue;
+
+                if (battleNpc.currentContentGroup != player.currentContentGroup)
+                    continue;
+
+                return battleNpc;
+            }
+
+            return null;
         }
 
         public virtual List<Ally> GetAllies()

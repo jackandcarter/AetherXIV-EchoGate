@@ -282,7 +282,7 @@ For endpoint details, see `playtest-bridge/API.md`.
 - Session notes: `playtest-bridge/.state/sessions/<session-id>/notes.md`
 - Session snapshots: `playtest-bridge/.state/sessions/<session-id>/snapshots/`
 - Recipes: `playtest-bridge/recipes/`
-- Default trace folder: `/tmp/meteorxiv-traces`
+- Default trace folder: `/tmp/aetherxiv-traces`
 
 ## Recommended Reverse-Engineering Loop
 

@@ -35,6 +35,8 @@ function onEventStarted(player, actor, triggerName)
 	if player:IsDiscipleOfWar() then
 		player:SendMessage(0x20, "", "Is DoW");
 		waitForSignal("playerAttack");
+		player:SetTempVar("gridaniaTutorialAlliesReleased", 1);
+		player:GetZone():EngageAlliesForPlayer(player);
 		closeTutorialWidget(player);
 		showTutorialSuccessWidget(player, 9055); --Open TutorialSuccessWidget for attacking enemy
 		openTutorialWidget(player, CONTROLLER_KEYBOARD, TUTORIAL_TP);
@@ -50,12 +52,20 @@ function onEventStarted(player, actor, triggerName)
 		player:SendMessage(0x20, "", "Is DoM");
 		openTutorialWidget(player, CONTROLLER_KEYBOARD, TUTORIAL_CASTING);
 		waitForSignal("spellUsed");
+		player:SetTempVar("gridaniaTutorialAlliesReleased", 1);
+		player:GetZone():EngageAlliesForPlayer(player);
 		closeTutorialWidget(player);
 	elseif player:IsDiscipleOfHand() then
 		waitForSignal("abilityUsed");
+		player:SetTempVar("gridaniaTutorialAlliesReleased", 1);
+		player:GetZone():EngageAlliesForPlayer(player);
 	elseif player:IsDiscipleOfLand() then
 		waitForSignal("abilityUsed");
+		player:SetTempVar("gridaniaTutorialAlliesReleased", 1);
+		player:GetZone():EngageAlliesForPlayer(player);
 	end
+
+	player:GetZone():SetBattleNpcMinimumHpLock(0);
 	
 	player:SendMessage(0x20, "", "Waiting for mobkill1");
 	waitForSignal("mobkill"); --Should be wait for mobkill
@@ -67,31 +77,32 @@ function onEventStarted(player, actor, triggerName)
 	player:SetMod(modifiersGlobal.MinimumHpLock, 0);
 	player:SendMessage(0x20, "", "Sending data packet 'attention'");
 	player:SendDataPacket("attention", worldMaster, "", 51073, 2);
-	wait(5);
+	wait(0.5);
 	player:SendMessage(0x20, "", "Disengaging");
 	player:Disengage(0x0000);
-	wait(5);
+	wait(0.5);
 	player:SendMessage(0x20, "", "NextPhase(10)");
 	man0g0Quest:NextPhase(10);	
-	wait(5);
+	wait(0.5);
 	player:SendMessage(0x20, "", "ProcessEvent020_1");
 	callClientFunction(player, "delegateEvent", player, man0g0Quest, "processEvent020_1", nil, nil, nil);
 
-	wait(5);
+	wait(0.5);
 	
 	player:SendMessage(0x20, "", "Changing music");
 	player:ChangeMusic(7);
-	wait(5);
+	wait(0.5);
 	
 	player:SendMessage(0x20, "", "Kick notice event");
 	kickEventContinue(player, actor, "noticeEvent", "noticeEvent");
-	wait(5);
+	wait(0.5);
 	
 	player:SendMessage(0x20, "", "ContentFinished");
 	player:GetZone():ContentFinished();	
-	wait(5);
-	player:SendMessage(0x20, "", "Remove from party");
-	player:RemoveFromCurrentPartyAndCleanup();
+	wait(0.5);
+	player:SendMessage(0x20, "", "End director");
+	actor:EndDirector();
+	player:SetTempVar("gridaniaTutorialAlliesReleased", 0);
     --player:EndEvent();
     --GetWorldManager():DoZoneChange(player, 155, "PrivateAreaMasterPast", 1, 15, 175.38, -1.21, -1156.51, -2.1);
 	--[[
@@ -109,7 +120,7 @@ function onEventStarted(player, actor, triggerName)
 	
 	player:EndEvent();	
 	
-	wait(5);
+	wait(0.5);
 	player:SendMessage(0x20, "", "Zone change");
 	GetWorldManager():DoZoneChange(player, 155, "PrivateAreaMasterPast", 1, 15, 175.38, -1.21, -1156.51, -2.1);
 	

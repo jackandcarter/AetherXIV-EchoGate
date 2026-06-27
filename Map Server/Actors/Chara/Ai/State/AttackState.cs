@@ -130,6 +130,8 @@ namespace AetherXIV.Core.Map.actors.chara.ai.state
             {
                 attackCommand.targetFind.FindWithinArea(target, attackCommand.validTarget, attackCommand.aoeTarget);
                 TraceAutoAttack("command", String.Format("targets={0}", attackCommand.targetFind.GetTargets().Count));
+                if (owner is Player && attackCommand.targetFind.GetTargets().Count > 0)
+                    lua.LuaEngine.GetInstance().OnSignal("playerAttack");
                 owner.DoBattleCommand(attackCommand, "autoattack");
             }
             else

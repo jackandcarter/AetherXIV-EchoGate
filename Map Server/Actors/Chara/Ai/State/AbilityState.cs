@@ -106,7 +106,11 @@ namespace AetherXIV.Core.Map.actors.chara.ai.state
             isCompleted = true;
 
             if (owner is Player)
+            {
                 lua.LuaEngine.GetInstance().OnSignal("abilityUsed");
+                if (skill.targetFind.GetTargets().Count > 0)
+                    lua.LuaEngine.GetInstance().OnSignal("playerAttack");
+            }
 
             owner.DoBattleCommand(skill, "ability");
         }

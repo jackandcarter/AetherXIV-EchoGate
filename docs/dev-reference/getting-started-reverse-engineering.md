@@ -44,7 +44,7 @@ Start with these before changing behavior:
 
 ## Useful Diagnostics
 
-Enable structured diagnostics with either `--dev-diagnostics` or `METEOR_DEV_DIAGNOSTICS=1`.
+Enable structured diagnostics with either `--dev-diagnostics` or `AETHER_DEV_DIAGNOSTICS=1`. The legacy `METEOR_DEV_DIAGNOSTICS` variable is still accepted only for compatibility.
 
 Important trace families for this work:
 

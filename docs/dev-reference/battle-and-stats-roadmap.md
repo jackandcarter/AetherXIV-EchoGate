@@ -16,6 +16,7 @@ This page summarizes where the stat, EXP, battle, and formula work currently sta
 | Equipment stats | Equipment `paramBonusType/value` pairs in the known range are applied as a recalculated layer. |
 | Traits | Battle traits load and apply when class/job and level match. |
 | Battle commands | 151 command rows load, Lua command scripts are cached, targeting/cast/recast/action metadata exists. |
+| Battle NPC action lists | Working for current seed data. Yda and Papalymo now have Gridania tutorial companion lists backed by existing `server_battle_commands` rows. Historical 100xx Astral/Umbral command mapping remains a future data-import task. |
 | Auto-attack | Functional but still provisional. It uses a hard-coded `Attack` command with `basePotency = 100`. |
 | Damage formulas | Physical/spell mitigation, hit/miss/crit/block/parry/resist paths exist, but coefficients are provisional and not final 1.23b truth. |
 | Diagnostics | `stats.*`, `battle.*`, `player.exp.*`, and respawn lifecycle diagnostics now exist for evidence capture. |
@@ -25,6 +26,8 @@ This page summarizes where the stat, EXP, battle, and formula work currently sta
 - Live combat fixture around Central Thanalan rats.
 - Player targeting and auto-attacking battle NPCs.
 - Enemy counterattacks.
+- Director-spawned tutorial companions can be released into combat by script
+  state gates and use seeded battle NPC action lists.
 - EXP display and simple EXP chain behavior.
 - Level-up messaging and action learning.
 - Battle NPC death, despawn, and respawn traces.
@@ -43,6 +46,7 @@ This page summarizes where the stat, EXP, battle, and formula work currently sta
 | Weaponskill and magic formula parity | Scripts and metadata exist, but exact 1.23b formulas, caps, variance, and attribute contribution need evidence. |
 | Job equipment/soul-crystal workflow | Current job switching is not the final 1.21+ flow. |
 | Full battle NPC population | Durable field enemy population is mostly empty. |
+| Historical companion action identity | Current companion lists use command rows the engine already loads. Earlier 1.x names such as Phantom Dart, Scourge, Dia, Light Strike, and Jarring Strike need full `server_battle_commands` mapping before use. |
 | Food, medicine, materia, durability, rested bonus, buffs by layer | These need separated stat layers and evidence-backed rules. |
 
 ## Important Current Formula Leads

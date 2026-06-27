@@ -1060,14 +1060,12 @@ namespace AetherXIV.Core.Map.Actors
         // cause lua is a dick
         public void SetTempVar(string name, uint val)
         {
-            if (tempVars.ContainsKey(name))
-                tempVars[name] = val;
+            tempVars[name] = val;
         }
 
         public void SetTempVar(string name, UInt64 val)
         {
-            if (tempVars.ContainsKey(name))
-                tempVars[name] = val;
+            tempVars[name] = val;
         }
 
         public void ResetTempVars()

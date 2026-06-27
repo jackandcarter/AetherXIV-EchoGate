@@ -292,6 +292,7 @@ namespace AetherXIV.Core.Map.lua
             else
             {
                 path = $"./scripts/commands/{folder}/default.lua";
+                bool defaultExists = File.Exists(path);
                 DevDiagnostics.Trace(
                     "lua.commandScript.resolve",
                     "actor", actor == null ? "0x0" : String.Format("0x{0:X}", actor.actorId),
@@ -303,8 +304,10 @@ namespace AetherXIV.Core.Map.lua
                     "path", path,
                     "requestedPath", requestedPath,
                     "defaultUsed", true,
-                    "resolved", File.Exists(path));
-                //Program.Log.Error($"LuaEngine.CallLuaBattleCommandFunction [{command.name}] Unable to find script {path}");
+                    "resolved", defaultExists);
+                if (!defaultExists)
+                    return -1;
+
                 var script = LoadGlobals();
 
                 try
@@ -350,7 +353,19 @@ namespace AetherXIV.Core.Map.lua
             else
             {
                 path = $"./scripts/commands/{folder}/default.lua";
-                //Program.Log.Error($"LuaEngine.CallLuaBattleCommandFunction [{command.name}] Unable to find script {path}");
+                if (!File.Exists(path))
+                {
+                    DevDiagnostics.Trace(
+                        "lua.commandScript.resolve",
+                        "commandId", command.id,
+                        "commandName", command.name,
+                        "folder", folder,
+                        "path", path,
+                        "defaultUsed", true,
+                        "resolved", false);
+                    return;
+                }
+
                 var script = LoadGlobals();
 
                 try
@@ -387,7 +402,17 @@ namespace AetherXIV.Core.Map.lua
             else
             {
                 path = $"./scripts/effects/default.lua";
-                //Program.Log.Error($"LuaEngine.CallLuaBattleCommandFunction [{command.name}] Unable to find script {path}");
+                if (!File.Exists(path))
+                {
+                    DevDiagnostics.Trace(
+                        "lua.effectScript.resolve",
+                        "effect", effect.GetName(),
+                        "path", path,
+                        "defaultUsed", true,
+                        "resolved", false);
+                    return;
+                }
+
                 var script = LoadGlobals();
 
                 try
@@ -594,10 +619,39 @@ namespace AetherXIV.Core.Map.lua
             }
             else if (!optional)
             {
+                if (IsOptionalMonsterEvent(target, funcName))
+                {
+                    TraceOptionalMissingFunction(player, target, funcName, parentPath, childPath);
+                    if (player != null && funcName == "onEventStarted")
+                        player.EndEvent();
+                    return;
+                }
+
                 LuaEngine.SendError(player, String.Format("Could not find function '{0}' for actor {1}.", funcName, target.GetName()));
                 if (player != null && funcName == "onEventStarted")
                     player.EndEvent();
             }
+        }
+
+        private static bool IsOptionalMonsterEvent(Npc target, string funcName)
+        {
+            return funcName == "onEventStarted" && target is BattleNpc;
+        }
+
+        private static void TraceOptionalMissingFunction(Player player, Npc target, string funcName, string parentPath, string childPath)
+        {
+            DevDiagnostics.Trace(
+                "lua.function.missing.optional",
+                "player", player == null ? "(none)" : player.customDisplayName,
+                "actor", target.GetName(),
+                "actorId", String.Format("0x{0:X}", target.actorId),
+                "uniqueId", target.GetUniqueId(),
+                "className", target.className,
+                "classPath", target.classPath,
+                "function", funcName,
+                "parentPath", parentPath,
+                "childPath", childPath,
+                "reason", "battle NPC event hook is optional");
         }
 
         public List<LuaParam> CallLuaFunctionForReturn(Player player, Actor target, string funcName, bool optional, params object[] args)

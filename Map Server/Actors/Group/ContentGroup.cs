@@ -5,6 +5,7 @@ using AetherXIV.Core.Map.Actors;
 using AetherXIV.Core.Map.dataobjects;
 using AetherXIV.Core.Map.packets.send.group;
 using AetherXIV.Core.Map.packets.send.groups;
+using System;
 using System.Collections.Generic;
 
 namespace AetherXIV.Core.Map.actors.group
@@ -133,6 +134,14 @@ namespace AetherXIV.Core.Map.actors.group
 
         public void DeleteGroup()
         {
+            DevDiagnostics.Trace(
+                "content.group.delete",
+                "groupIndex", groupIndex,
+                "typeId", GetTypeId(),
+                "memberCount", members.Count,
+                "director", director == null ? "0x0" : String.Format("0x{0:X}", director.actorId),
+                "directorName", director == null ? "" : director.actorName);
+
             SendDeletePackets(members);
             for (int i = 0; i < members.Count; i++)
             {

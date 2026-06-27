@@ -19,3 +19,7 @@ CREATE TABLE `server_battlenpc_spell_list` (
   `spellId` int(10) unsigned NOT NULL DEFAULT '0',
   PRIMARY KEY (`spellListId`, `spellId`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
+
+INSERT INTO `server_battlenpc_spell_list` VALUES (30011,27308);
+INSERT INTO `server_battlenpc_spell_list` VALUES (30011,27310);
+INSERT INTO `server_battlenpc_spell_list` VALUES (30011,27313);

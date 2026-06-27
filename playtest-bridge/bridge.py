@@ -23,7 +23,7 @@ SESSIONS_DIR = STATE_DIR / "sessions"
 RECIPES_DIR = BRIDGE_DIR / "recipes"
 DEFAULT_TRACE_DIR = Path(os.environ.get(
     "AETHER_DEV_DIAGNOSTICS_DIR",
-    os.environ.get("METEOR_DEV_DIAGNOSTICS_DIR", "/tmp/meteorxiv-traces"),
+    os.environ.get("METEOR_DEV_DIAGNOSTICS_DIR", "/tmp/aetherxiv-traces"),
 ))
 DEFAULT_SERVICES = ("web", "lobby", "map", "world")
 DEFAULT_PORTS = {

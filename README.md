@@ -58,6 +58,10 @@ Existing databases can apply non-destructive launcher/Umbra service migrations w
 ./tools/apply-db-migrations.sh
 ```
 
+Run migrations after pulling newer 1.3 branch changes. They add service tables
+and gameplay seed updates such as the Gridania tutorial companion action lists
+without dropping existing accounts or characters.
+
 The setup script asks for MariaDB admin credentials only when it needs them. On Ubuntu-style socket-auth installs, it can fall back to `sudo` root access.
 
 ```sh
