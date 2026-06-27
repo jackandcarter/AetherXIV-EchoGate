@@ -135,6 +135,15 @@ namespace AetherXIV.Core.Map.Actors
             return SetActorNamePacket.BuildPacket(actorId, packetDisplayNameId, packetCustomName);
         }
 
+        public void SetCustomDisplayName(string name)
+        {
+            customDisplayName = name;
+            updateFlags |= ActorUpdateFlags.Name;
+
+            if (zone != null)
+                zone.BroadcastPacketAroundActor(this, CreateNamePacket());
+        }
+
         public SubPacket CreateSpeedPacket()
         {
             return SetActorSpeedPacket.BuildPacket(actorId, moveSpeeds[0], moveSpeeds[1], moveSpeeds[2], moveSpeeds[3]);

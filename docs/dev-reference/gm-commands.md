@@ -15,7 +15,12 @@ Parameter strings come from each command's Lua `properties.parameters` value. In
 | `!warpaeth` | `s` | Teleports to a known aetheryte or aetherial gate from `Data/scripts/aetheryte.lua`; does not attune or unlock anything. |
 | `!warpid` | `s` | Teleports to an actor by unique ID. |
 | `!warpplayer` | `ssss` | Warps to another player or warps another player to a target player. |
-| `!spawn` | `d` | Spawns a static actor near the player by actor class ID. Useful for fast model/path checks. |
+| `!spawn` | `ddd` | Spawns a battle NPC near the player by actor class ID using that class's real appearance. Requires an actor class already loaded with a valid class path. |
+| `!previewappearance` | `dd` | Spawns a known-good shell actor and applies an appearance ID. Use this for visual enemy auditions when the candidate actor class has a blank or unverified class path. |
+| `!previewrange` | `dddd` | Spawns a labeled grid of safe-shell appearance previews from a starting appearance ID. |
+| `!previewpair` | `dddd` | Spawns a real server actor beside a safe-shell appearance preview for side-by-side visual comparison. |
+| `!previewclear` | `dd` | Clears a deterministic preview range spawned by `!previewrange`. |
+| `!previewpairclear` | `dd` | Clears a deterministic side-by-side pair spawned by `!previewpair`. |
 | `!spawnnpc` | `sss` | Quick-spawns a level 52 battle NPC from a friendly alias list. Useful for combat and model tests. |
 | `!despawn` | `d` | Despawns an actor. The Lua description is stale. |
 | `!reloadzone` | `s` | Reloads the current zone and sends instance updates. |
@@ -40,7 +45,12 @@ Parameter strings come from each command's Lua `properties.parameters` value. In
 | `!warpplayer` | `ssss` | Player-to-player movement helper. |
 | `!reloadzone` | `s` | Rebuilds current zone state. |
 | `!zonecount` | none | Counts actors in the zone. |
-| `!spawn` | `d` | Static actor spawn near player; optional grid width/height behavior exists in script. |
+| `!spawn` | `ddd` | Battle NPC actor-class audition near player; optional grid width/height behavior exists in script. Does not override appearance or load blank-path actor classes. |
+| `!previewappearance` | `dd` | Safe appearance audition. Defaults to shell actor class `2104001`; pass a second actor class ID only if it is known-good. Labels the actor as `app <appearanceId>`. |
+| `!previewrange` | `dddd` | Safe appearance-grid audition. Use `!previewrange <startAppearanceId> <count> [safeShellActorClassId] [spacing]`; count is capped at 30. |
+| `!previewclear` | `dd` | Clears actors from `!previewrange <startAppearanceId> <count>`; count is capped at 100. |
+| `!previewpair` | `dddd` | Side-by-side comparison. Use `!previewpair <serverActorClassId> <appearanceId> [safeShellActorClassId] [spacing]`; labels the real server actor as `srv <actorClassId>` and the safe preview as `app <appearanceId>`. |
+| `!previewpairclear` | `dd` | Clears the deterministic pair from `!previewpair <serverActorClassId> <appearanceId>`. |
 | `!spawnnpc` | `sss` | Battle NPC spawn by alias. |
 | `!despawn` | `d` | Despawns actor by ID. |
 | `!setstate` | `s` | Changes an actor state. |
@@ -105,6 +115,7 @@ Parameter strings come from each command's Lua `properties.parameters` value. In
 - Many command descriptions are stale because the `properties.description` text was copied during early development.
 - Prefer `!queststate`, diagnostics, and trace files when trying to understand a flow.
 - Use `!pinspawn` when visually comparing archival footage or packet evidence to the live world. Promote reviewed pins into durable spawn rows with an explicit migration; do not point loaders at the audit table.
+- Use `!previewappearance`, `!previewrange`, and `!previewpair` to audit appearance IDs separately from spawn rows. Record visual verdicts in the dev portal; promote only reviewed data through explicit migrations.
 - Prefer SQL seed rows and loader paths for durable spawn work. `!spawn` and `!spawnnpc` are great probes but not final content.
 - `!setmod` is useful for experiments, but stat-system work should flow through recalculated layers whenever possible.
 - `!workvalue` is one of the most important commands for client UI reverse engineering because it exercises server-to-client work value writes and UI callbacks.
