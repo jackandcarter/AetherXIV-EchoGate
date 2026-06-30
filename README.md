@@ -112,7 +112,7 @@ Start local services in this order:
 ./tools/run-world.sh
 ```
 
-`tools/run-map.sh` and `tools/copy-runtime-data.sh` will try to prepare `Data/staticactors.bin` automatically from the saved Echo Gate client path or `CLIENT_DIR`.
+`tools/run-map.sh` and `tools/copy-runtime-data.sh` will try to prepare `Data/staticactors.bin` automatically from the saved Echo Gate client path, `CLIENT_DIR`, or a bootstrap `--client-dir` path.
 
 ## Build Checks
 
@@ -139,6 +139,7 @@ Linux all-in-one bootstrap:
 
 ```sh
 ./tools/bootstrap-ubuntu-build.sh --yes
+./tools/bootstrap-ubuntu-build.sh --yes --client-dir "/path/to/FINAL FANTASY XIV"
 ```
 
 See the platform guides for the full start-to-finish path.

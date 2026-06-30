@@ -96,6 +96,223 @@ function clipped($value, $length)
 	return substr(trim((string)$value), 0, $length);
 }
 
+function int_value($value, $default = 0)
+{
+	if($value === null || $value === "") return $default;
+	return intval($value);
+}
+
+function csv_cell($row, $index, $default = "")
+{
+	if($index < 0 || !array_key_exists($index, $row)) return $default;
+	return trim((string)$row[$index]);
+}
+
+function read_csv_row($handle)
+{
+	return fgetcsv($handle, 0, ",", "\"", "\\");
+}
+
+function csv_uint_cell($row, $index, $default = 0)
+{
+	$value = csv_cell($row, $index, "");
+	if($value === "" || !is_numeric($value)) return $default;
+	return intval($value);
+}
+
+function detect_class_path($row)
+{
+	foreach($row as $cell)
+	{
+		$value = trim((string)$cell);
+		if(stripos($value, "/Chara/") === 0) return $value;
+	}
+	return "";
+}
+
+function path_or_blank($value)
+{
+	$value = trim((string)$value);
+	if($value === "") return "";
+	if(strpos($value, "~") === 0)
+	{
+		$home = getenv("HOME");
+		if($home !== false) $value = $home . substr($value, 1);
+	}
+	return $value;
+}
+
+function import_client_actor_class_csv($db, $path, $batchId, $idColumn, $displayNameColumn, $classPathColumn, $propertyFlagsColumn)
+{
+	if($path === "" || !is_file($path)) return 0;
+
+	$handle = fopen($path, "r");
+	if($handle === false) return 0;
+
+	$count = 0;
+	$stmt = $db->prepare("
+		INSERT INTO client_decoded_actor_class_stage
+			(id, classPath, displayNameId, propertyFlags, rawCsvLine, importBatchId)
+		VALUES (?, ?, ?, ?, ?, ?)
+		ON DUPLICATE KEY UPDATE
+			classPath = VALUES(classPath),
+			displayNameId = VALUES(displayNameId),
+			propertyFlags = VALUES(propertyFlags),
+			rawCsvLine = VALUES(rawCsvLine),
+			importBatchId = VALUES(importBatchId),
+			importedAt = CURRENT_TIMESTAMP");
+	if($stmt === false)
+	{
+		fclose($handle);
+		return 0;
+	}
+
+	while(($row = read_csv_row($handle)) !== false)
+	{
+		$id = csv_uint_cell($row, $idColumn, 0);
+		if($id === 0) continue;
+
+		$classPath = $classPathColumn >= 0 ? csv_cell($row, $classPathColumn, "") : detect_class_path($row);
+		$displayNameId = csv_uint_cell($row, $displayNameColumn, 4294967295);
+		$propertyFlags = $propertyFlagsColumn >= 0 ? csv_uint_cell($row, $propertyFlagsColumn, 0) : 0;
+		$rawCsvLine = implode(",", array_map(function($value) { return (string)$value; }, $row));
+
+		$stmt->bind_param("isiisi", $id, $classPath, $displayNameId, $propertyFlags, $rawCsvLine, $batchId);
+		$stmt->execute();
+		$count++;
+	}
+
+	$stmt->close();
+	fclose($handle);
+	return $count;
+}
+
+function import_client_actor_graphic_csv($db, $path, $batchId, $idColumn, $graphicStartColumn)
+{
+	if($path === "" || !is_file($path)) return 0;
+
+	$handle = fopen($path, "r");
+	if($handle === false) return 0;
+
+	$count = 0;
+	$stmt = $db->prepare("
+		INSERT INTO client_decoded_actor_graphic_stage
+			(id, base, size, rawCsvLine, importBatchId)
+		VALUES (?, ?, ?, ?, ?)
+		ON DUPLICATE KEY UPDATE
+			base = VALUES(base),
+			size = VALUES(size),
+			rawCsvLine = VALUES(rawCsvLine),
+			importBatchId = VALUES(importBatchId),
+			importedAt = CURRENT_TIMESTAMP");
+	if($stmt === false)
+	{
+		fclose($handle);
+		return 0;
+	}
+
+	while(($row = read_csv_row($handle)) !== false)
+	{
+		$id = csv_uint_cell($row, $idColumn, 0);
+		if($id === 0) continue;
+
+		$base = csv_uint_cell($row, $graphicStartColumn, 0);
+		$size = csv_uint_cell($row, $graphicStartColumn + 1, 0);
+		$rawCsvLine = implode(",", array_map(function($value) { return (string)$value; }, $row));
+
+		$stmt->bind_param("iiisi", $id, $base, $size, $rawCsvLine, $batchId);
+		$stmt->execute();
+		$count++;
+	}
+
+	$stmt->close();
+	fclose($handle);
+	return $count;
+}
+
+function import_client_display_name_csv($db, $path, $batchId, $idColumn, $singularColumn, $pluralColumn)
+{
+	if($path === "" || !is_file($path)) return 0;
+
+	$handle = fopen($path, "r");
+	if($handle === false) return 0;
+
+	$count = 0;
+	$stmt = $db->prepare("
+		INSERT INTO client_decoded_display_name_stage
+			(id, singularName, pluralName, rawCsvLine, importBatchId)
+		VALUES (?, ?, ?, ?, ?)
+		ON DUPLICATE KEY UPDATE
+			singularName = VALUES(singularName),
+			pluralName = VALUES(pluralName),
+			rawCsvLine = VALUES(rawCsvLine),
+			importBatchId = VALUES(importBatchId),
+			importedAt = CURRENT_TIMESTAMP");
+	if($stmt === false)
+	{
+		fclose($handle);
+		return 0;
+	}
+
+	while(($row = read_csv_row($handle)) !== false)
+	{
+		$id = csv_uint_cell($row, $idColumn, 0);
+		if($id === 0) continue;
+
+		$singularName = clipped(csv_cell($row, $singularColumn, ""), 255);
+		$pluralName = clipped(csv_cell($row, $pluralColumn, ""), 255);
+		$rawCsvLine = implode(",", array_map(function($value) { return (string)$value; }, $row));
+
+		$stmt->bind_param("isssi", $id, $singularName, $pluralName, $rawCsvLine, $batchId);
+		$stmt->execute();
+		$count++;
+	}
+
+	$stmt->close();
+	fclose($handle);
+	return $count;
+}
+
+function client_diff_labels($row)
+{
+	$labels = array();
+	$serverClassPath = trim((string)($row["serverClassPath"] ?? ""));
+	$clientClassPath = trim((string)($row["clientClassPath"] ?? ""));
+	$actorId = intval($row["id"] ?? 0);
+	$clientBase = intval($row["clientBase"] ?? 0);
+	$isMonster = is_client_monster_actor($actorId, $clientBase, $clientClassPath);
+
+	if($row["serverClassPath"] === null) $labels[] = array("blocked", "Missing server class");
+	elseif($serverClassPath === "" && $clientClassPath !== "") $labels[] = array("warn", "Restore classPath");
+	elseif($serverClassPath !== "" && $clientClassPath !== "" && strcasecmp($serverClassPath, $clientClassPath) !== 0) $labels[] = array("warn", "Path differs");
+
+	if($row["clientBase"] !== null && $row["serverBase"] === null) $labels[] = array("blocked", "Missing server appearance");
+	elseif($row["clientBase"] !== null && $row["serverBase"] !== null && intval($row["clientBase"]) !== intval($row["serverBase"])) $labels[] = array("warn", "Base differs");
+	elseif($row["clientSize"] !== null && $row["serverSize"] !== null && intval($row["clientSize"]) !== intval($row["serverSize"])) $labels[] = array("warn", "Size differs");
+
+	if($isMonster && $row["poolId"] === null) $labels[] = array("blocked", "Needs pool/genus");
+	elseif($isMonster && intval($row["spawnCount"] ?? 0) === 0) $labels[] = array("warn", "Needs spawn rows");
+
+	if(count($labels) === 0) $labels[] = array("ok", "Aligned");
+	return $labels;
+}
+
+function is_client_monster_actor($actorId, $clientBase, $clientClassPath)
+{
+	$prefix = intdiv($actorId, 100000);
+	if($prefix === 21 || $prefix === 22 || $prefix === 23) return true;
+	if($clientBase >= 10000 && $clientBase < 20000) return true;
+	return stripos($clientClassPath, "/Chara/Npc/Monster/") === 0;
+}
+
+function is_client_npc_actor($actorId, $clientBase, $clientClassPath)
+{
+	$prefix = intdiv($actorId, 100000);
+	if(in_array($prefix, array(10, 12, 15, 16), true)) return true;
+	if($clientBase > 0 && $clientBase < 10000) return true;
+	return stripos($clientClassPath, "/Chara/Npc/") === 0;
+}
+
 $db = null;
 $error = "";
 $message = "";
@@ -110,14 +327,22 @@ catch(Exception $e)
 
 $query = trim($_GET["q"] ?? "");
 $zone = trim($_GET["zone"] ?? "");
+$clientQuery = trim($_GET["client_q"] ?? "");
+$clientCategory = trim($_GET["client_category"] ?? "monster");
 $candidates = array();
 $pins = array();
+$clientDiffs = array();
+$clientBatches = array();
 $stats = array();
 $hasAppearanceAudit = false;
+$hasClientDecode = false;
+$hasClientDisplayNames = false;
 
 if($db !== null)
 {
 	$hasAppearanceAudit = table_exists($db, "server_battlenpc_appearance_audit");
+	$hasClientDecode = table_exists($db, "client_decoded_actor_class_stage") && table_exists($db, "client_decoded_actor_graphic_stage") && table_exists($db, "client_decode_import_batches");
+	$hasClientDisplayNames = table_exists($db, "client_decoded_display_name_stage");
 
 	if($_SERVER["REQUEST_METHOD"] === "POST")
 	{
@@ -173,6 +398,87 @@ if($db !== null)
 				}
 			}
 		}
+		elseif($action === "client_decode_import")
+		{
+			if(!$hasClientDecode)
+			{
+				$error = "Client decode staging tables are missing. Run the database migrations before importing decoded CSVs.";
+			}
+			else
+			{
+				$actorClassPath = path_or_blank($_POST["actorClassPath"] ?? "");
+				$actorGraphicPath = path_or_blank($_POST["actorGraphicPath"] ?? "");
+				$displayNamePath = path_or_blank($_POST["displayNamePath"] ?? "");
+				$sourceLabel = clipped($_POST["sourceLabel"] ?? "local decode", 128);
+				$idColumn = int_value($_POST["idColumn"] ?? "0", 0);
+				$displayNameColumn = int_value($_POST["displayNameColumn"] ?? "6", 6);
+				$classPathColumn = int_value($_POST["classPathColumn"] ?? "-1", -1);
+				$propertyFlagsColumn = int_value($_POST["propertyFlagsColumn"] ?? "-1", -1);
+				$graphicStartColumn = int_value($_POST["graphicStartColumn"] ?? "7", 7);
+				$nameColumn = int_value($_POST["nameColumn"] ?? "2", 2);
+				$pluralNameColumn = int_value($_POST["pluralNameColumn"] ?? "3", 3);
+
+				if($actorClassPath === "" && $actorGraphicPath === "" && $displayNamePath === "")
+				{
+					$error = "Provide at least actorclass.csv, actorclass_graphic.csv, or xtx_displayName.csv.";
+				}
+				elseif($actorClassPath !== "" && !is_file($actorClassPath))
+				{
+					$error = "actorclass.csv path does not exist or is not a file.";
+				}
+				elseif($actorGraphicPath !== "" && !is_file($actorGraphicPath))
+				{
+					$error = "actorclass_graphic.csv path does not exist or is not a file.";
+				}
+				elseif($displayNamePath !== "" && !$hasClientDisplayNames)
+				{
+					$error = "Display-name staging table is missing. Run the database migrations before importing xtx_displayName.csv.";
+				}
+				elseif($displayNamePath !== "" && !is_file($displayNamePath))
+				{
+					$error = "xtx_displayName.csv path does not exist or is not a file.";
+				}
+				else
+				{
+					$batchSql = $hasClientDisplayNames
+						? "INSERT INTO client_decode_import_batches (sourceLabel, actorClassPath, actorGraphicPath, displayNamePath) VALUES (?, ?, ?, ?)"
+						: "INSERT INTO client_decode_import_batches (sourceLabel, actorClassPath, actorGraphicPath) VALUES (?, ?, ?)";
+					$stmt = $db->prepare($batchSql);
+					if($stmt !== false)
+					{
+						if($hasClientDisplayNames) $stmt->bind_param("ssss", $sourceLabel, $actorClassPath, $actorGraphicPath, $displayNamePath);
+						else $stmt->bind_param("sss", $sourceLabel, $actorClassPath, $actorGraphicPath);
+						$stmt->execute();
+						$batchId = intval($stmt->insert_id);
+						$stmt->close();
+
+						$classRows = import_client_actor_class_csv($db, $actorClassPath, $batchId, $idColumn, $displayNameColumn, $classPathColumn, $propertyFlagsColumn);
+						$graphicRows = import_client_actor_graphic_csv($db, $actorGraphicPath, $batchId, $idColumn, $graphicStartColumn);
+						$displayNameRows = $hasClientDisplayNames ? import_client_display_name_csv($db, $displayNamePath, $batchId, $idColumn, $nameColumn, $pluralNameColumn) : 0;
+
+						$updateSql = $hasClientDisplayNames
+							? "UPDATE client_decode_import_batches SET actorClassRows = ?, actorGraphicRows = ?, displayNameRows = ? WHERE importBatchId = ?"
+							: "UPDATE client_decode_import_batches SET actorClassRows = ?, actorGraphicRows = ? WHERE importBatchId = ?";
+						$update = $db->prepare($updateSql);
+						if($update !== false)
+						{
+							if($hasClientDisplayNames) $update->bind_param("iiii", $classRows, $graphicRows, $displayNameRows, $batchId);
+							else $update->bind_param("iii", $classRows, $graphicRows, $batchId);
+							$update->execute();
+							$update->close();
+						}
+
+						$location = "/dev/?client=1";
+						header("Location: " . $location);
+						exit;
+					}
+					else
+					{
+						$error = "Could not create client decode import batch.";
+					}
+				}
+			}
+		}
 	}
 
 	$stats = array(
@@ -184,6 +490,9 @@ if($db !== null)
 		"spawns" => table_exists($db, "server_battlenpc_spawn_locations") ? scalar_query($db, "SELECT COUNT(*) FROM server_battlenpc_spawn_locations") : 0,
 		"pins" => table_exists($db, "server_battlenpc_spawn_audit_pins") ? scalar_query($db, "SELECT COUNT(*) FROM server_battlenpc_spawn_audit_pins") : 0,
 		"appearance_audits" => $hasAppearanceAudit ? scalar_query($db, "SELECT COUNT(*) FROM server_battlenpc_appearance_audit") : 0,
+		"client_classes" => $hasClientDecode ? scalar_query($db, "SELECT COUNT(*) FROM client_decoded_actor_class_stage") : 0,
+		"client_graphics" => $hasClientDecode ? scalar_query($db, "SELECT COUNT(*) FROM client_decoded_actor_graphic_stage") : 0,
+		"client_names" => $hasClientDisplayNames ? scalar_query($db, "SELECT COUNT(*) FROM client_decoded_display_name_stage") : 0,
 	);
 
 	$where = array();
@@ -203,12 +512,20 @@ if($db !== null)
 		}
 		else
 		{
-			$where[] = "(ac.classPath LIKE ? OR p.name LIKE ? OR g.name LIKE ?)";
+			$where[] = $hasClientDisplayNames
+				? "(ac.classPath LIKE ? OR p.name LIKE ? OR g.name LIKE ? OR dn.singularName LIKE ? OR dn.pluralName LIKE ?)"
+				: "(ac.classPath LIKE ? OR p.name LIKE ? OR g.name LIKE ?)";
 			$like = "%" . $query . "%";
 			$params[] = $like;
 			$params[] = $like;
 			$params[] = $like;
 			$types .= "sss";
+			if($hasClientDisplayNames)
+			{
+				$params[] = $like;
+				$params[] = $like;
+				$types .= "ss";
+			}
 		}
 	}
 
@@ -225,12 +542,19 @@ if($db !== null)
 	$auditJoin = $hasAppearanceAudit
 		? "LEFT JOIN server_battlenpc_appearance_audit audit ON audit.appearanceId = ac.id"
 		: "";
+	$nameSelect = $hasClientDisplayNames
+		? "dn.singularName AS clientName, dn.pluralName AS clientPluralName,"
+		: "NULL AS clientName, NULL AS clientPluralName,";
+	$nameJoin = $hasClientDisplayNames
+		? "LEFT JOIN client_decoded_display_name_stage dn ON dn.id = ac.displayNameId"
+		: "";
 	$whereSql = count($where) > 0 ? "WHERE " . implode(" AND ", $where) : "";
 	$sql = "
 		SELECT
 			ac.id AS actorClassId,
 			ac.classPath,
 			ac.displayNameId,
+			$nameSelect
 			aa.base,
 			aa.size,
 			$auditSelect
@@ -243,6 +567,7 @@ if($db !== null)
 			(SELECT GROUP_CONCAT(DISTINCT zoneId ORDER BY zoneId SEPARATOR ', ') FROM server_battlenpc_groups zg WHERE zg.poolId = p.poolId) AS zones
 		FROM gamedata_actor_class ac
 		LEFT JOIN gamedata_actor_appearance aa ON aa.id = ac.id
+		$nameJoin
 		LEFT JOIN server_battlenpc_pools p ON p.actorClassId = ac.id
 		LEFT JOIN server_battlenpc_genus g ON g.genusId = p.genusId
 		$auditJoin
@@ -278,6 +603,154 @@ if($db !== null)
 		if($result !== false)
 		{
 			while($row = $result->fetch_assoc()) $pins[] = $row;
+		}
+	}
+
+	if($hasClientDecode)
+	{
+		$batchDisplayNameSelect = $hasClientDisplayNames ? "displayNameRows" : "0 AS displayNameRows";
+		$result = $db->query("
+			SELECT importBatchId, sourceLabel, actorClassRows, actorGraphicRows, $batchDisplayNameSelect, importedAt
+			FROM client_decode_import_batches
+			ORDER BY importBatchId DESC
+			LIMIT 5");
+		if($result !== false)
+		{
+			while($row = $result->fetch_assoc()) $clientBatches[] = $row;
+		}
+
+		$clientWhere = array();
+		$clientParams = array();
+		$clientTypes = "";
+
+		if($clientCategory === "monster")
+		{
+			$clientWhere[] = "((FLOOR(c.id / 100000) IN (21, 22, 23)) OR (cg.base >= 10000 AND cg.base < 20000) OR c.classPath LIKE '/Chara/Npc/Monster/%')";
+		}
+		elseif($clientCategory === "npc")
+		{
+			$clientWhere[] = "((FLOOR(c.id / 100000) IN (10, 12, 15, 16)) OR (cg.base > 0 AND cg.base < 10000) OR c.classPath LIKE '/Chara/Npc/%')";
+		}
+
+		if($clientQuery !== "")
+		{
+			if(ctype_digit($clientQuery))
+			{
+				$clientWhere[] = "(c.id = ? OR c.displayNameId = ? OR cg.base = ?)";
+				$value = intval($clientQuery);
+				$clientParams[] = $value;
+				$clientParams[] = $value;
+				$clientParams[] = $value;
+				$clientTypes .= "iii";
+			}
+			else
+			{
+				$clientWhere[] = $hasClientDisplayNames
+					? "(c.classPath LIKE ? OR dn.singularName LIKE ? OR dn.pluralName LIKE ?)"
+					: "c.classPath LIKE ?";
+				$like = "%" . $clientQuery . "%";
+				$clientParams[] = $like;
+				$clientTypes .= "s";
+				if($hasClientDisplayNames)
+				{
+					$clientParams[] = $like;
+					$clientParams[] = $like;
+					$clientTypes .= "ss";
+				}
+			}
+		}
+
+		$clientWhereSql = count($clientWhere) > 0 ? "WHERE " . implode(" AND ", $clientWhere) : "";
+		$clientNameSelect = $hasClientDisplayNames
+			? "dn.singularName AS clientName, dn.pluralName AS clientPluralName,"
+			: "NULL AS clientName, NULL AS clientPluralName,";
+		$clientNameJoin = $hasClientDisplayNames
+			? "LEFT JOIN client_decoded_display_name_stage dn ON dn.id = c.displayNameId"
+			: "";
+		$clientNamePathLeadSelect = $hasClientDisplayNames
+			? "
+				(SELECT ac2.classPath
+					FROM gamedata_actor_class ac2
+					INNER JOIN gamedata_actor_appearance aa2 ON aa2.id = ac2.id
+					INNER JOIN client_decoded_actor_class_stage cc2 ON cc2.id = ac2.id
+					INNER JOIN client_decoded_display_name_stage dn2 ON dn2.id = cc2.displayNameId
+					WHERE ac2.classPath <> ''
+						AND dn.singularName <> ''
+						AND dn2.singularName = dn.singularName
+						AND aa2.base = cg.base
+					GROUP BY ac2.classPath
+					ORDER BY COUNT(*) DESC, MIN(ac2.id) ASC
+					LIMIT 1) AS suggestedExactPath,
+				(SELECT COUNT(*)
+					FROM gamedata_actor_class ac2
+					INNER JOIN gamedata_actor_appearance aa2 ON aa2.id = ac2.id
+					INNER JOIN client_decoded_actor_class_stage cc2 ON cc2.id = ac2.id
+					INNER JOIN client_decoded_display_name_stage dn2 ON dn2.id = cc2.displayNameId
+					WHERE ac2.classPath <> ''
+						AND dn.singularName <> ''
+						AND dn2.singularName = dn.singularName
+						AND aa2.base = cg.base) AS suggestedExactPathCount,"
+			: "NULL AS suggestedExactPath, 0 AS suggestedExactPathCount,";
+		$clientBasePathLeadSelect = "
+				(SELECT ac2.classPath
+					FROM gamedata_actor_class ac2
+					INNER JOIN gamedata_actor_appearance aa2 ON aa2.id = ac2.id
+					WHERE ac2.classPath <> ''
+						AND aa2.base = cg.base
+					GROUP BY ac2.classPath
+					ORDER BY COUNT(*) DESC, MIN(ac2.id) ASC
+					LIMIT 1) AS suggestedBasePath,
+				(SELECT COUNT(*)
+					FROM gamedata_actor_class ac2
+					INNER JOIN gamedata_actor_appearance aa2 ON aa2.id = ac2.id
+					WHERE ac2.classPath <> ''
+						AND aa2.base = cg.base) AS suggestedBasePathCount,";
+		$clientSql = "
+			SELECT
+				c.id,
+				c.classPath AS clientClassPath,
+				c.displayNameId AS clientDisplayNameId,
+				$clientNameSelect
+				$clientNamePathLeadSelect
+				$clientBasePathLeadSelect
+				c.propertyFlags AS clientPropertyFlags,
+				cg.base AS clientBase,
+				cg.size AS clientSize,
+				ac.classPath AS serverClassPath,
+				ac.displayNameId AS serverDisplayNameId,
+				aa.base AS serverBase,
+				aa.size AS serverSize,
+				p.poolId,
+				p.name AS poolName,
+				p.genusId,
+				(SELECT COUNT(*) FROM server_battlenpc_groups bg WHERE bg.poolId = p.poolId) AS groupCount,
+				(SELECT COUNT(*) FROM server_battlenpc_spawn_locations sl INNER JOIN server_battlenpc_groups sg ON sg.groupId = sl.groupId WHERE sg.poolId = p.poolId) AS spawnCount
+			FROM client_decoded_actor_class_stage c
+			LEFT JOIN client_decoded_actor_graphic_stage cg ON cg.id = c.id
+			$clientNameJoin
+			LEFT JOIN gamedata_actor_class ac ON ac.id = c.id
+			LEFT JOIN gamedata_actor_appearance aa ON aa.id = c.id
+			LEFT JOIN server_battlenpc_pools p ON p.actorClassId = c.id
+			$clientWhereSql
+			ORDER BY
+				CASE
+					WHEN ac.id IS NULL THEN 0
+					WHEN ac.classPath = '' AND c.classPath <> '' THEN 1
+					WHEN aa.id IS NULL AND cg.id IS NOT NULL THEN 2
+					WHEN p.poolId IS NULL AND ((FLOOR(c.id / 100000) IN (21, 22, 23)) OR (cg.base >= 10000 AND cg.base < 20000) OR c.classPath LIKE '/Chara/Npc/Monster/%') THEN 3
+					ELSE 4
+				END ASC,
+				c.id ASC
+			LIMIT 300";
+
+		$statement = $db->prepare($clientSql);
+		if($statement !== false)
+		{
+			if($clientTypes !== "") $statement->bind_param($clientTypes, ...$clientParams);
+			$statement->execute();
+			$result = $statement->get_result();
+			while($row = $result->fetch_assoc()) $clientDiffs[] = $row;
+			$statement->close();
 		}
 	}
 }
@@ -336,7 +809,7 @@ if($db !== null)
 		h3 { font-size: 15px; margin: 0 0 10px; }
 		form.filters { display: flex; gap: 10px; align-items: end; flex-wrap: wrap; margin-bottom: 12px; }
 		label { display: grid; gap: 4px; color: var(--muted); font-size: 12px; }
-		input {
+		input, select {
 			min-width: 220px;
 			padding: 8px 10px;
 			border: 1px solid var(--line);
@@ -365,6 +838,9 @@ if($db !== null)
 			white-space: nowrap;
 		}
 		.path { font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
+		.wide-input { min-width: min(560px, 100%); }
+		.import-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; align-items: end; }
+		.client-diff { margin-bottom: 18px; }
 		.badge { display: inline-block; padding: 2px 7px; border-radius: 999px; font-size: 12px; font-weight: 650; }
 		.badge-ok { background: var(--ok-bg); color: #067647; }
 		.badge-warn { background: var(--warn-bg); color: var(--warn); }
@@ -415,6 +891,153 @@ if($db !== null)
 			<?php } ?>
 		</section>
 
+		<section class="card client-diff">
+			<h2>Client Decode Import / Diff</h2>
+			<p class="note">Import decoded 1.23b CSVs into local staging tables, then compare client actor identity and graphics against the server database. These rows are evidence for restoration work; runtime loaders do not read them.</p>
+			<?php if(!$hasClientDecode) { ?>
+				<div class="error">Client decode staging tables are missing. Run migrations before importing decoded CSVs.</div>
+			<?php } else { ?>
+				<form class="import-grid" method="post">
+					<input type="hidden" name="action" value="client_decode_import">
+					<label>Source label
+						<input name="sourceLabel" value="2012.09.19.0001 local decode">
+					</label>
+					<label>actorclass.csv path
+						<input class="wide-input" name="actorClassPath" placeholder="/path/to/actorclass.csv">
+					</label>
+					<label>actorclass_graphic.csv path
+						<input class="wide-input" name="actorGraphicPath" placeholder="/path/to/actorclass_graphic.csv">
+					</label>
+					<label>xtx_displayName.csv path
+						<input class="wide-input" name="displayNamePath" placeholder="/path/to/xtx_displayName.csv">
+					</label>
+					<label>ID column
+						<input name="idColumn" value="0">
+					</label>
+					<label>Display name column
+						<input name="displayNameColumn" value="6">
+					</label>
+					<label>Class path column
+						<input name="classPathColumn" value="-1">
+					</label>
+					<label>Property flags column
+						<input name="propertyFlagsColumn" value="-1">
+					</label>
+					<label>Graphic start column
+						<input name="graphicStartColumn" value="7">
+					</label>
+					<label>Name column
+						<input name="nameColumn" value="2">
+					</label>
+					<label>Plural name column
+						<input name="pluralNameColumn" value="3">
+					</label>
+					<button type="submit">Import Decode</button>
+				</form>
+				<p class="note">Use `-1` for class path to auto-detect the first CSV field beginning with `/Chara/`. The known old generator used display name column `6`, graphic fields beginning at column `7`, and display-name text columns `2` and `3`.</p>
+
+				<?php if(count($clientBatches) > 0) { ?>
+					<h3>Recent Imports</h3>
+					<div class="scroll" style="max-height: 160px;">
+						<table>
+							<thead><tr><th>Batch</th><th>Source</th><th>Rows</th><th>Imported</th></tr></thead>
+							<tbody>
+								<?php foreach($clientBatches as $batch) { ?>
+									<tr>
+										<td><?php echo h($batch["importBatchId"]); ?></td>
+										<td><strong><?php echo h($batch["sourceLabel"]); ?></strong></td>
+										<td>classes <?php echo h($batch["actorClassRows"]); ?>, graphics <?php echo h($batch["actorGraphicRows"]); ?>, names <?php echo h($batch["displayNameRows"]); ?></td>
+										<td><?php echo h($batch["importedAt"]); ?></td>
+									</tr>
+								<?php } ?>
+							</tbody>
+						</table>
+					</div>
+				<?php } ?>
+
+				<form class="filters" method="get" style="margin-top: 12px;">
+					<input type="hidden" name="client" value="1">
+					<label>Client search
+						<input name="client_q" value="<?php echo h($clientQuery); ?>" placeholder="2101001, morbol, antling, Monster">
+					</label>
+					<label>Category
+						<select name="client_category">
+							<option value="monster" <?php if($clientCategory === "monster") echo "selected"; ?>>Monster</option>
+							<option value="npc" <?php if($clientCategory === "npc") echo "selected"; ?>>NPC</option>
+							<option value="all" <?php if($clientCategory === "all") echo "selected"; ?>>All</option>
+						</select>
+					</label>
+					<button type="submit">Diff</button>
+					<a class="button" href="/dev/?client=1">Reset Diff</a>
+				</form>
+
+				<div class="scroll" style="max-height: 460px;">
+					<table>
+						<thead>
+							<tr>
+								<th>Status</th>
+								<th>Actor</th>
+								<th>Class Path</th>
+								<th>Appearance</th>
+								<th>Battle NPC Data</th>
+								<th>Preview</th>
+							</tr>
+						</thead>
+						<tbody>
+							<?php foreach($clientDiffs as $row) {
+								$actorId = intval($row["id"]);
+								$labels = client_diff_labels($row);
+							?>
+								<tr>
+									<td>
+										<?php foreach($labels as $label) echo badge($label[0], $label[1]) . "<br>"; ?>
+									</td>
+									<td>
+										<strong><?php echo h($actorId); ?></strong><br>
+										<?php if(trim($row["clientName"] ?? "") !== "") { ?>
+											<span><?php echo h($row["clientName"]); ?></span><br>
+										<?php } ?>
+										<span class="path">client displayNameId <?php echo h($row["clientDisplayNameId"]); ?></span><br>
+										<span class="path">server displayNameId <?php echo h($row["serverDisplayNameId"] ?? "missing"); ?></span>
+									</td>
+									<td>
+										<span class="path">client: <?php echo h($row["clientClassPath"] !== "" ? $row["clientClassPath"] : "blank/unknown"); ?></span><br>
+										<span class="path">server: <?php echo h(($row["serverClassPath"] ?? "") !== "" ? $row["serverClassPath"] : "blank/missing"); ?></span>
+										<?php if(trim($row["suggestedExactPath"] ?? "") !== "") { ?>
+											<br><?php echo badge("ok", "path lead"); ?>
+											<span class="path"><?php echo h($row["suggestedExactPath"]); ?>, exact name+model refs <?php echo h($row["suggestedExactPathCount"]); ?></span>
+										<?php } elseif(trim($row["suggestedBasePath"] ?? "") !== "") { ?>
+											<br><?php echo badge("warn", "base lead"); ?>
+											<span class="path"><?php echo h($row["suggestedBasePath"]); ?>, model-base refs <?php echo h($row["suggestedBasePathCount"]); ?></span>
+										<?php } else { ?>
+											<br><?php echo badge("soft", "no path lead"); ?>
+										<?php } ?>
+									</td>
+									<td>
+										client base <code><?php echo h($row["clientBase"] ?? "missing"); ?></code> size <code><?php echo h($row["clientSize"] ?? "missing"); ?></code><br>
+										server base <code><?php echo h($row["serverBase"] ?? "missing"); ?></code> size <code><?php echo h($row["serverSize"] ?? "missing"); ?></code>
+									</td>
+									<td>
+										<?php if($row["poolId"] !== null) { ?>
+											<strong><?php echo h($row["poolName"]); ?></strong><br>
+											pool <code><?php echo h($row["poolId"]); ?></code> genus <code><?php echo h($row["genusId"]); ?></code><br>
+											<span class="path">groups <?php echo h($row["groupCount"]); ?>, spawns <?php echo h($row["spawnCount"]); ?></span>
+										<?php } else { ?>
+											<?php echo badge("soft", "no pool"); ?>
+										<?php } ?>
+									</td>
+									<td>
+										<code>!previewappearance <?php echo h($actorId); ?></code><br>
+										<code>!previewpair <?php echo h($actorId); ?> <?php echo h($actorId); ?></code>
+									</td>
+								</tr>
+							<?php } ?>
+						</tbody>
+					</table>
+				</div>
+			<?php } ?>
+		</section>
+
 		<section class="grid two">
 			<div class="card">
 				<h2>Enemy Readiness</h2>
@@ -452,6 +1075,9 @@ if($db !== null)
 								<td><?php echo badge($ready[0], $ready[1]); ?></td>
 								<td>
 									<strong><?php echo h($actorId); ?></strong><br>
+									<?php if(trim($row["clientName"] ?? "") !== "") { ?>
+										<span><?php echo h($row["clientName"]); ?></span><br>
+									<?php } ?>
 									<span class="path"><?php echo h($row["classPath"] !== "" ? $row["classPath"] : "blank classPath"); ?></span><br>
 									<span class="path">displayNameId <?php echo h($row["displayNameId"]); ?></span>
 								</td>

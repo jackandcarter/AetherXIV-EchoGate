@@ -41,13 +41,18 @@ resolve_server_directory() {
   exe_name="$(aether_server_executable_name "$server_name")"
   local source_build="$ROOT_DIR/$server_name/bin/$configuration"
   local release_layout="$ROOT_DIR/$server_name"
+  local flat_build="$ROOT_DIR/bin/$configuration"
 
   if [[ -f "$source_build/$exe_name" ]]; then
     printf '%s\n' "$source_build"
   elif [[ -f "$release_layout/$exe_name" ]]; then
     printf '%s\n' "$release_layout"
+  elif [[ -f "$flat_build/$exe_name" ]]; then
+    printf '%s\n' "$flat_build"
   elif [[ -d "$source_build" ]]; then
     printf '%s\n' "$source_build"
+  elif [[ -d "$flat_build" ]]; then
+    printf '%s\n' "$flat_build"
   else
     printf '%s\n' "$release_layout"
   fi
@@ -69,7 +74,7 @@ resolve_server_executable() {
 
   local legacy_name="MeteorXIV.Core.${server_name%% *}.exe"
   local legacy_path
-  for legacy_path in "$ROOT_DIR/$server_name/bin/$configuration/$legacy_name" "$ROOT_DIR/$server_name/$legacy_name"; do
+  for legacy_path in "$ROOT_DIR/$server_name/bin/$configuration/$legacy_name" "$ROOT_DIR/$server_name/$legacy_name" "$ROOT_DIR/bin/$configuration/$legacy_name"; do
     if [[ -f "$legacy_path" ]]; then
       echo "$server_name still has a legacy MeteorXIV executable at $legacy_path, but the AetherXIV launch scripts require $exe_name. Rebuild the server core or download a current AetherXIV Server Core release package." >&2
       return 1

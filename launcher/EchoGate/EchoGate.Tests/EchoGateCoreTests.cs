@@ -799,11 +799,30 @@ public sealed class EchoGateCoreTests
         File.WriteAllText(Path.Combine(root, "ffxivgame.exe"), "");
         File.WriteAllText(Path.Combine(root, "boot.ver"), ClientVersionInfo.TargetBootVersion);
         File.WriteAllText(Path.Combine(root, "game.ver"), ClientVersionInfo.TargetGameVersion);
+        Directory.CreateDirectory(Path.Combine(root, "client", "script"));
+        File.WriteAllText(Path.Combine(root, "client", "script", StaticActorsLocator.StaticActorsFileName), "fixture");
 
         ClientInstallReport report = ClientInstall.FromPath(root).Inspect();
 
         Assert.Equal(ClientInstallState.Ready123b, report.State);
         Assert.True(report.IsLaunchReady);
+    }
+
+    [Fact]
+    public void ClientInstallReportRequiresStaticActorsForLaunchReadiness()
+    {
+        string root = CreateTempDirectory();
+        File.WriteAllText(Path.Combine(root, "ffxivboot.exe"), "");
+        File.WriteAllText(Path.Combine(root, "ffxivupdater.exe"), "");
+        File.WriteAllText(Path.Combine(root, "ffxivgame.exe"), "");
+        File.WriteAllText(Path.Combine(root, "boot.ver"), ClientVersionInfo.TargetBootVersion);
+        File.WriteAllText(Path.Combine(root, "game.ver"), ClientVersionInfo.TargetGameVersion);
+
+        ClientInstallReport report = ClientInstall.FromPath(root).Inspect();
+
+        Assert.Equal(ClientInstallState.Ready123b, report.State);
+        Assert.False(report.IsLaunchReady);
+        Assert.Contains(report.RequiredActions, action => action.Contains("staticactors.bin", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]

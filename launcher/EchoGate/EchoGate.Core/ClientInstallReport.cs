@@ -34,7 +34,7 @@ public sealed record ClientInstallReport(
     ClientInstallState State,
     IReadOnlyList<string> RequiredActions)
 {
-    public bool IsLaunchReady => State == ClientInstallState.Ready123b && HasDirectGameExecutable;
+    public bool IsLaunchReady => State == ClientInstallState.Ready123b && HasDirectGameExecutable && HasStaticActors;
 
     public static ClientInstallReport Create(ClientInstall install)
     {
@@ -88,7 +88,7 @@ public sealed record ClientInstallReport(
             actions.Add("ffxivgame.exe is missing until the game patch chain is applied.");
 
         if (rootExists && !hasStaticActors)
-            actions.Add("Prepare staticactors.bin from client/script/rq9q1797qvs.san.");
+            actions.Add("Select a client folder containing client/script/rq9q1797qvs.san or staticactors.bin.");
 
         return new ClientInstallReport(
             install.RootPath,

@@ -13,6 +13,14 @@ public static class ProfileStore
     {
         get
         {
+            return Path.Combine(RuntimeInstallStore.ApplicationDataRoot, "profile.json");
+        }
+    }
+
+    private static string LegacyDefaultProfilePath
+    {
+        get
+        {
             string root = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
             if (string.IsNullOrWhiteSpace(root))
                 root = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
@@ -42,8 +50,16 @@ public static class ProfileStore
 
     public static LauncherProfile LoadDefaultOrCreate()
     {
-        return File.Exists(DefaultProfilePath)
-            ? Load(DefaultProfilePath)
-            : LauncherProfile.LocalDefault();
+        if (File.Exists(DefaultProfilePath))
+            return Load(DefaultProfilePath);
+
+        string legacyPath = LegacyDefaultProfilePath;
+        if (!string.Equals(legacyPath, DefaultProfilePath, StringComparison.Ordinal)
+            && File.Exists(legacyPath))
+        {
+            return Load(legacyPath);
+        }
+
+        return LauncherProfile.LocalDefault();
     }
 }

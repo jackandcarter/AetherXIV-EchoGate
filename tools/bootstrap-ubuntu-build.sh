@@ -19,6 +19,7 @@ WINE_SOURCE="${WINE_SOURCE:-distro}"
 WINE_COMMAND="${WINE_COMMAND:-wine}"
 CLIENT_RUNTIME_MODE="${CLIENT_RUNTIME_MODE:-default}"
 CLIENT_PREFIX="${WINEPREFIX:-$HOME/.local/share/Demi Dev Unit/Echo Gate/Prefixes/ffxiv-1x}"
+CLIENT_DIR="${CLIENT_DIR:-}"
 LAUNCHER_RID="${RUNTIME_IDENTIFIER:-linux-x64}"
 
 usage() {
@@ -45,6 +46,7 @@ Options:
   --wine-source SOURCE  Wine package source: distro or winehq. Default: distro.
   --wine-command PATH   Wine executable to use when preparing the client prefix. Default: wine.
   --client-prefix PATH  Wine prefix to prepare. Default: ~/.local/share/Demi Dev Unit/Echo Gate/Prefixes/ffxiv-1x
+  --client-dir PATH     FFXIV 1.x client folder used to prepare staticactors.bin.
   --smoke               Run smoke-local after building.
   --help                Show this help.
 
@@ -132,6 +134,11 @@ while [[ $# -gt 0 ]]; do
       CLIENT_PREFIX="$2"
       shift
       ;;
+    --client-dir)
+      [[ $# -ge 2 ]] || die "--client-dir requires a value"
+      CLIENT_DIR="$2"
+      shift
+      ;;
     --smoke)
       RUN_SMOKE=1
       ;;
@@ -165,6 +172,10 @@ case "$CLIENT_RUNTIME_MODE" in
     die "--client-runtime-mode must be default or custom"
     ;;
 esac
+
+if [[ -n "$CLIENT_DIR" ]]; then
+  export CLIENT_DIR
+fi
 
 if ! command -v apt-get >/dev/null 2>&1; then
   if [[ "$INSTALL_MISSING" -eq 1 ]]; then
@@ -802,7 +813,11 @@ fi
 
 if [[ "$RUN_SMOKE" -eq 1 ]]; then
   log "Running smoke validation..."
-  "$ROOT_DIR/tools/smoke-local.sh" --allow-missing-staticactors
+  smoke_args=()
+  if [[ -z "$CLIENT_DIR" ]]; then
+    smoke_args+=(--allow-missing-staticactors)
+  fi
+  "$ROOT_DIR/tools/smoke-local.sh" "${smoke_args[@]}"
 fi
 
 log "Bootstrap build complete."

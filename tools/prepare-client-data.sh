@@ -152,6 +152,7 @@ if [[ -n "${XDG_DATA_HOME:-}" ]]; then
 fi
 profile_candidates+=(
   "$HOME/.local/share/Demi Dev Unit/Echo Gate/profile.json"
+  "$HOME/.config/Demi Dev Unit/Echo Gate/profile.json"
   "$HOME/Library/Application Support/Demi Dev Unit/Echo Gate/profile.json"
 )
 

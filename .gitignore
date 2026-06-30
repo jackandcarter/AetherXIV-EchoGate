@@ -48,6 +48,7 @@ dev-diagnostics/
 # Runtime data extracted from a local 1.23b client. Do not commit client assets.
 Data/staticactors.bin
 **/staticactors.bin
+Data/client_exports/
 
 # Local database and web configuration overrides
 *.local.ini

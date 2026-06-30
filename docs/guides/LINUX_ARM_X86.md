@@ -18,6 +18,7 @@ Useful options:
 
 ```sh
 ./tools/bootstrap-ubuntu-build.sh --yes --wine-source winehq
+./tools/bootstrap-ubuntu-build.sh --yes --client-dir "/path/to/FINAL FANTASY XIV"
 ./tools/bootstrap-ubuntu-build.sh --client-runtime-mode custom
 ./tools/bootstrap-ubuntu-build.sh --yes --client-runtime-mode custom --wine-command /opt/wine-stable/bin/wine --client-prefix "$HOME/.wine-ffxiv"
 ./tools/bootstrap-ubuntu-build.sh --yes --no-client-runtime
@@ -48,7 +49,7 @@ The script can use Ubuntu socket-auth root through `sudo` when needed, or it can
 
 ## 3. Prepare Runtime Data
 
-If Echo Gate has saved your client path, or `CLIENT_DIR` is set, the run helpers can prepare `staticactors.bin` automatically.
+If Echo Gate has saved your client path, `CLIENT_DIR` is set, or bootstrap was run with `--client-dir`, the run helpers can prepare `staticactors.bin` automatically.
 
 Manual path:
 

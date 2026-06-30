@@ -2485,6 +2485,16 @@ namespace AetherXIV.Core.Map.Actors
         public override void PostUpdate(DateTime tick, List<SubPacket> packets = null)
         {
             // todo: is this correct?
+            if (this.playerSession == null)
+            {
+                DevDiagnostics.Trace(
+                    "player.postUpdate.missingSession",
+                    "player", customDisplayName,
+                    "actor", String.Format("0x{0:X}", actorId),
+                    "updateFlags", updateFlags.ToString());
+                return;
+            }
+
             if (this.playerSession.isUpdatesLocked)
                 return;           
 
@@ -2494,7 +2504,7 @@ namespace AetherXIV.Core.Map.Actors
             // we only want the latest update for the player
             if ((updateFlags & ActorUpdateFlags.Position) != 0)
             {
-                if (positionUpdates.Count > 1)
+                if (positionUpdates != null && positionUpdates.Count > 1)
                 {
                     var latestPosition = positionUpdates[positionUpdates.Count - 1];
                     positionUpdates.Clear();

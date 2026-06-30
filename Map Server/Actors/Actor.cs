@@ -79,6 +79,7 @@ namespace AetherXIV.Core.Map.Actors
         public Actor(uint actorId)
         {
             this.actorId = actorId;
+            positionUpdates = new List<Vector3>();
         }
 
         public Actor(uint actorId, string actorName, string className, List<LuaParam> classParams)
