@@ -1,0 +1,18 @@
+[
+  {
+    "name": "weather-dalamud-transition-10",
+    "opcode": "SetWeather",
+    "sourceActorId": 0,
+    "payloadHex": "5e1f0a0000000000",
+    "source": "Map Server/Packets/Send/SetWeatherPacket.cs",
+    "notes": "Legacy payload is weatherId | transitionTime << 16 as little-endian UInt64."
+  },
+  {
+    "name": "dalamud-level-minus-one",
+    "opcode": "SetDalamud",
+    "sourceActorId": 1610088449,
+    "payloadHex": "ffffffff00000000",
+    "source": "Map Server/Packets/Send/SetDalamudPacket.cs",
+    "notes": "Legacy payload writes an Int32 level into an 8-byte payload."
+  }
+]
