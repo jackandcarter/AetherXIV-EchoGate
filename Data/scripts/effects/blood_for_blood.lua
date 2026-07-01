@@ -1,4 +1,4 @@
-require("battleUtils")
+require("battleutils")
 
 --Takes 10% of hp rounded down when using a weaponskill
 --Random guess, but increases damage by 10% (12.5% traited)?

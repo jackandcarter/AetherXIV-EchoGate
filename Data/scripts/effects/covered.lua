@@ -1,4 +1,4 @@
-require("battleUtils")
+require("battleutils")
 
 --If person who cast cover is within 8y, change the action's target to them
 --Not sure what attacks are valid. It only says "melee attacks", unsure if that includes weaponskills and abilities or just auto attacks

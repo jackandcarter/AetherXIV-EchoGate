@@ -1,5 +1,5 @@
 require("global");
-require("Ability");
+require("ability");
 
 function onAbilityPrepare(caster, target, ability)
     return 0;
