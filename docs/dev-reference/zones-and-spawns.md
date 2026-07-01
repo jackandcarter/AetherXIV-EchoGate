@@ -80,6 +80,16 @@ Loader path:
 - It applies pool, genus, and spawn modifiers.
 - It runs `CalculateBaseStats()` and `RecalculateStats()`.
 - Normal spawn type actors are added to the zone immediately.
+- With diagnostics enabled, each durable battle NPC row emits
+  `battle.npc.load`, and each constructed battle NPC emits
+  `battle.npc.presentation`. Use these traces to confirm class path,
+  presentation flags, event conditions, pool/genus IDs, action lists, level,
+  respawn, and coordinates.
+
+Restoration evidence is tracked separately in
+`server_battlenpc_restoration_evidence`. That table documents why a row was
+promoted, but runtime spawning still comes only from the battle NPC tables
+above.
 
 ## Direct Spawn By ID
 

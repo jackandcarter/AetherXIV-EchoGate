@@ -11,6 +11,9 @@ server database and shows:
 
 - decoded client CSV import and server/database diff results
 - actor class, appearance, pool, group, and spawn readiness
+- battle NPC presentation readiness (`propertyFlags` and event conditions)
+- battle NPC skill/spell list IDs and row counts
+- restoration evidence counts and statuses from `server_battlenpc_restoration_evidence`
 - missing or present base Lua scripts for actor class paths
 - provisional `!pinspawn` groups
 - appearance review state from `server_battlenpc_appearance_audit`
@@ -100,3 +103,18 @@ paths.
 The portal audit table is intentionally separate from durable spawn tables.
 Rows in `server_battlenpc_appearance_audit` are workbench evidence only; promote
 confirmed enemy data through explicit SQL migrations.
+
+## Restoration Matrix
+
+The Enemy Readiness table is stricter than a visual preview. A row is only
+`Restorable` when it has:
+
+- a nonblank actor class path
+- appearance data
+- a resolvable base Lua script
+- battle NPC presentation flags and event conditions
+- pool, group, and spawn rows
+
+Skill and spell lists may be empty for auto-attack-only provisional enemies. Add
+ability rows only when client data, server traces, or historical sources support
+the command IDs.

@@ -25,6 +25,71 @@ function table_exists($db, $table)
 	return intval($row[0] ?? 0) > 0;
 }
 
+function resolve_existing_path_case_insensitive($absolute)
+{
+	if($absolute === null || $absolute === "") return null;
+	if(file_exists($absolute)) return $absolute;
+
+	$path = str_replace("\\", "/", $absolute);
+	$prefix = "";
+	$rest = $path;
+	if(preg_match("/^[A-Za-z]:\//", $path))
+	{
+		$prefix = substr($path, 0, 3);
+		$rest = substr($path, 3);
+	}
+	elseif(substr($path, 0, 1) === "/")
+	{
+		$prefix = "/";
+		$rest = substr($path, 1);
+	}
+	else
+	{
+		$prefix = getcwd();
+	}
+
+	$current = rtrim($prefix, "/");
+	if($current === "") $current = "/";
+	foreach(explode("/", $rest) as $part)
+	{
+		if($part === "") continue;
+		$direct = rtrim($current, "/") . "/" . $part;
+		if(file_exists($direct))
+		{
+			$current = $direct;
+			continue;
+		}
+
+		$entries = @scandir($current);
+		if($entries === false) return null;
+
+		$matched = null;
+		foreach($entries as $entry)
+		{
+			if(strcasecmp($entry, $part) === 0)
+			{
+				$matched = rtrim($current, "/") . "/" . $entry;
+				break;
+			}
+		}
+
+		if($matched === null) return null;
+		$current = $matched;
+	}
+
+	return file_exists($current) ? $current : null;
+}
+
+function relative_repo_path($root, $absolute)
+{
+	if($root === false || $absolute === null) return "";
+	$normalizedRoot = rtrim(str_replace("\\", "/", $root), "/") . "/";
+	$normalizedPath = str_replace("\\", "/", $absolute);
+	if(strpos($normalizedPath, $normalizedRoot) === 0)
+		return substr($normalizedPath, strlen($normalizedRoot));
+	return $normalizedPath;
+}
+
 function base_script_status($classPath)
 {
 	if($classPath === null || trim($classPath) === "") return array("status" => "blocked", "label" => "Blocked: blank classPath", "path" => "");
@@ -37,8 +102,10 @@ function base_script_status($classPath)
 	$relative = "Data/scripts/base" . $dir . "/" . $className . ".lua";
 	$root = realpath(__DIR__ . "/../../..");
 	$absolute = $root . "/" . $relative;
+	$resolved = resolve_existing_path_case_insensitive($absolute);
 
 	if(file_exists($absolute)) return array("status" => "ok", "label" => "Base Lua present", "path" => $relative);
+	if($resolved !== null) return array("status" => "ok", "label" => "Base Lua present", "path" => relative_repo_path($root, $resolved));
 	return array("status" => "missing", "label" => "Base Lua missing", "path" => $relative);
 }
 
@@ -49,13 +116,16 @@ function readiness($row, $script)
 	$hasPool = $row["poolId"] !== null;
 	$hasGroup = intval($row["groupCount"] ?? 0) > 0;
 	$hasSpawn = intval($row["spawnCount"] ?? 0) > 0;
+	$hasPresentation = intval($row["propertyFlags"] ?? 0) !== 0 && trim((string)($row["eventConditions"] ?? "")) !== "" && trim((string)($row["eventConditions"] ?? "")) !== "{}";
 
-	if($hasClassPath && $hasAppearance && $script["status"] === "ok" && $hasPool && $hasGroup && $hasSpawn)
+	if($hasClassPath && $hasAppearance && $script["status"] === "ok" && $hasPresentation && $hasPool && $hasGroup && $hasSpawn)
 		return array("ok", "Restorable");
 	if($hasAppearance && !$hasClassPath)
 		return array("blocked", "Appearance-only");
 	if($hasClassPath && $hasAppearance && $script["status"] !== "ok")
 		return array("warn", "Needs base Lua");
+	if($hasClassPath && $hasAppearance && !$hasPresentation)
+		return array("warn", "Needs presentation");
 	if($hasClassPath && $hasAppearance)
 		return array("warn", "Needs spawn data");
 	return array("blocked", "Incomplete");
@@ -337,12 +407,18 @@ $stats = array();
 $hasAppearanceAudit = false;
 $hasClientDecode = false;
 $hasClientDisplayNames = false;
+$hasRestorationEvidence = false;
+$hasSkillList = false;
+$hasSpellList = false;
 
 if($db !== null)
 {
 	$hasAppearanceAudit = table_exists($db, "server_battlenpc_appearance_audit");
 	$hasClientDecode = table_exists($db, "client_decoded_actor_class_stage") && table_exists($db, "client_decoded_actor_graphic_stage") && table_exists($db, "client_decode_import_batches");
 	$hasClientDisplayNames = table_exists($db, "client_decoded_display_name_stage");
+	$hasRestorationEvidence = table_exists($db, "server_battlenpc_restoration_evidence");
+	$hasSkillList = table_exists($db, "server_battlenpc_skill_list");
+	$hasSpellList = table_exists($db, "server_battlenpc_spell_list");
 
 	if($_SERVER["REQUEST_METHOD"] === "POST")
 	{
@@ -490,6 +566,7 @@ if($db !== null)
 		"spawns" => table_exists($db, "server_battlenpc_spawn_locations") ? scalar_query($db, "SELECT COUNT(*) FROM server_battlenpc_spawn_locations") : 0,
 		"pins" => table_exists($db, "server_battlenpc_spawn_audit_pins") ? scalar_query($db, "SELECT COUNT(*) FROM server_battlenpc_spawn_audit_pins") : 0,
 		"appearance_audits" => $hasAppearanceAudit ? scalar_query($db, "SELECT COUNT(*) FROM server_battlenpc_appearance_audit") : 0,
+		"restoration_evidence" => $hasRestorationEvidence ? scalar_query($db, "SELECT COUNT(*) FROM server_battlenpc_restoration_evidence") : 0,
 		"client_classes" => $hasClientDecode ? scalar_query($db, "SELECT COUNT(*) FROM client_decoded_actor_class_stage") : 0,
 		"client_graphics" => $hasClientDecode ? scalar_query($db, "SELECT COUNT(*) FROM client_decoded_actor_graphic_stage") : 0,
 		"client_names" => $hasClientDisplayNames ? scalar_query($db, "SELECT COUNT(*) FROM client_decoded_display_name_stage") : 0,
@@ -548,12 +625,28 @@ if($db !== null)
 	$nameJoin = $hasClientDisplayNames
 		? "LEFT JOIN client_decoded_display_name_stage dn ON dn.id = ac.displayNameId"
 		: "";
+	$actionSelect = "
+			" . ($hasSkillList ? "(SELECT COUNT(*) FROM server_battlenpc_skill_list skl WHERE skl.skillListId = p.skillListId)" : "0") . " AS skillCount,
+			" . ($hasSpellList ? "(SELECT COUNT(*) FROM server_battlenpc_spell_list spl WHERE spl.spellListId = p.spellListId)" : "0") . " AS spellCount,";
+	$evidenceSelect = $hasRestorationEvidence
+		? "
+			(SELECT COUNT(*) FROM server_battlenpc_restoration_evidence ev WHERE ev.subjectType = 'actorClass' AND ev.subjectId = ac.id) AS actorEvidenceCount,
+			(SELECT GROUP_CONCAT(DISTINCT ev.evidenceStatus ORDER BY ev.evidenceStatus SEPARATOR ', ') FROM server_battlenpc_restoration_evidence ev WHERE ev.subjectType = 'actorClass' AND ev.subjectId = ac.id) AS actorEvidenceStatus,
+			(SELECT COUNT(*) FROM server_battlenpc_restoration_evidence ev WHERE ev.subjectType = 'pool' AND ev.subjectId = p.poolId) AS poolEvidenceCount,
+			(SELECT GROUP_CONCAT(DISTINCT ev.evidenceStatus ORDER BY ev.evidenceStatus SEPARATOR ', ') FROM server_battlenpc_restoration_evidence ev WHERE ev.subjectType = 'pool' AND ev.subjectId = p.poolId) AS poolEvidenceStatus,"
+		: "
+			0 AS actorEvidenceCount,
+			NULL AS actorEvidenceStatus,
+			0 AS poolEvidenceCount,
+			NULL AS poolEvidenceStatus,";
 	$whereSql = count($where) > 0 ? "WHERE " . implode(" AND ", $where) : "";
 	$sql = "
 		SELECT
 			ac.id AS actorClassId,
 			ac.classPath,
 			ac.displayNameId,
+			ac.propertyFlags,
+			ac.eventConditions,
 			$nameSelect
 			aa.base,
 			aa.size,
@@ -561,6 +654,10 @@ if($db !== null)
 			p.poolId,
 			p.name AS poolName,
 			p.genusId,
+			p.skillListId,
+			p.spellListId,
+			$actionSelect
+			$evidenceSelect
 			g.name AS genusName,
 			(SELECT COUNT(*) FROM server_battlenpc_groups bg WHERE bg.poolId = p.poolId) AS groupCount,
 			(SELECT COUNT(*) FROM server_battlenpc_spawn_locations sl INNER JOIN server_battlenpc_groups sg ON sg.groupId = sl.groupId WHERE sg.poolId = p.poolId) AS spawnCount,
@@ -1058,8 +1155,9 @@ if($db !== null)
 								<th>Status</th>
 								<th>Actor</th>
 								<th>Appearance</th>
-								<th>Pool</th>
-								<th>Script</th>
+								<th>Presentation</th>
+								<th>Pool / Actions</th>
+								<th>Script / Evidence</th>
 								<th>Preview</th>
 							</tr>
 						</thead>
@@ -1090,17 +1188,35 @@ if($db !== null)
 									<?php } ?>
 								</td>
 								<td>
+									flags <code><?php echo h($row["propertyFlags"]); ?></code><br>
+									<?php
+										$eventText = trim((string)($row["eventConditions"] ?? ""));
+										$hasEvents = $eventText !== "" && $eventText !== "{}";
+										echo $hasEvents ? badge("ok", "events") : badge("warn", "no events");
+									?><br>
+									<span class="path"><?php echo h($hasEvents ? substr($eventText, 0, 80) : "missing eventConditions"); ?></span>
+								</td>
+								<td>
 									<?php if($row["poolId"] !== null) { ?>
 										<strong><?php echo h($row["poolName"]); ?></strong><br>
 										pool <code><?php echo h($row["poolId"]); ?></code> genus <code><?php echo h($row["genusId"]); ?></code><br>
-										<span class="path"><?php echo h($row["genusName"]); ?>, groups <?php echo h($row["groupCount"]); ?>, spawns <?php echo h($row["spawnCount"]); ?>, zones <?php echo h($row["zones"] ?? ""); ?></span>
+										<span class="path"><?php echo h($row["genusName"]); ?>, groups <?php echo h($row["groupCount"]); ?>, spawns <?php echo h($row["spawnCount"]); ?>, zones <?php echo h($row["zones"] ?? ""); ?></span><br>
+										<span class="path">skills <?php echo h($row["skillListId"]); ?> (<?php echo h($row["skillCount"]); ?>), spells <?php echo h($row["spellListId"]); ?> (<?php echo h($row["spellCount"]); ?>)</span>
 									<?php } else { ?>
 										<?php echo badge("soft", "no pool"); ?>
 									<?php } ?>
 								</td>
 								<td>
 									<?php echo badge($script["status"] === "ok" ? "ok" : ($script["status"] === "missing" ? "warn" : "blocked"), $script["label"]); ?><br>
-									<?php if($script["path"] !== "") { ?><span class="path"><?php echo h($script["path"]); ?></span><?php } ?>
+									<?php if($script["path"] !== "") { ?><span class="path"><?php echo h($script["path"]); ?></span><br><?php } ?>
+									<?php
+										$actorEvidence = intval($row["actorEvidenceCount"] ?? 0);
+										$poolEvidence = intval($row["poolEvidenceCount"] ?? 0);
+										echo $actorEvidence > 0 ? badge("ok", "actor evidence " . $actorEvidence) : badge("soft", "no actor evidence");
+									?><br>
+									<span class="path"><?php echo h($row["actorEvidenceStatus"] ?? ""); ?></span><br>
+									<?php echo $poolEvidence > 0 ? badge("ok", "pool evidence " . $poolEvidence) : badge("soft", "no pool evidence"); ?><br>
+									<span class="path"><?php echo h($row["poolEvidenceStatus"] ?? ""); ?></span>
 								</td>
 								<td>
 									<?php if($row["base"] !== null) { ?>

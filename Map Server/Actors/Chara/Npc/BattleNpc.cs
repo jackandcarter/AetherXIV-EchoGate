@@ -85,6 +85,25 @@ namespace AetherXIV.Core.Map.Actors
 
             despawnTime = 10;
             CalculateBaseStats();
+
+            bool hasEventConditions = !String.IsNullOrWhiteSpace(actorClass.eventConditions) && actorClass.eventConditions.Trim() != "{}";
+            DevDiagnostics.Trace(
+                "battle.npc.presentation",
+                "actor", String.Format("0x{0:X}", actorId),
+                "actorType", GetType().Name,
+                "uniqueId", GetUniqueId(),
+                "actorClassId", GetActorClassId(),
+                "classPath", classPath,
+                "className", className,
+                "displayNameId", displayNameId,
+                "hasCustomDisplayName", !String.IsNullOrWhiteSpace(customDisplayName),
+                "propertyFlags", actorClass.propertyFlags,
+                "property0", charaWork.property[0],
+                "property1", charaWork.property[1],
+                "property2", charaWork.property[2],
+                "property4", charaWork.property[4],
+                "hasEventConditions", hasEventConditions,
+                "presentationComplete", actorClass.propertyFlags != 0 && hasEventConditions);
         }
 
         public override List<SubPacket> GetSpawnPackets(Player player, ushort spawnType)

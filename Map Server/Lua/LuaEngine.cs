@@ -199,6 +199,7 @@ namespace AetherXIV.Core.Map.lua
                     path = String.Format("./scripts/unique/{0}/{1}/{2}.lua", actor.zone.zoneName, actor is BattleNpc ? "Monster" : "PopulaceStandard", ((Npc)actor).GetUniqueId());
             }
             // dont wanna throw an error if file doesnt exist
+            path = ResolveExistingPath(path);
             if (File.Exists(path))
             {
                 var script = LoadGlobals();
@@ -465,6 +466,67 @@ namespace AetherXIV.Core.Map.lua
                 return "";
         }
 
+        public static string ResolveExistingPath(string requestedPath)
+        {
+            if (String.IsNullOrWhiteSpace(requestedPath))
+                return requestedPath;
+
+            if (File.Exists(requestedPath) || Directory.Exists(requestedPath))
+                return requestedPath;
+
+            string fullPath;
+            try
+            {
+                fullPath = Path.GetFullPath(requestedPath);
+            }
+            catch
+            {
+                return requestedPath;
+            }
+
+            string root = Path.GetPathRoot(fullPath);
+            string current = String.IsNullOrEmpty(root) ? Directory.GetCurrentDirectory() : root;
+            string remainder = fullPath.Substring(current.Length).TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            string[] parts = remainder.Split(new char[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar }, StringSplitOptions.RemoveEmptyEntries);
+
+            foreach (string part in parts)
+            {
+                string direct = Path.Combine(current, part);
+                if (File.Exists(direct) || Directory.Exists(direct))
+                {
+                    current = direct;
+                    continue;
+                }
+
+                if (!Directory.Exists(current))
+                    return requestedPath;
+
+                string match = null;
+                try
+                {
+                    foreach (string entry in Directory.GetFileSystemEntries(current))
+                    {
+                        if (String.Equals(Path.GetFileName(entry), part, StringComparison.OrdinalIgnoreCase))
+                        {
+                            match = entry;
+                            break;
+                        }
+                    }
+                }
+                catch
+                {
+                    return requestedPath;
+                }
+
+                if (match == null)
+                    return requestedPath;
+
+                current = match;
+            }
+
+            return current;
+        }
+
         private List<LuaParam> CallLuaFunctionNpcForReturn(Player player, Npc target, string funcName, bool optional, params object[] args)
         {
             object[] args2 = new object[args.Length + (player == null ? 1 : 2)];
@@ -478,8 +540,10 @@ namespace AetherXIV.Core.Map.lua
                 args2[0] = target;
 
             LuaScript parent = null, child = null;
-            string parentPath = "./scripts/base/" + target.classPath + ".lua";
+            string parentRequestedPath = "./scripts/base/" + target.classPath + ".lua";
+            string parentPath = ResolveExistingPath(parentRequestedPath);
             string childPath = null;
+            string childRequestedPath = null;
 
             if (File.Exists(parentPath))
                 parent = LuaEngine.LoadScript(parentPath);
@@ -487,13 +551,15 @@ namespace AetherXIV.Core.Map.lua
             Area area = target.zone;
             if (area is PrivateArea)
             {
-                childPath = String.Format("./scripts/unique/{0}/PrivateArea/{1}_{2}/{3}/{4}.lua", area.zoneName, ((PrivateArea)area).GetPrivateAreaName(), ((PrivateArea)area).GetPrivateAreaType(), target.className, target.GetUniqueId());
+                childRequestedPath = String.Format("./scripts/unique/{0}/PrivateArea/{1}_{2}/{3}/{4}.lua", area.zoneName, ((PrivateArea)area).GetPrivateAreaName(), ((PrivateArea)area).GetPrivateAreaType(), target.className, target.GetUniqueId());
+                childPath = ResolveExistingPath(childRequestedPath);
                 if (File.Exists(childPath))
                     child = LuaEngine.LoadScript(childPath);
             }
             else
             {
-                childPath = String.Format("./scripts/unique/{0}/{1}/{2}.lua", area.zoneName, target.className, target.GetUniqueId());
+                childRequestedPath = String.Format("./scripts/unique/{0}/{1}/{2}.lua", area.zoneName, target.className, target.GetUniqueId());
+                childPath = ResolveExistingPath(childRequestedPath);
                 if (File.Exists(childPath))
                     child = LuaEngine.LoadScript(childPath);
             }
@@ -506,8 +572,10 @@ namespace AetherXIV.Core.Map.lua
                 "className", target.className,
                 "classPath", target.classPath,
                 "function", funcName,
+                "parentRequestedPath", parentRequestedPath,
                 "parentPath", parentPath,
                 "parentExists", parent != null,
+                "childRequestedPath", childRequestedPath,
                 "childPath", childPath,
                 "childExists", child != null,
                 "resolved", parent != null || child != null);
@@ -544,8 +612,10 @@ namespace AetherXIV.Core.Map.lua
                 args2[0] = target;
 
             LuaScript parent = null, child = null;
-            string parentPath = "./scripts/base/" + target.classPath + ".lua";
+            string parentRequestedPath = "./scripts/base/" + target.classPath + ".lua";
+            string parentPath = ResolveExistingPath(parentRequestedPath);
             string childPath = null;
+            string childRequestedPath = null;
 
             if (File.Exists(parentPath))
                 parent = LuaEngine.LoadScript(parentPath);
@@ -553,13 +623,15 @@ namespace AetherXIV.Core.Map.lua
             Area area = target.zone;
             if (area is PrivateArea)
             {
-                childPath = String.Format("./scripts/unique/{0}/PrivateArea/{1}_{2}/{3}/{4}.lua", area.zoneName, ((PrivateArea)area).GetPrivateAreaName(), ((PrivateArea)area).GetPrivateAreaType(), target.className, target.GetUniqueId());
+                childRequestedPath = String.Format("./scripts/unique/{0}/PrivateArea/{1}_{2}/{3}/{4}.lua", area.zoneName, ((PrivateArea)area).GetPrivateAreaName(), ((PrivateArea)area).GetPrivateAreaType(), target.className, target.GetUniqueId());
+                childPath = ResolveExistingPath(childRequestedPath);
                 if (File.Exists(childPath))
                     child = LuaEngine.LoadScript(childPath);
             }
             else
             {
-                childPath = String.Format("./scripts/unique/{0}/{1}/{2}.lua", area.zoneName, target.className, target.GetUniqueId());
+                childRequestedPath = String.Format("./scripts/unique/{0}/{1}/{2}.lua", area.zoneName, target.className, target.GetUniqueId());
+                childPath = ResolveExistingPath(childRequestedPath);
                 if (File.Exists(childPath))
                     child = LuaEngine.LoadScript(childPath);
             }
@@ -572,8 +644,10 @@ namespace AetherXIV.Core.Map.lua
                 "className", target.className,
                 "classPath", target.classPath,
                 "function", funcName,
+                "parentRequestedPath", parentRequestedPath,
                 "parentPath", parentPath,
                 "parentExists", parent != null,
+                "childRequestedPath", childRequestedPath,
                 "childPath", childPath,
                 "childExists", child != null,
                 "resolved", parent != null || child != null);

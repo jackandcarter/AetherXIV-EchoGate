@@ -533,6 +533,33 @@ namespace AetherXIV.Core.Map
                                 battleNpc.CalculateBaseStats();
                                 battleNpc.RecalculateStats();
 
+                                DevDiagnostics.Trace(
+                                    "battle.npc.load",
+                                    "loadPath", "startup",
+                                    "actor", String.Format("0x{0:X}", battleNpc.actorId),
+                                    "actorName", battleNpc.customDisplayName != null ? battleNpc.customDisplayName : battleNpc.actorName,
+                                    "uniqueId", battleNpc.GetUniqueId(),
+                                    "bnpcId", battleNpc.GetBattleNpcId(),
+                                    "actorClassId", reader.GetUInt32("actorClassId"),
+                                    "poolId", battleNpc.poolId,
+                                    "genusId", battleNpc.genusId,
+                                    "groupId", reader.GetUInt32("groupId"),
+                                    "scriptName", reader.GetString("scriptName"),
+                                    "zone", zonePair.Key,
+                                    "spawnType", battleNpc.npcSpawnType.ToString(),
+                                    "respawnTime", battleNpc.GetRespawnTime(),
+                                    "level", battleNpc.GetLevel(),
+                                    "neutral", battleNpc.neutral,
+                                    "detection", battleNpc.GetDetectionType(),
+                                    "kindred", battleNpc.kindredType.ToString(),
+                                    "skillListId", battleNpc.skillListId,
+                                    "skillCount", battleNpc.skillList.Count,
+                                    "spellListId", battleNpc.spellListId,
+                                    "spellCount", battleNpc.spellList.Count,
+                                    "x", battleNpc.positionX,
+                                    "y", battleNpc.positionY,
+                                    "z", battleNpc.positionZ);
+
                                 //battleNpc.SetMod((uint)Modifier.ResistFire, )
 
                                 // todo: this is dumb
@@ -672,6 +699,32 @@ namespace AetherXIV.Core.Map
                             battleNpc.SetRespawnTime(reader.GetUInt32("respawnTime"));
                             battleNpc.CalculateBaseStats();
                             battleNpc.RecalculateStats();
+                            DevDiagnostics.Trace(
+                                "battle.npc.load",
+                                "loadPath", "direct",
+                                "actor", String.Format("0x{0:X}", battleNpc.actorId),
+                                "actorName", battleNpc.customDisplayName != null ? battleNpc.customDisplayName : battleNpc.actorName,
+                                "uniqueId", battleNpc.GetUniqueId(),
+                                "bnpcId", battleNpc.GetBattleNpcId(),
+                                "actorClassId", reader.GetUInt32("actorClassId"),
+                                "poolId", battleNpc.poolId,
+                                "genusId", battleNpc.genusId,
+                                "groupId", reader.GetUInt32("groupId"),
+                                "scriptName", reader.GetString("scriptName"),
+                                "zone", reader.GetUInt16("zoneId"),
+                                "spawnType", battleNpc.npcSpawnType.ToString(),
+                                "respawnTime", battleNpc.GetRespawnTime(),
+                                "level", battleNpc.GetLevel(),
+                                "neutral", battleNpc.neutral,
+                                "detection", battleNpc.GetDetectionType(),
+                                "kindred", battleNpc.kindredType.ToString(),
+                                "skillListId", battleNpc.skillListId,
+                                "skillCount", battleNpc.skillList.Count,
+                                "spellListId", battleNpc.spellListId,
+                                "spellCount", battleNpc.spellList.Count,
+                                "x", battleNpc.positionX,
+                                "y", battleNpc.positionY,
+                                "z", battleNpc.positionZ);
                             //battleNpc.SetMod((uint)Modifier.ResistFire, )
                             bnpc = battleNpc;
                             area.AddActorToZone(battleNpc);

@@ -27,6 +27,13 @@ Current durable battle NPC rows load from:
 
 The seed SQL currently has only a small set of battle NPC spawn rows. The known useful combat fixture is Central Thanalan zone `170`, where group `1` uses pool `1`, script `wharf_rat`, and actor class `2104001`. In live testing this accepted targeting, auto-attack, EXP, death, despawn, and respawn.
 
+The first restoration milestone adds a provisional Central Thanalan pack through
+`20260701_central_thanalan_restoration_pack.sql`. It keeps the existing Desert
+Rat fixture, promotes presentation data only for known nonblank class-path rows
+that were live-previewed, and adds durable Antelope Doe / Aldgoat Nanny battle
+NPC rows around a traced zone `170` field position. These rows are still
+provisional placement data, not canonical retail coordinates.
+
 See [Zones and Spawns](zones-and-spawns.md) for the durable data model.
 
 ## Enemy Restoration Evidence
@@ -42,6 +49,8 @@ Current findings:
 - `Client-confirmed / Repo-confirmed`: the `rq9q1797qvs.san` / `staticactors.bin` path currently used by the map server contains static actor command/path entries. The current parser reads IDs and path strings, not battle NPC coordinates. It should not be cited as proof of monster spawn positions.
 - `Repo-confirmed`: `staticactors.bin` includes monster command paths such as monster range attacks, weaponskills, and abilities. These are useful leads for command/action mapping, but not complete enemy AI tables by themselves.
 - `Trace-confirmed`: the client accepted the current Central Thanalan test battle NPC lifecycle after the respawn parity fixes: target, attack, kill, despawn, respawn, and retarget.
+- `Trace-confirmed`: `2100301` resolved `SerowFemaleStandard` base Lua and `2102305` resolved `YakFemaleStandard` base Lua in zone `170` live tests.
+- `Provisional`: `server_battlenpc_restoration_evidence` records the evidence status for restored actor, pool, and spawn rows. Runtime loaders do not read this table.
 
 Promotion rules for real enemy data:
 
